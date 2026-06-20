@@ -30,3 +30,4 @@ export * from "./remove-unique-constraint";
 export * from "./add-index";
 export * from "./update-index";
 export * from "./remove-index";
+export * from "./update-table-node-position";

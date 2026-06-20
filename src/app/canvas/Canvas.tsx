@@ -6,15 +6,17 @@ import {
     useEdgesState,
     useNodesState,
 } from "@xyflow/react";
-
+import { downloadFile } from "../download-file";
 import { DatabaseTableNode } from "./DatabaseTableNode";
 import {
     mapProjectToFlow,
     mapProjectToFlowEdges,
 } from "./mapProjectToFlow";
-import { createEmptyProject } from "../../core/model";
-import { useEffect } from "react";
-
+import {
+    createEmptyProject,
+    updateTableNodePosition,
+} from "../../core/model";
+import { useEffect, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import "./Canvas.css";
 
@@ -23,23 +25,49 @@ const nodeTypes = {
 };
 
 const initialProject = createEmptyProject();
-const initialFlow = mapProjectToFlow(initialProject);
 
 export function Canvas() {
-    const [nodes, , onNodesChange] = useNodesState(initialFlow.nodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState(initialFlow.edges);
+    const [project, setProject] = useState(initialProject);
+    const [nodes, , onNodesChange] = useNodesState(
+        mapProjectToFlow(project).nodes
+    );
+    const [edges, setEdges, onEdgesChange] = useEdgesState(
+        mapProjectToFlow(project).edges
+    );
 
     useEffect(() => {
-        setEdges(mapProjectToFlowEdges(initialProject, nodes));
-    }, [nodes, setEdges]);
+        setEdges(mapProjectToFlowEdges(project, nodes));
+    }, [project, nodes, setEdges]);
+
+    const handleNodeDragStop = (
+        _: unknown,
+        node: { id: string; position: { x: number; y: number } }
+    ) => {
+        setProject((currentProject) =>
+            updateTableNodePosition(currentProject, node.id, {
+                x: node.position.x,
+                y: node.position.y,
+            })
+        );
+    };
+
+    const handleDownloadJson = () => {
+        const json = JSON.stringify(project, null, 2);
+
+        downloadFile("canvas-project.json", json, "application/json");
+    };
 
     return (
         <div className="canvas-page">
+            <button className="canvas-download-button" onClick={handleDownloadJson}>
+                Download JSON
+            </button>
             <ReactFlow
                 className="canvas-flow"
                 nodes={nodes}
                 edges={edges}
                 nodeTypes={nodeTypes}
+                onNodeDragStop={handleNodeDragStop}
                 defaultEdgeOptions={{
                     type: "smoothstep",
                     style: {
