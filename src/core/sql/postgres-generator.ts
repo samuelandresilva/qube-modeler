@@ -8,6 +8,7 @@ import type {
     DatabaseUniqueConstraint,
     DatabaseIndex,
 } from "../model/database-project";
+import { supportsScale, supportsSize } from "./postgres-column-types";
 
 export function generatePostgresSql(project: DatabaseProject): string {
     return project.schemas
@@ -78,11 +79,31 @@ function generateTableSql(
     ].join("\n");
 }
 
+function generateColumnTypeSql(column: DatabaseColumn): string {
+    if (supportsScale(column.type)) {
+        if (typeof column.size === "number" && typeof column.scale === "number") {
+            return `${column.type}(${column.size},${column.scale})`;
+        }
+
+        return column.type;
+    }
+
+    if (supportsSize(column.type)) {
+        if (typeof column.size === "number") {
+            return `${column.type}(${column.size})`;
+        }
+
+        return column.type;
+    }
+
+    return column.type;
+}
+
 function generateColumnSql(
     schema: DatabaseSchema,
     column: DatabaseColumn
 ): string {
-    const parts = [`    ${column.name}`, column.type];
+    const parts = [`    ${column.name} ${generateColumnTypeSql(column)}`];
 
     if (!column.nullable) {
         parts.push("NOT NULL");

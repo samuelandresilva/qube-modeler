@@ -10,6 +10,10 @@ export function removeSchema(
         return project;
     }
 
+    const removedTableIds = new Set(
+        schemaToRemove.tables.map((table) => table.id)
+    );
+
     return {
         ...project,
         schemas: project.schemas
@@ -26,5 +30,11 @@ export function removeSchema(
                     }),
                 })),
             })),
+        diagram: {
+            ...project.diagram,
+            tableNodes: project.diagram.tableNodes.filter(
+                (tableNode) => !removedTableIds.has(tableNode.tableId)
+            ),
+        },
     };
 }

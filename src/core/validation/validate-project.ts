@@ -1,5 +1,10 @@
 import type { DatabaseProject } from "../model";
 import { POSTGRES_RESERVED_WORDS } from "../sql/postgres-reserved-words";
+import {
+    isPostgresColumnType,
+    supportsScale,
+    supportsSize,
+} from "../sql/postgres-column-types";
 
 const FOREIGN_KEY_ACTIONS = ["NO ACTION", "CASCADE", "RESTRICT", "SET NULL"];
 
@@ -27,6 +32,8 @@ export function validateProject(project: unknown): DatabaseProject {
     for (const schema of project.schemas) {
         validateSchema(schema, project.schemas);
     }
+
+    validateDiagram(project);
 
     return project as unknown as DatabaseProject;
 }
@@ -388,6 +395,14 @@ function validateColumn(
     validateSqlIdentifier(column.name, `Column name in table "${tableName}"`);
     validateRequiredString(column.type, `Column type for column "${column.name}"`);
 
+    if (!isPostgresColumnType(column.type)) {
+        throw new Error(
+            `Column "${column.name}" type "${column.type}" is not supported.`
+        );
+    }
+
+    validateColumnSizeAndScale(column);
+
     if (typeof column.nullable !== "boolean") {
         throw new Error(`Column "${column.name}" nullable must be boolean.`);
     }
@@ -445,6 +460,43 @@ function validateColumn(
                 `Column "${column.name}" references missing sequence "${column.sequenceName}".`
             );
         }
+    }
+}
+
+function validateColumnSizeAndScale(column: Record<string, unknown>) {
+    const name = column.name as string;
+    const type = column.type as string;
+
+    if (supportsSize(type)) {
+        if (typeof column.size !== "number") {
+            throw new Error(`Column "${name}" type "${type}" requires size.`);
+        }
+
+        if (!Number.isInteger(column.size) || column.size <= 0) {
+            throw new Error(`Column "${name}" size must be a positive integer.`);
+        }
+    } else if (column.size !== undefined) {
+        throw new Error(`Column "${name}" type "${type}" does not support size.`);
+    }
+
+    if (supportsScale(type)) {
+        if (typeof column.scale !== "number") {
+            throw new Error(`Column "${name}" type "${type}" requires scale.`);
+        }
+
+        if (!Number.isInteger(column.scale) || column.scale < 0) {
+            throw new Error(`Column "${name}" scale must be zero or a positive integer.`);
+        }
+
+        if (
+            typeof column.size === "number" &&
+            typeof column.scale === "number" &&
+            column.scale > column.size
+        ) {
+            throw new Error(`Column "${name}" scale cannot be greater than size.`);
+        }
+    } else if (column.scale !== undefined) {
+        throw new Error(`Column "${name}" type "${type}" does not support scale.`);
     }
 }
 
@@ -612,6 +664,80 @@ function validateTargetTableIsPartOfKnownSchemas(
         throw new Error(
             `Foreign key "${foreignKey.name}" references invalid target table.`
         );
+    }
+}
+
+function validateDiagram(project: Record<string, unknown>) {
+    const diagram = project.diagram;
+
+    if (!isObject(diagram)) {
+        throw new Error("Project diagram is required.");
+    }
+
+    const tableNodes = diagram.tableNodes;
+
+    if (!Array.isArray(tableNodes)) {
+        throw new Error("Project diagram tableNodes must be an array.");
+    }
+
+    const schemas = project.schemas as Array<{
+        tables: Array<{
+            id: string;
+        }>;
+    }>;
+
+    const tableIds = new Set<string>();
+
+    for (const schema of schemas) {
+        for (const table of schema.tables) {
+            tableIds.add(table.id);
+        }
+    }
+
+    const diagramTableIds = new Set<string>();
+
+    for (const tableNode of tableNodes) {
+        if (!isObject(tableNode)) {
+            throw new Error("Project diagram table node must be an object.");
+        }
+
+        validateRequiredString(tableNode.tableId, "Diagram table node tableId");
+
+        const tableId = tableNode.tableId as string;
+
+        if (!tableIds.has(tableId)) {
+            throw new Error(
+                `Diagram table node references unknown table id "${tableId}".`
+            );
+        }
+
+        if (diagramTableIds.has(tableId)) {
+            throw new Error(
+                `Diagram table node for table id "${tableId}" is duplicated.`
+            );
+        }
+
+        diagramTableIds.add(tableId);
+
+        const position = tableNode.position;
+
+        if (!isObject(position)) {
+            throw new Error(
+                `Diagram table node "${tableId}" position is required.`
+            );
+        }
+
+        if (typeof position.x !== "number") {
+            throw new Error(
+                `Diagram table node "${tableId}" position x must be a number.`
+            );
+        }
+
+        if (typeof position.y !== "number") {
+            throw new Error(
+                `Diagram table node "${tableId}" position y must be a number.`
+            );
+        }
     }
 }
 

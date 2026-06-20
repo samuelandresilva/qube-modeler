@@ -28,7 +28,8 @@ export function addColumn(
                             {
                                 id: crypto.randomUUID(),
                                 name: `column_${nextColumnNumber}`,
-                                type: "varchar(255)",
+                                type: "varchar",
+                                size: 255,
                                 nullable: true,
                                 primaryKey: false,
                             },

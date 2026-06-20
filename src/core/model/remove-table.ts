@@ -29,5 +29,11 @@ export function removeTable(
                     }),
                 })),
         })),
+        diagram: {
+            ...project.diagram,
+            tableNodes: project.diagram.tableNodes.filter(
+                (tableNode) => tableNode.tableId !== tableId
+            ),
+        },
     };
 }

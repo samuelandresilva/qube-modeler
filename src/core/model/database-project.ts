@@ -1,3 +1,5 @@
+import type { DatabaseDiagram } from "../diagram";
+
 export type DatabaseEngine = "postgresql";
 
 export interface DatabaseProject {
@@ -5,6 +7,7 @@ export interface DatabaseProject {
     name: string;
     engine: DatabaseEngine;
     schemas: DatabaseSchema[];
+    diagram: DatabaseDiagram;
 }
 
 export interface DatabaseSchema {
@@ -34,6 +37,8 @@ export interface DatabaseColumn {
     id: string;
     name: string;
     type: string;
+    size?: number;
+    scale?: number;
     nullable: boolean;
     primaryKey: boolean;
     defaultValue?: string;

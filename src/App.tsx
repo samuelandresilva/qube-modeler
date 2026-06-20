@@ -29,6 +29,13 @@ import {
 import { generatePostgresSql } from "./core/sql/postgres-generator";
 import { validateProject } from "./core/validation/validate-project";
 import { MultiColumnSelect } from "./app/MultiColumnSelect";
+import {
+  getDefaultScale,
+  getDefaultSize,
+  POSTGRES_COLUMN_TYPES,
+  supportsScale,
+  supportsSize,
+} from "./core/sql/postgres-column-types";
 import "./App.css";
 
 export default function App() {
@@ -639,9 +646,42 @@ export default function App() {
 
                               <div className="form-group">
                                 <label>Column type</label>
-                                <input
-                                  type="text"
+                                <select
                                   value={column.type}
+                                  onChange={(event) => {
+                                    const nextType = event.target.value;
+
+                                    setProject(
+                                      updateColumn(
+                                        project,
+                                        schema.id,
+                                        table.id,
+                                        column.id,
+                                        (currentColumn) => ({
+                                          ...currentColumn,
+                                          type: nextType,
+                                          size: getDefaultSize(nextType),
+                                          scale: getDefaultScale(nextType),
+                                        })
+                                      )
+                                    );
+                                  }}
+                                >
+                                  {POSTGRES_COLUMN_TYPES.map((type) => (
+                                    <option value={type} key={type}>
+                                      {type}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div className="form-group">
+                                <label>Size</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={column.size ?? ""}
+                                  disabled={!supportsSize(column.type)}
                                   onChange={(event) =>
                                     setProject(
                                       updateColumn(
@@ -651,7 +691,37 @@ export default function App() {
                                         column.id,
                                         (currentColumn) => ({
                                           ...currentColumn,
-                                          type: event.target.value,
+                                          size:
+                                            event.target.value === ""
+                                              ? undefined
+                                              : Number(event.target.value),
+                                        })
+                                      )
+                                    )
+                                  }
+                                />
+                              </div>
+
+                              <div className="form-group">
+                                <label>Scale</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={column.scale ?? ""}
+                                  disabled={!supportsScale(column.type)}
+                                  onChange={(event) =>
+                                    setProject(
+                                      updateColumn(
+                                        project,
+                                        schema.id,
+                                        table.id,
+                                        column.id,
+                                        (currentColumn) => ({
+                                          ...currentColumn,
+                                          scale:
+                                            event.target.value === ""
+                                              ? undefined
+                                              : Number(event.target.value),
                                         })
                                       )
                                     )
