@@ -13,12 +13,12 @@ import {
     updateTableNodePosition
 } from "../../core/model";
 import "./Canvas.css";
+import { CanvasInspector } from "./CanvasInspector";
 import { DatabaseTableNode } from "./DatabaseTableNode";
 import {
     mapProjectToFlow,
     mapProjectToFlowEdges,
 } from "./mapProjectToFlow";
-import { generatePostgresColumnTypeSql } from "../../core/sql";
 
 type CanvasProps = {
     project: DatabaseProject;
@@ -61,102 +61,10 @@ export function Canvas({ project, setProject }: CanvasProps) {
     return (
         <div className="canvas-page">
             {selectedTable && (
-                <aside className="canvas-inspector">
-                    <div className="canvas-inspector__header">
-                        <span>Table</span>
-                        <button onClick={() => setSelectedTableId(null)}>×</button>
-                    </div>
-
-                    <strong>{selectedTable.name}</strong>
-
-                    <p>
-                        {selectedTable.columns.length} columns ·{" "}
-                        {selectedTable.foreignKeys.length} foreign keys
-                    </p>
-
-                    <div className="canvas-inspector__section">
-                        <span className="canvas-inspector__section-title">Columns</span>
-
-                        <div className="canvas-inspector__columns">
-                            {selectedTable.columns.map((column) => (
-                                <div className="canvas-inspector__column" key={column.id}>
-                                    <span>
-                                        {column.primaryKey ? "🔑 " : ""}
-                                        {column.name}
-                                    </span>
-
-                                    <small>{generatePostgresColumnTypeSql(column)}</small>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="canvas-inspector__section">
-                        <span className="canvas-inspector__section-title">Foreign keys</span>
-
-                        <div className="canvas-inspector__columns">
-                            {selectedTable.foreignKeys.length === 0 ? (
-                                <p className="canvas-inspector__empty">No foreign keys.</p>
-                            ) : (
-                                selectedTable.foreignKeys.map((foreignKey) => (
-                                    <div className="canvas-inspector__column" key={foreignKey.id}>
-                                        <span>{foreignKey.name}</span>
-
-                                        <small>
-                                            {foreignKey.sourceColumns.join(", ")} →{" "}
-                                            {foreignKey.targetTable}.
-                                            {foreignKey.targetColumns.join(", ")}
-                                        </small>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="canvas-inspector__section">
-                        <span className="canvas-inspector__section-title">Unique constraints</span>
-
-                        <div className="canvas-inspector__columns">
-                            {selectedTable.uniqueConstraints.length === 0 ? (
-                                <p className="canvas-inspector__empty">No unique constraints.</p>
-                            ) : (
-                                selectedTable.uniqueConstraints.map((uniqueConstraint) => (
-                                    <div
-                                        className="canvas-inspector__column"
-                                        key={uniqueConstraint.id}
-                                    >
-                                        <span>{uniqueConstraint.name}</span>
-
-                                        <small>
-                                            {uniqueConstraint.columns.join(", ")}
-                                        </small>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="canvas-inspector__section">
-                        <span className="canvas-inspector__section-title">Indexes</span>
-
-                        <div className="canvas-inspector__columns">
-                            {selectedTable.indexes.length === 0 ? (
-                                <p className="canvas-inspector__empty">No indexes.</p>
-                            ) : (
-                                selectedTable.indexes.map((index) => (
-                                    <div className="canvas-inspector__column" key={index.id}>
-                                        <span>{index.name}</span>
-
-                                        <small>
-                                            {index.columns.join(", ")}
-                                        </small>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                </aside>
+                <CanvasInspector
+                    table={selectedTable}
+                    onClose={() => setSelectedTableId(null)}
+                />
             )}
             <ReactFlow
                 className="canvas-flow"
