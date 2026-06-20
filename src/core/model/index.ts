@@ -6,6 +6,8 @@ export type {
     DatabaseSchema,
     DatabaseSequence,
     DatabaseTable,
+    DatabaseUniqueConstraint,
+    DatabaseIndex,
 } from "./database-project";
 
 export * from "./create-empty-project";
