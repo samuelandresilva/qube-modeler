@@ -1,4 +1,5 @@
 import {
+    applyNodeChanges,
     Background,
     Controls,
     MiniMap,
@@ -12,6 +13,7 @@ import "@xyflow/react/dist/style.css";
 import { useEffect, useRef, useState } from "react";
 import type { DatabaseProject } from "../../core/model";
 import {
+    addTable,
     updateTableNodePosition
 } from "../../core/model";
 import "./Canvas.css";
@@ -50,12 +52,17 @@ function CanvasContent({ project, setProject }: CanvasProps) {
         });
     };
 
-    const [nodes, , onNodesChange] = useNodesState(
+    const [nodes, setNodes] = useNodesState(
         mapProjectToFlow(project).nodes
     );
+
     const [edges, setEdges, onEdgesChange] = useEdgesState(
         mapProjectToFlow(project).edges
     );
+
+    useEffect(() => {
+        setNodes(mapProjectToFlow(project).nodes);
+    }, [project, setNodes]);
 
     useEffect(() => {
         setEdges(mapProjectToFlowEdges(project, nodes));
@@ -78,10 +85,50 @@ function CanvasContent({ project, setProject }: CanvasProps) {
         .flatMap((schema) => schema.tables)
         .find((table) => table.id === selectedTableId);
 
+    const handleAddTable = () => {
+        const firstSchema = project.schemas[0];
+
+        if (!firstSchema) {
+            return;
+        }
+
+        const currentTableIds = new Set(
+            project.schemas.flatMap((schema) =>
+                schema.tables.map((table) => table.id)
+            )
+        );
+
+        const nextProject = addTable(project, firstSchema.id);
+
+        const newTable = nextProject.schemas
+            .flatMap((schema) => schema.tables)
+            .find((table) => !currentTableIds.has(table.id));
+
+        setProject(nextProject);
+
+        if (newTable) {
+            setSelectedTableId(newTable.id);
+        }
+
+        window.requestAnimationFrame(() => {
+            reactFlowInstanceRef.current?.fitView({
+                padding: 0.2,
+                duration: 300,
+            });
+        });
+    };
+
+    const handleNodesChange = (changes: Parameters<typeof applyNodeChanges>[0]) => {
+        setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
+    };
+
     return (
         <ReactFlowProvider>
             <div className="canvas-page">
-                <CanvasToolbar onFitView={handleFitView} />
+                <CanvasToolbar
+                    onFitView={handleFitView}
+                    onAddTable={handleAddTable}
+                />
                 {selectedTable && (
                     <CanvasInspector
                         table={selectedTable}
@@ -115,7 +162,7 @@ function CanvasContent({ project, setProject }: CanvasProps) {
                             fillOpacity: 0.9,
                         },
                     }}
-                    onNodesChange={onNodesChange}
+                    onNodesChange={handleNodesChange}
                     onEdgesChange={onEdgesChange}
                     nodesConnectable={false}
                     elementsSelectable
