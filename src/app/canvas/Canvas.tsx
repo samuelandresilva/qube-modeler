@@ -6,28 +6,29 @@ import {
     useEdgesState,
     useNodesState,
 } from "@xyflow/react";
-
+import "@xyflow/react/dist/style.css";
+import { useEffect } from "react";
+import type { DatabaseProject } from "../../core/model";
+import {
+    updateTableNodePosition
+} from "../../core/model";
+import "./Canvas.css";
 import { DatabaseTableNode } from "./DatabaseTableNode";
 import {
     mapProjectToFlow,
     mapProjectToFlowEdges,
 } from "./mapProjectToFlow";
-import {
-    createEmptyProject,
-    updateTableNodePosition,
-} from "../../core/model";
-import { useEffect, useState } from "react";
-import "@xyflow/react/dist/style.css";
-import "./Canvas.css";
+
+type CanvasProps = {
+    project: DatabaseProject;
+    setProject: React.Dispatch<React.SetStateAction<DatabaseProject>>;
+};
 
 const nodeTypes = {
     databaseTable: DatabaseTableNode,
 };
 
-const initialProject = createEmptyProject();
-
-export function Canvas() {
-    const [project, setProject] = useState(initialProject);
+export function Canvas({ project, setProject }: CanvasProps) {
     const [nodes, , onNodesChange] = useNodesState(
         mapProjectToFlow(project).nodes
     );

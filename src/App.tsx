@@ -1,34 +1,32 @@
 import { useState } from "react";
+import "./App.css";
 import { downloadFile } from "./app/download-file";
+import { MultiColumnSelect } from "./app/MultiColumnSelect";
 import { readJsonFile } from "./app/read-json-file";
 import {
-  addSchema,
-  updateSchema,
-  removeSchema,
-  addSequence,
-  updateSequence,
-  removeSequence,
-  addTable,
-  updateTable,
-  removeTable,
   addColumn,
-  updateColumn,
-  removeColumn,
   addForeignKey,
-  updateForeignKey,
-  removeForeignKey,
-  addUniqueConstraint,
-  updateUniqueConstraint,
-  removeUniqueConstraint,
   addIndex,
-  updateIndex,
+  addSchema,
+  addSequence,
+  addTable,
+  addUniqueConstraint,
+  removeColumn,
+  removeForeignKey,
   removeIndex,
-  createEmptyProject,
-  type DatabaseProject,
+  removeSchema,
+  removeSequence,
+  removeTable,
+  removeUniqueConstraint,
+  updateColumn,
+  updateForeignKey,
+  updateIndex,
+  updateSchema,
+  updateSequence,
+  updateTable,
+  updateUniqueConstraint,
+  type DatabaseProject
 } from "./core/model";
-import { generatePostgresSql } from "./core/sql/postgres-generator";
-import { validateProject } from "./core/validation/validate-project";
-import { MultiColumnSelect } from "./app/MultiColumnSelect";
 import {
   getDefaultScale,
   getDefaultSize,
@@ -36,12 +34,15 @@ import {
   supportsScale,
   supportsSize,
 } from "./core/sql/postgres-column-types";
-import "./App.css";
+import { generatePostgresSql } from "./core/sql/postgres-generator";
+import { validateProject } from "./core/validation/validate-project";
 
-export default function App() {
-  const [project, setProject] = useState<DatabaseProject>(() =>
-    createEmptyProject()
-  );
+type AppProps = {
+  project: DatabaseProject;
+  setProject: React.Dispatch<React.SetStateAction<DatabaseProject>>;
+};
+
+export default function App({ project, setProject }: AppProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const sql = generatePostgresSql(project);
