@@ -131,10 +131,3 @@
 .database-table-card__column-handle--right {
     right: -10px;
 }
-
-.canvas-download-button {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    z-index: 50;
-}

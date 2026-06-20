@@ -6,7 +6,7 @@ import {
     useEdgesState,
     useNodesState,
 } from "@xyflow/react";
-import { downloadFile } from "../download-file";
+
 import { DatabaseTableNode } from "./DatabaseTableNode";
 import {
     mapProjectToFlow,
@@ -51,17 +51,8 @@ export function Canvas() {
         );
     };
 
-    const handleDownloadJson = () => {
-        const json = JSON.stringify(project, null, 2);
-
-        downloadFile("canvas-project.json", json, "application/json");
-    };
-
     return (
         <div className="canvas-page">
-            <button className="canvas-download-button" onClick={handleDownloadJson}>
-                Download JSON
-            </button>
             <ReactFlow
                 className="canvas-flow"
                 nodes={nodes}
