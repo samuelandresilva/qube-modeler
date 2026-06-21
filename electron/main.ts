@@ -2,6 +2,8 @@ import { app, BrowserWindow } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 
+app.commandLine.appendSwitch("log-level", "3");
+
 // Em ambientes ESM (como "type": "module" no package.json), __dirname não existe por padrão.
 // O vite-plugin-electron lida com o bundling de forma que define __dirname corretamente em produção,
 // mas fornecemos um fallback seguro para compatibilidade ESM.
@@ -32,9 +34,11 @@ function createWindow() {
     },
   });
 
+  mainWindow.maximize();
+
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools();
+    // mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
   }
