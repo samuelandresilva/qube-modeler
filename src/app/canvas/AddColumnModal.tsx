@@ -7,11 +7,12 @@ import {
     supportsScale,
     supportsSize,
 } from "../../core/sql/postgres-column-types";
-import { CanvasModal } from "./CanvasModal";
 import { POSTGRES_RESERVED_WORDS } from "../../core/sql/postgres-reserved-words";
+import { CanvasModal } from "./CanvasModal";
 
 type AddColumnModalProps = {
     existingColumnNames: string[];
+    availableSequenceNames: string[];
     onClose: () => void;
     onCreateColumn: (column: {
         name: string;
@@ -20,11 +21,14 @@ type AddColumnModalProps = {
         scale?: number;
         nullable: boolean;
         primaryKey: boolean;
+        defaultValue?: string;
+        sequenceName?: string;
     }) => void;
 };
 
 export function AddColumnModal({
     existingColumnNames,
+    availableSequenceNames,
     onClose,
     onCreateColumn,
 }: AddColumnModalProps) {
@@ -34,6 +38,8 @@ export function AddColumnModal({
     const [scale, setScale] = useState<number | undefined>(undefined);
     const [nullable, setNullable] = useState(true);
     const [primaryKey, setPrimaryKey] = useState(false);
+    const [defaultValue, setDefaultValue] = useState("");
+    const [sequenceName, setSequenceName] = useState("");
 
     const normalizedName = name.trim();
 
@@ -139,6 +145,40 @@ export function AddColumnModal({
                     />
                 </label>
 
+                <label>
+                    <span>Sequence</span>
+                    <select
+                        value={sequenceName}
+                        onChange={(event) => {
+                            const nextSequenceName = event.target.value;
+
+                            setSequenceName(nextSequenceName);
+
+                            if (nextSequenceName !== "") {
+                                setDefaultValue("");
+                            }
+                        }}
+                    >
+                        <option value="">No sequence</option>
+
+                        {availableSequenceNames.map((currentSequenceName) => (
+                            <option value={currentSequenceName} key={currentSequenceName}>
+                                {currentSequenceName}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+
+                <label>
+                    <span>Default value</span>
+                    <input
+                        value={defaultValue}
+                        disabled={sequenceName !== ""}
+                        onChange={(event) => setDefaultValue(event.target.value)}
+                        placeholder="CURRENT_TIMESTAMP, true, 0..."
+                    />
+                </label>
+
                 {columnNameAlreadyExists && (
                     <p className="canvas-modal-error">
                         A column with this name already exists.
@@ -170,6 +210,11 @@ export function AddColumnModal({
                                 scale,
                                 nullable,
                                 primaryKey,
+                                defaultValue:
+                                    sequenceName !== "" || defaultValue.trim() === ""
+                                        ? undefined
+                                        : defaultValue.trim(),
+                                sequenceName: sequenceName === "" ? undefined : sequenceName,
                             })
                         }
                     >

@@ -36,6 +36,8 @@ import {
     updateTableNodePosition,
     updateUniqueConstraint
 } from "../../core/model";
+import { generatePostgresSql } from "../../core/sql/postgres-generator";
+import { downloadFile } from "../download-file";
 import { AddColumnModal } from "./AddColumnModal";
 import { AddForeignKeyModal } from "./AddForeignKeyModal";
 import { AddIndexModal } from "./AddIndexModal";
@@ -138,6 +140,13 @@ function CanvasContent({ project, setProject }: CanvasProps) {
             }))
         );
     }, [selectedTableId, setNodes]);
+
+    const selectedTableSchema = project.schemas.find((schema) =>
+        schema.tables.some((table) => table.id === selectedTableId)
+    );
+
+    const availableSequenceNames =
+        selectedTableSchema?.sequences.map((sequence) => sequence.name) ?? [];
 
     const editingSchema = project.schemas.find(
         (schema) => schema.id === editingSchemaId
@@ -464,6 +473,8 @@ function CanvasContent({ project, setProject }: CanvasProps) {
         scale?: number;
         nullable: boolean;
         primaryKey: boolean;
+        defaultValue?: string;
+        sequenceName?: string;
     }) => {
         if (!selectedTableId) {
             return;
@@ -507,6 +518,7 @@ function CanvasContent({ project, setProject }: CanvasProps) {
                 scale: columnData.scale,
                 nullable: columnData.nullable,
                 primaryKey: columnData.primaryKey,
+                defaultValue: columnData.defaultValue,
             })
         );
 
@@ -529,6 +541,8 @@ function CanvasContent({ project, setProject }: CanvasProps) {
             scale?: number;
             nullable: boolean;
             primaryKey: boolean;
+            defaultValue?: string;
+            sequenceName?: string;
         }
     ) => {
         if (!selectedTableId) {
@@ -557,6 +571,8 @@ function CanvasContent({ project, setProject }: CanvasProps) {
                     scale: columnData.scale,
                     nullable: columnData.nullable,
                     primaryKey: columnData.primaryKey,
+                    defaultValue: columnData.defaultValue,
+                    sequenceName: columnData.sequenceName,
                 })
             )
         );
@@ -973,6 +989,26 @@ function CanvasContent({ project, setProject }: CanvasProps) {
         setEditingIndexId(null);
     };
 
+    const handleExportJson = () => {
+        const content = JSON.stringify(project, null, 2);
+
+        downloadFile(
+            "qube-modeler-project.json",
+            content,
+            "application/json;charset=utf-8"
+        );
+    };
+
+    const handleGenerateSql = () => {
+        const sql = generatePostgresSql(project);
+
+        downloadFile(
+            "V001__initial_schema.sql",
+            sql,
+            "text/sql;charset=utf-8"
+        );
+    };
+
     return (
         <div className="canvas-workspace">
             <CanvasSidebar
@@ -994,8 +1030,10 @@ function CanvasContent({ project, setProject }: CanvasProps) {
                     <div className="canvas-page">
 
                         <CanvasToolbar
-                            onFitView={handleFitView}
                             onAddTable={handleAddTable}
+                            onFitView={handleFitView}
+                            onExportJson={handleExportJson}
+                            onGenerateSql={handleGenerateSql}
                         />
 
                         {selectedTable && (
@@ -1018,6 +1056,7 @@ function CanvasContent({ project, setProject }: CanvasProps) {
                         {isAddColumnModalOpen && (
                             <AddColumnModal
                                 existingColumnNames={selectedTable?.columns.map((column) => column.name) ?? []}
+                                availableSequenceNames={availableSequenceNames}
                                 onClose={() => setIsAddColumnModalOpen(false)}
                                 onCreateColumn={handleCreateColumn}
                             />
@@ -1025,8 +1064,10 @@ function CanvasContent({ project, setProject }: CanvasProps) {
 
                         {editingColumn && selectedTable && (
                             <EditColumnModal
+                                key={editingColumn.id}
                                 column={editingColumn}
                                 existingColumnNames={selectedTable.columns.map((column) => column.name)}
+                                availableSequenceNames={availableSequenceNames}
                                 onClose={() => setEditingColumnId(null)}
                                 onDeleteColumn={handleDeleteColumn}
                                 onSaveColumn={handleSaveColumn}
