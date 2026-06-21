@@ -1,13 +1,13 @@
 export interface DatabaseDiagram {
-    tableNodes: DatabaseTableDiagramNode[];
+  tableNodes: DatabaseTableDiagramNode[];
 }
 
 export interface DatabaseTableDiagramNode {
-    tableId: string;
-    position: DiagramPosition;
+  tableId: string;
+  position: DiagramPosition;
 }
 
 export interface DiagramPosition {
-    x: number;
-    y: number;
+  x: number;
+  y: number;
 }

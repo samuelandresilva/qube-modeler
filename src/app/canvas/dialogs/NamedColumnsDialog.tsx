@@ -1,0 +1,95 @@
+import { useState } from "react";
+import { MultiColumnSelect } from "@/app/shared/components/MultiColumnSelect";
+import type { DatabaseTable } from "@/core/model";
+import { isValidSqlIdentifier } from "@/core/sql/postgres-identifiers";
+import { CanvasModal } from "@/app/canvas/components/CanvasModal";
+
+type Entity = "index" | "unique constraint";
+type Props = {
+  entity: Entity;
+  table: DatabaseTable;
+  current?: { name: string; columns: string[] };
+  onClose: () => void;
+  onSubmit: (input: { name: string; columns: string[] }) => void;
+  onDelete?: () => void;
+};
+
+export function NamedColumnsDialog({
+  entity,
+  table,
+  current,
+  onClose,
+  onSubmit,
+  onDelete,
+}: Props) {
+  const collection =
+    entity === "index" ? table.indexes : table.uniqueConstraints;
+  const prefix = entity === "index" ? "idx" : "uk";
+  const [name, setName] = useState(current?.name ?? `${prefix}_${table.name}_`);
+  const [columns, setColumns] = useState(current?.columns ?? []);
+  const normalizedName = name.trim();
+  const duplicate = collection.some(
+    (item) => item.name !== current?.name && item.name === normalizedName,
+  );
+  const valid = normalizedName === "" || isValidSqlIdentifier(normalizedName);
+  const canSubmit =
+    normalizedName !== "" && valid && !duplicate && columns.length > 0;
+  const label = entity === "index" ? "index" : "unique constraint";
+
+  return (
+    <CanvasModal
+      title={current ? `Edit ${label} · ${current.name}` : `Add ${label}`}
+      onClose={onClose}
+    >
+      <div className="canvas-modal-form">
+        <label>
+          <span>Name</span>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder={`${prefix}_table_column`}
+          />
+        </label>
+        <label>
+          <span>Columns</span>
+          <MultiColumnSelect
+            availableColumns={table.columns.map((column) => column.name)}
+            selectedColumns={columns}
+            onChange={setColumns}
+          />
+        </label>
+        {duplicate && (
+          <p className="canvas-modal-error">
+            A {label} with this name already exists.
+          </p>
+        )}
+        {!valid && (
+          <p className="canvas-modal-error">
+            Name must be a valid SQL identifier.
+          </p>
+        )}
+        <div className="canvas-modal-actions">
+          {onDelete && (
+            <button
+              type="button"
+              className="canvas-modal-actions__danger"
+              onClick={onDelete}
+            >
+              Delete {label}
+            </button>
+          )}
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!canSubmit}
+            onClick={() => onSubmit({ name: normalizedName, columns })}
+          >
+            {current ? "Save" : "Create"} {label}
+          </button>
+        </div>
+      </div>
+    </CanvasModal>
+  );
+}

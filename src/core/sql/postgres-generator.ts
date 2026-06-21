@@ -1,160 +1,171 @@
 import type {
-    DatabaseColumn,
-    DatabaseForeignKey,
-    DatabaseProject,
-    DatabaseSchema,
-    DatabaseSequence,
-    DatabaseTable,
-    DatabaseUniqueConstraint,
-    DatabaseIndex,
-} from "../model/database-project";
+  DatabaseColumn,
+  DatabaseForeignKey,
+  DatabaseProject,
+  DatabaseSchema,
+  DatabaseSequence,
+  DatabaseTable,
+  DatabaseUniqueConstraint,
+  DatabaseIndex,
+} from "@/core/model";
 import { supportsScale, supportsSize } from "./postgres-column-types";
 
 export function generatePostgresSql(project: DatabaseProject): string {
-    return project.schemas
-        .map((schema) => generateSchemaSql(schema))
-        .join("\n\n");
+  return project.schemas
+    .map((schema) => generateSchemaSql(schema))
+    .join("\n\n");
 }
 
 function generateSchemaSql(schema: DatabaseSchema): string {
-    const schemaSql = `CREATE SCHEMA IF NOT EXISTS ${schema.name};`;
+  const schemaSql = `CREATE SCHEMA IF NOT EXISTS ${schema.name};`;
 
-    const sequenceSql = schema.sequences.map((sequence) =>
-        generateSequenceSql(schema, sequence)
-    );
+  const sequenceSql = schema.sequences.map((sequence) =>
+    generateSequenceSql(schema, sequence),
+  );
 
-    const tableSql = schema.tables.map((table) => generateTableSql(schema, table));
+  const tableSql = schema.tables.map((table) =>
+    generateTableSql(schema, table),
+  );
 
-    const indexSql = schema.tables.flatMap((table) =>
-        table.indexes.map((index) => generateIndexSql(schema, table, index))
-    );
+  const indexSql = schema.tables.flatMap((table) =>
+    table.indexes.map((index) => generateIndexSql(schema, table, index)),
+  );
 
-    return [schemaSql, ...sequenceSql, ...tableSql, ...indexSql].join("\n\n");
+  return [schemaSql, ...sequenceSql, ...tableSql, ...indexSql].join("\n\n");
 }
 
-function generateSequenceSql(schema: DatabaseSchema, sequence: DatabaseSequence): string {
-    return [
-        `CREATE SEQUENCE IF NOT EXISTS ${schema.name}.${sequence.name}`,
-        `    START WITH ${sequence.startWith}`,
-        `    INCREMENT BY ${sequence.incrementBy};`,
-    ].join("\n");
+function generateSequenceSql(
+  schema: DatabaseSchema,
+  sequence: DatabaseSequence,
+): string {
+  return [
+    `CREATE SEQUENCE IF NOT EXISTS ${schema.name}.${sequence.name}`,
+    `    START WITH ${sequence.startWith}`,
+    `    INCREMENT BY ${sequence.incrementBy};`,
+  ].join("\n");
 }
 
 function generateTableSql(
-    schema: DatabaseSchema,
-    table: DatabaseTable
+  schema: DatabaseSchema,
+  table: DatabaseTable,
 ): string {
-    const columnLines = table.columns.map((column) =>
-        generateColumnSql(schema, column)
-    );
+  const columnLines = table.columns.map((column) =>
+    generateColumnSql(schema, column),
+  );
 
-    const primaryKeyColumns = table.columns
-        .filter((column) => column.primaryKey)
-        .map((column) => column.name);
+  const primaryKeyColumns = table.columns
+    .filter((column) => column.primaryKey)
+    .map((column) => column.name);
 
-    const primaryKeyConstraintLines =
-        primaryKeyColumns.length > 0
-            ? [
-                `    CONSTRAINT pk_${table.name} PRIMARY KEY (${primaryKeyColumns.join(
-                    ", "
-                )})`,
-            ]
-            : [];
+  const primaryKeyConstraintLines =
+    primaryKeyColumns.length > 0
+      ? [
+          `    CONSTRAINT pk_${table.name} PRIMARY KEY (${primaryKeyColumns.join(
+            ", ",
+          )})`,
+        ]
+      : [];
 
-    const foreignKeyConstraintLines = table.foreignKeys.map(generateForeignKeySql);
-    const uniqueConstraintLines = table.uniqueConstraints.map(generateUniqueConstraintSql);
+  const foreignKeyConstraintLines = table.foreignKeys.map(
+    generateForeignKeySql,
+  );
+  const uniqueConstraintLines = table.uniqueConstraints.map(
+    generateUniqueConstraintSql,
+  );
 
-    const lines = [
-        ...columnLines,
-        ...primaryKeyConstraintLines,
-        ...uniqueConstraintLines,
-        ...foreignKeyConstraintLines,
-    ];
+  const lines = [
+    ...columnLines,
+    ...primaryKeyConstraintLines,
+    ...uniqueConstraintLines,
+    ...foreignKeyConstraintLines,
+  ];
 
-    return [
-        `CREATE TABLE IF NOT EXISTS ${schema.name}.${table.name}`,
-        `(`,
-        lines.map((line, index) => `${line}${index < lines.length - 1 ? "," : ""}`).join("\n"),
-        `);`,
-    ].join("\n");
+  return [
+    `CREATE TABLE IF NOT EXISTS ${schema.name}.${table.name}`,
+    `(`,
+    lines
+      .map((line, index) => `${line}${index < lines.length - 1 ? "," : ""}`)
+      .join("\n"),
+    `);`,
+  ].join("\n");
 }
 
 function generateColumnTypeSql(column: DatabaseColumn): string {
-    if (supportsScale(column.type)) {
-        if (typeof column.size === "number" && typeof column.scale === "number") {
-            return `${column.type}(${column.size},${column.scale})`;
-        }
-
-        return column.type;
-    }
-
-    if (supportsSize(column.type)) {
-        if (typeof column.size === "number") {
-            return `${column.type}(${column.size})`;
-        }
-
-        return column.type;
+  if (supportsScale(column.type)) {
+    if (typeof column.size === "number" && typeof column.scale === "number") {
+      return `${column.type}(${column.size},${column.scale})`;
     }
 
     return column.type;
+  }
+
+  if (supportsSize(column.type)) {
+    if (typeof column.size === "number") {
+      return `${column.type}(${column.size})`;
+    }
+
+    return column.type;
+  }
+
+  return column.type;
 }
 
 function generateColumnSql(
-    schema: DatabaseSchema,
-    column: DatabaseColumn
+  schema: DatabaseSchema,
+  column: DatabaseColumn,
 ): string {
-    const parts = [`    ${column.name} ${generateColumnTypeSql(column)}`];
+  const parts = [`    ${column.name} ${generateColumnTypeSql(column)}`];
 
-    if (!column.nullable) {
-        parts.push("NOT NULL");
-    }
+  if (!column.nullable) {
+    parts.push("NOT NULL");
+  }
 
-    if (column.sequenceName) {
-        parts.push(
-            `DEFAULT nextval('${schema.name}.${column.sequenceName}'::regclass)`
-        );
-    } else if (column.defaultValue) {
-        parts.push(`DEFAULT ${column.defaultValue}`);
-    }
+  if (column.sequenceName) {
+    parts.push(
+      `DEFAULT nextval('${schema.name}.${column.sequenceName}'::regclass)`,
+    );
+  } else if (column.defaultValue) {
+    parts.push(`DEFAULT ${column.defaultValue}`);
+  }
 
-    return parts.join(" ");
+  return parts.join(" ");
 }
 
 function generateForeignKeySql(foreignKey: DatabaseForeignKey): string {
-    const sourceColumns = foreignKey.sourceColumns.join(", ");
-    const targetColumns = foreignKey.targetColumns.join(", ");
+  const sourceColumns = foreignKey.sourceColumns.join(", ");
+  const targetColumns = foreignKey.targetColumns.join(", ");
 
-    const parts = [
-        `    CONSTRAINT ${foreignKey.name}`,
-        `FOREIGN KEY (${sourceColumns})`,
-        `REFERENCES ${foreignKey.targetSchema}.${foreignKey.targetTable} (${targetColumns})`,
-    ];
+  const parts = [
+    `    CONSTRAINT ${foreignKey.name}`,
+    `FOREIGN KEY (${sourceColumns})`,
+    `REFERENCES ${foreignKey.targetSchema}.${foreignKey.targetTable} (${targetColumns})`,
+  ];
 
-    if (foreignKey.onUpdate) {
-        parts.push(`ON UPDATE ${foreignKey.onUpdate}`);
-    }
+  if (foreignKey.onUpdate) {
+    parts.push(`ON UPDATE ${foreignKey.onUpdate}`);
+  }
 
-    if (foreignKey.onDelete) {
-        parts.push(`ON DELETE ${foreignKey.onDelete}`);
-    }
+  if (foreignKey.onDelete) {
+    parts.push(`ON DELETE ${foreignKey.onDelete}`);
+  }
 
-    return parts.join(" ");
+  return parts.join(" ");
 }
 
 function generateUniqueConstraintSql(
-    uniqueConstraint: DatabaseUniqueConstraint
+  uniqueConstraint: DatabaseUniqueConstraint,
 ): string {
-    const columns = uniqueConstraint.columns.join(", ");
+  const columns = uniqueConstraint.columns.join(", ");
 
-    return `    CONSTRAINT ${uniqueConstraint.name} UNIQUE (${columns})`;
+  return `    CONSTRAINT ${uniqueConstraint.name} UNIQUE (${columns})`;
 }
 
 function generateIndexSql(
-    schema: DatabaseSchema,
-    table: DatabaseTable,
-    index: DatabaseIndex
+  schema: DatabaseSchema,
+  table: DatabaseTable,
+  index: DatabaseIndex,
 ): string {
-    const columns = index.columns.join(", ");
+  const columns = index.columns.join(", ");
 
-    return `CREATE INDEX IF NOT EXISTS ${index.name} ON ${schema.name}.${table.name} (${columns});`;
+  return `CREATE INDEX IF NOT EXISTS ${index.name} ON ${schema.name}.${table.name} (${columns});`;
 }

@@ -1,0 +1,79 @@
+.database-table-card {
+  min-width: 320px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-panel);
+}
+.database-table-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+}
+.database-table-card__icon {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-border);
+  color: var(--color-accent);
+}
+.database-table-card__header strong {
+  color: var(--color-text-strong);
+  font-size: 14px;
+}
+.database-table-card__columns {
+  display: grid;
+  padding: 6px;
+}
+.database-table-card__column {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+}
+.database-table-card__column:hover {
+  background: var(--color-border);
+}
+.database-table-card__column-name {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.database-table-card__column-type {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+.database-table-card .react-flow__handle {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--color-bg);
+  background: var(--color-accent);
+}
+.database-table-card__column-handle {
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--color-bg);
+  background: var(--color-accent);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.database-table-card:hover .database-table-card__column-handle {
+  opacity: 1;
+}
+.database-table-card__column-handle--left {
+  left: -10px;
+}
+.database-table-card__column-handle--right {
+  right: -10px;
+}

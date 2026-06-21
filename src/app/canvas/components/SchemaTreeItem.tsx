@@ -1,0 +1,172 @@
+import {
+  Braces,
+  ChevronDown,
+  Database,
+  Pen,
+  Plus,
+  Rows3,
+  Search,
+  Table2,
+  Trash2,
+} from "lucide-react";
+import { useState } from "react";
+import type { DatabaseSchema } from "@/core/model";
+import { SidebarContextMenu } from "./SidebarContextMenu";
+
+type Props = {
+  schema: DatabaseSchema;
+  onEditSchema: (schemaId: string) => void;
+  onDeleteSchema: (schemaId: string) => void;
+  onAddSequence: (schemaId: string) => void;
+  onEditSequence: (schemaId: string, sequenceId: string) => void;
+  onDeleteSequence: (schemaId: string, sequenceId: string) => void;
+  onSeeTableOnDiagram: (schemaId: string, tableId: string) => void;
+};
+
+export function SchemaTreeItem({
+  schema,
+  onEditSchema,
+  onDeleteSchema,
+  onAddSequence,
+  onEditSequence,
+  onDeleteSequence,
+  onSeeTableOnDiagram,
+}: Props) {
+  const [expanded, setExpanded] = useState(true);
+  const [sequencesExpanded, setSequencesExpanded] = useState(true);
+  const [tablesExpanded, setTablesExpanded] = useState(true);
+  return (
+    <div className="canvas-sidebar__schema">
+      <SidebarContextMenu
+        actions={[
+          {
+            label: "Edit schema",
+            icon: <Pen size={14} />,
+            onSelect: () => onEditSchema(schema.id),
+          },
+          {
+            label: "Delete schema",
+            icon: <Trash2 size={14} />,
+            danger: true,
+            onSelect: () => onDeleteSchema(schema.id),
+          },
+        ]}
+      >
+        <div
+          className="canvas-sidebar__tree-item canvas-sidebar__tree-item--schema"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          <ChevronDown
+            size={13}
+            className="canvas-sidebar__chevron"
+            data-expanded={expanded}
+          />
+          <Database size={15} className="canvas-sidebar__item-icon" />
+          <span>{schema.name}</span>
+        </div>
+      </SidebarContextMenu>
+      {expanded && (
+        <div className="canvas-sidebar__tree-group">
+          <SidebarContextMenu
+            actions={[
+              {
+                label: "Add sequence",
+                icon: <Plus size={14} />,
+                onSelect: () => onAddSequence(schema.id),
+              },
+            ]}
+          >
+            <div
+              className="canvas-sidebar__tree-item canvas-sidebar__tree-item--folder"
+              onClick={() => setSequencesExpanded((value) => !value)}
+            >
+              <ChevronDown
+                size={13}
+                className="canvas-sidebar__chevron"
+                data-expanded={sequencesExpanded}
+              />
+              <Rows3 size={15} className="canvas-sidebar__item-icon" />
+              <span>sequences</span>
+            </div>
+          </SidebarContextMenu>
+          {sequencesExpanded && (
+            <div className="canvas-sidebar__tree-group">
+              {schema.sequences.length === 0 ? (
+                <div className="canvas-sidebar__empty">No sequences</div>
+              ) : (
+                schema.sequences.map((sequence) => (
+                  <SidebarContextMenu
+                    key={sequence.id}
+                    actions={[
+                      {
+                        label: "Edit sequence",
+                        icon: <Pen size={14} />,
+                        onSelect: () => onEditSequence(schema.id, sequence.id),
+                      },
+                      {
+                        label: "Delete sequence",
+                        icon: <Trash2 size={14} />,
+                        danger: true,
+                        onSelect: () =>
+                          onDeleteSequence(schema.id, sequence.id),
+                      },
+                    ]}
+                  >
+                    <div className="canvas-sidebar__tree-item canvas-sidebar__tree-item--leaf">
+                      <Braces
+                        size={14}
+                        className="canvas-sidebar__item-icon canvas-sidebar__item-icon--muted"
+                      />
+                      <span>{sequence.name}</span>
+                    </div>
+                  </SidebarContextMenu>
+                ))
+              )}
+            </div>
+          )}
+          <div
+            className="canvas-sidebar__tree-item canvas-sidebar__tree-item--folder"
+            onClick={() => setTablesExpanded((value) => !value)}
+          >
+            <ChevronDown
+              size={13}
+              className="canvas-sidebar__chevron"
+              data-expanded={tablesExpanded}
+            />
+            <Table2 size={15} className="canvas-sidebar__item-icon" />
+            <span>tables</span>
+          </div>
+          {tablesExpanded && (
+            <div className="canvas-sidebar__tree-group">
+              {schema.tables.length === 0 ? (
+                <div className="canvas-sidebar__empty">No tables</div>
+              ) : (
+                schema.tables.map((table) => (
+                  <SidebarContextMenu
+                    key={table.id}
+                    actions={[
+                      {
+                        label: "Find in diagram",
+                        icon: <Search size={14} />,
+                        onSelect: () =>
+                          onSeeTableOnDiagram(schema.id, table.id),
+                      },
+                    ]}
+                  >
+                    <div className="canvas-sidebar__tree-item canvas-sidebar__tree-item--leaf">
+                      <Table2
+                        size={14}
+                        className="canvas-sidebar__item-icon canvas-sidebar__item-icon--muted"
+                      />
+                      <span>{table.name}</span>
+                    </div>
+                  </SidebarContextMenu>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

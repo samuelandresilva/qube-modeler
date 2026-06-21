@@ -1,0 +1,52 @@
+@import "./CanvasToolbar.css";
+@import "./CanvasSidebar.css";
+@import "./CanvasInspector.css";
+@import "./CanvasModal.css";
+@import "./DatabaseTableNode.css";
+
+.canvas-workspace {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+.canvas-main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+.canvas-flow {
+  width: 100%;
+  height: 100%;
+}
+.canvas-flow.react-flow {
+  background: var(--color-bg);
+}
+.react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-panel);
+}
+.react-flow__controls-button {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.react-flow__controls-button:hover {
+  background: var(--color-border);
+}
+.react-flow__minimap {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+.react-flow__node.selected .database-table-card {
+  border-color: var(--color-accent);
+  box-shadow:
+    0 0 0 2px rgba(56, 189, 248, 0.55),
+    0 18px 40px rgba(56, 189, 248, 0.16);
+}
