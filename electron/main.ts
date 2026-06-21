@@ -1,8 +1,9 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, Menu } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 
 app.commandLine.appendSwitch("log-level", "3");
+app.setName("Qube Modeler");
 
 // Em ambientes ESM (como "type": "module" no package.json), __dirname não existe por padrão.
 // O vite-plugin-electron lida com o bundling de forma que define __dirname corretamente em produção,
@@ -13,6 +14,28 @@ const __dirname = path.dirname(__filename);
 process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
 
 let mainWindow: BrowserWindow | null = null;
+
+function configureApplicationMenu() {
+  app.setName("Qube Modeler");
+
+  if (process.platform === "darwin") {
+    // macOS sempre tem a barra global do sistema.
+    // Aqui deixamos o menu o mais vazio/limpo possível.
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([
+        {
+          label: "Qube Modeler",
+          submenu: [],
+        },
+      ]),
+    );
+
+    return;
+  }
+
+  // Windows/Linux: remove totalmente a barra de menu nativa.
+  Menu.setApplicationMenu(null);
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -49,6 +72,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  configureApplicationMenu();
   createWindow();
 
   app.on("activate", () => {

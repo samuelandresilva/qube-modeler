@@ -66,3 +66,7 @@ select {
   flex: 0 0 1px;
   background: #1e293b;
 }
+
+.app-title-bar--mac {
+  padding-left: 82px;
+}

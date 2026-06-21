@@ -1,5 +1,6 @@
 {
   "name": "qube-modeler",
+  "productName": "Qube Modeler",
   "private": true,
   "version": "0.0.0",
   "type": "module",
