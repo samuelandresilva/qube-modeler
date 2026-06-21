@@ -94,54 +94,58 @@ export function ColumnDialog({
             ))}
           </select>
         </label>
-        <label>
-          <span>Size</span>
-          <input
-            type="number"
-            min="1"
-            value={size ?? ""}
-            disabled={!supportsSize(type)}
-            onChange={(event) =>
-              setSize(
-                event.target.value === ""
-                  ? undefined
-                  : Number(event.target.value),
-              )
-            }
-          />
-        </label>
-        <label>
-          <span>Scale</span>
-          <input
-            type="number"
-            min="0"
-            value={scale ?? ""}
-            disabled={!supportsScale(type)}
-            onChange={(event) =>
-              setScale(
-                event.target.value === ""
-                  ? undefined
-                  : Number(event.target.value),
-              )
-            }
-          />
-        </label>
-        <label className="canvas-modal-checkbox">
-          <span>Nullable</span>
-          <input
-            type="checkbox"
-            checked={nullable}
-            onChange={(event) => setNullable(event.target.checked)}
-          />
-        </label>
-        <label className="canvas-modal-checkbox">
-          <span>Primary key</span>
-          <input
-            type="checkbox"
-            checked={primaryKey}
-            onChange={(event) => setPrimaryKey(event.target.checked)}
-          />
-        </label>
+        <div className="canvas-modal-form__row">
+          <label>
+            <span>Size</span>
+            <input
+              type="number"
+              min="1"
+              value={size ?? ""}
+              disabled={!supportsSize(type)}
+              onChange={(event) =>
+                setSize(
+                  event.target.value === ""
+                    ? undefined
+                    : Number(event.target.value),
+                )
+              }
+            />
+          </label>
+          <label>
+            <span>Scale</span>
+            <input
+              type="number"
+              min="0"
+              value={scale ?? ""}
+              disabled={!supportsScale(type)}
+              onChange={(event) =>
+                setScale(
+                  event.target.value === ""
+                    ? undefined
+                    : Number(event.target.value),
+                )
+              }
+            />
+          </label>
+        </div>
+        <div className="canvas-modal-form__row">
+          <label className="canvas-modal-checkbox">
+            <span>Nullable</span>
+            <input
+              type="checkbox"
+              checked={nullable}
+              onChange={(event) => setNullable(event.target.checked)}
+            />
+          </label>
+          <label className="canvas-modal-checkbox">
+            <span>Primary key</span>
+            <input
+              type="checkbox"
+              checked={primaryKey}
+              onChange={(event) => setPrimaryKey(event.target.checked)}
+            />
+          </label>
+        </div>
         <label>
           <span>Sequence</span>
           <select

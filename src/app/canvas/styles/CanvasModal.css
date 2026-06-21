@@ -8,6 +8,26 @@
   background: rgba(2, 6, 23, 0.72);
   backdrop-filter: blur(6px);
 }
+.canvas-modal-backdrop--elevated {
+  z-index: 300;
+}
+.canvas-confirm {
+  display: grid;
+  gap: 18px;
+}
+.canvas-confirm__message {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.canvas-modal-actions--confirm button:last-child {
+  background: rgba(127, 29, 29, 0.85);
+  color: #fecaca;
+}
+.canvas-modal-actions--confirm button:last-child:hover {
+  background: rgba(153, 27, 27, 0.95);
+}
 .canvas-modal {
   display: flex;
   flex-direction: column;
@@ -51,6 +71,11 @@
 }
 .canvas-modal-form {
   display: grid;
+  gap: 14px;
+}
+.canvas-modal-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
 .canvas-modal-form label {

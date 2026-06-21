@@ -19,6 +19,12 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     title: "Qube Modeler",
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#020817",
+      symbolColor: "#dbeafe",
+      height: 40,
+    },
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,

@@ -1,7 +1,7 @@
 .canvas-toolbar {
   position: fixed;
-  top: 16px;
-  left: 50%;
+  top: 50px;
+  left: 410px;
   z-index: 100;
   display: flex;
   align-items: center;

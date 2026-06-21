@@ -32,6 +32,7 @@ type Props = {
   project: DatabaseProject;
   setProject: Dispatch<SetStateAction<DatabaseProject>>;
   selectedTableId: string | null;
+  requestConfirm: (message: string, onConfirm: () => void) => void;
 };
 
 export function CanvasDialogs({
@@ -40,6 +41,7 @@ export function CanvasDialogs({
   project,
   setProject,
   selectedTableId,
+  requestConfirm,
 }: Props) {
   if (!dialog) return null;
   const close = () => setDialog(null);
@@ -126,7 +128,8 @@ export function CanvasDialogs({
         onDelete={
           column
             ? () =>
-                confirmDelete(
+                requestConfirmDelete(
+                  requestConfirm,
                   `column "${column.name}"`,
                   () =>
                     setProject((current) =>
@@ -176,7 +179,8 @@ export function CanvasDialogs({
         onDelete={
           foreignKey
             ? () =>
-                confirmDelete(
+                requestConfirmDelete(
+                  requestConfirm,
                   `foreign key "${foreignKey.name}"`,
                   () =>
                     setProject((current) =>
@@ -226,7 +230,8 @@ export function CanvasDialogs({
         onDelete={
           constraint
             ? () =>
-                confirmDelete(
+                requestConfirmDelete(
+                  requestConfirm,
                   `unique constraint "${constraint.name}"`,
                   () =>
                     setProject((current) =>
@@ -271,7 +276,8 @@ export function CanvasDialogs({
       onDelete={
         index
           ? () =>
-              confirmDelete(
+              requestConfirmDelete(
+                requestConfirm,
                 `index "${index.name}"`,
                 () =>
                   setProject((current) =>
@@ -290,8 +296,14 @@ export function CanvasDialogs({
   );
 }
 
-function confirmDelete(label: string, remove: () => void, close: () => void) {
-  if (!window.confirm(`Remove ${label}?`)) return;
-  remove();
-  close();
+function requestConfirmDelete(
+  requestConfirm: (message: string, onConfirm: () => void) => void,
+  label: string,
+  remove: () => void,
+  close: () => void,
+) {
+  requestConfirm(`Remove ${label}?`, () => {
+    remove();
+    close();
+  });
 }

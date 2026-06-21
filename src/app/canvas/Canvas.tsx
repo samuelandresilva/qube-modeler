@@ -22,10 +22,12 @@ import { downloadFile } from "@/app/shared/files/download-file";
 import { CanvasInspector } from "./components/CanvasInspector";
 import { CanvasSidebar } from "./components/CanvasSidebar";
 import { CanvasToolbar } from "./components/CanvasToolbar";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { DatabaseTableNode } from "./components/DatabaseTableNode";
 import { CanvasDialogs } from "./dialogs/CanvasDialogs";
 import type { CanvasDialogState } from "./dialogs/dialog-state";
 import { useCanvasFlow } from "./hooks/useCanvasFlow";
+import { useConfirm } from "./hooks/useConfirm";
 import "./styles/Canvas.css";
 
 type CanvasProps = {
@@ -53,6 +55,8 @@ function CanvasContent({ project, setProject }: CanvasProps) {
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<CanvasDialogState>(null);
   const [isAddingTable, setIsAddingTable] = useState(false);
+  const { confirm, requestConfirm, dismissConfirm, acceptConfirm } =
+    useConfirm();
   const context = selectedTableId
     ? findTableContext(project, selectedTableId)
     : undefined;
@@ -97,38 +101,39 @@ function CanvasContent({ project, setProject }: CanvasProps) {
     }
   };
   const deleteTable = () => {
-    if (!context || !window.confirm(`Remove table "${context.table.name}"?`))
-      return;
-    setProject((current) =>
-      removeTable(current, context.schema.id, context.table.id),
-    );
-    setSelectedTableId(null);
-    setDialog(null);
+    if (!context) return;
+    requestConfirm(`Remove table "${context.table.name}"?`, () => {
+      setProject((current) =>
+        removeTable(current, context.schema.id, context.table.id),
+      );
+      setSelectedTableId(null);
+      setDialog(null);
+    });
   };
   const deleteSchema = (schemaId: string) => {
     const schema = project.schemas.find((item) => item.id === schemaId);
-    if (
-      !schema ||
-      !window.confirm(
-        `Remove schema "${schema.name}"? This will remove its tables and sequences.`,
-      )
-    )
-      return;
-    setProject((current) => removeSchema(current, schemaId));
-    if (
-      selectedTableId &&
-      schema.tables.some((table) => table.id === selectedTableId)
-    )
-      setSelectedTableId(null);
-    setDialog(null);
+    if (!schema) return;
+    requestConfirm(
+      `Remove schema "${schema.name}"? This will remove its tables and sequences.`,
+      () => {
+        setProject((current) => removeSchema(current, schemaId));
+        if (
+          selectedTableId &&
+          schema.tables.some((table) => table.id === selectedTableId)
+        )
+          setSelectedTableId(null);
+        setDialog(null);
+      },
+    );
   };
   const deleteSequence = (schemaId: string, sequenceId: string) => {
     const schema = project.schemas.find((item) => item.id === schemaId);
     const sequence = schema?.sequences.find((item) => item.id === sequenceId);
-    if (!sequence || !window.confirm(`Remove sequence "${sequence.name}"?`))
-      return;
-    setProject((current) => removeSequence(current, schemaId, sequenceId));
-    setDialog(null);
+    if (!sequence) return;
+    requestConfirm(`Remove sequence "${sequence.name}"?`, () => {
+      setProject((current) => removeSequence(current, schemaId, sequenceId));
+      setDialog(null);
+    });
   };
   const download = (kind: "json" | "sql") => {
     if (kind === "json")
@@ -207,7 +212,16 @@ function CanvasContent({ project, setProject }: CanvasProps) {
           project={project}
           setProject={setProject}
           selectedTableId={selectedTableId}
+          requestConfirm={requestConfirm}
         />
+        {confirm && (
+          <ConfirmDialog
+            message={confirm.message}
+            confirmLabel={confirm.confirmLabel}
+            onConfirm={acceptConfirm}
+            onCancel={dismissConfirm}
+          />
+        )}
         <ReactFlow
           className={`canvas-flow ${isAddingTable ? "canvas-flow--adding-table" : ""}`}
           nodes={flow.nodes}

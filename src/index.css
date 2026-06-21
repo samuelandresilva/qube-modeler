@@ -16,13 +16,53 @@
 * {
   box-sizing: border-box;
 }
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
 }
+
 button,
 input,
 select {
   font: inherit;
+}
+
+.app-drag {
+  -webkit-app-region: drag;
+}
+
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.app-shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #020817;
+}
+
+.app-title-bar {
+  height: 40px;
+  flex: 0 0 40px;
+  display: flex;
+  align-items: center;
+  padding-left: 14px;
+  background: #020817;
+  color: #dbeafe;
+  user-select: none;
+}
+
+.app-title-bar__title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-title-bar-divider {
+  height: 1px;
+  flex: 0 0 1px;
+  background: #1e293b;
 }

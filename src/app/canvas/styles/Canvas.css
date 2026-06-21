@@ -7,7 +7,7 @@
 .canvas-workspace {
   display: flex;
   width: 100vw;
-  height: 100vh;
+  height: calc(100vh - 41px);
   overflow: hidden;
   background: var(--color-bg);
 }
