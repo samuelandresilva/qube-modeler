@@ -1,3 +1,4 @@
+import { Plus, Trash2, X } from "lucide-react";
 import type { DatabaseTable } from "../../core/model";
 import { generatePostgresColumnTypeSql } from "../../core/sql/postgres-column-type-sql";
 
@@ -34,7 +35,7 @@ export function CanvasInspector({
         <aside className="canvas-inspector">
             <div className="canvas-inspector__header">
                 <span>Table</span>
-                <button onClick={onClose}>×</button>
+                <button onClick={onClose}><X size={16} /></button>
             </div>
 
             <input
@@ -58,23 +59,24 @@ export function CanvasInspector({
                     onDeleteTable();
                 }}
             >
-                Delete table
+                <Trash2 size={15} strokeWidth={2.4} />
+                <span>Delete table</span>
             </button>
 
-            <p>
-                {table.columns.length} columns · {table.foreignKeys.length} foreign keys
-            </p>
-
             <div className="canvas-inspector__section">
-                <span className="canvas-inspector__section-title">Columns</span>
+                <div className="canvas-inspector__section-header">
+                    <span className="canvas-inspector__section-title">Columns</span>
 
-                <button
-                    className="canvas-inspector__section-action"
-                    type="button"
-                    onClick={onAddColumn}
-                >
-                    Add column
-                </button>
+                    <button
+                        className="canvas-inspector__section-icon-button"
+                        type="button"
+                        title="Add column"
+                        aria-label="Add column"
+                        onClick={onAddColumn}
+                    >
+                        <Plus size={15} strokeWidth={2.6} />
+                    </button>
+                </div>
 
                 <div className="canvas-inspector__columns">
                     {table.columns.map((column) => (
@@ -96,15 +98,19 @@ export function CanvasInspector({
             </div>
 
             <div className="canvas-inspector__section">
-                <span className="canvas-inspector__section-title">Foreign keys</span>
+                <div className="canvas-inspector__section-header">
+                    <span className="canvas-inspector__section-title">Foreign keys</span>
 
-                <button
-                    className="canvas-inspector__section-action"
-                    type="button"
-                    onClick={onAddForeignKey}
-                >
-                    Add FK
-                </button>
+                    <button
+                        className="canvas-inspector__section-icon-button"
+                        type="button"
+                        title="Add foreign key"
+                        aria-label="Add foreign key"
+                        onClick={onAddForeignKey}
+                    >
+                        <Plus size={15} strokeWidth={2.6} />
+                    </button>
+                </div>
 
                 <div className="canvas-inspector__columns">
                     {table.foreignKeys.length === 0 ? (
@@ -131,17 +137,21 @@ export function CanvasInspector({
             </div>
 
             <div className="canvas-inspector__section">
-                <span className="canvas-inspector__section-title">
-                    Unique constraints
-                </span>
+                <div className="canvas-inspector__section-header">
+                    <span className="canvas-inspector__section-title">
+                        Unique constraints
+                    </span>
 
-                <button
-                    className="canvas-inspector__section-action"
-                    type="button"
-                    onClick={onAddUniqueConstraint}
-                >
-                    Add unique
-                </button>
+                    <button
+                        className="canvas-inspector__section-icon-button"
+                        type="button"
+                        title="Add unique constraint"
+                        aria-label="Add unique constraint"
+                        onClick={onAddUniqueConstraint}
+                    >
+                        <Plus size={15} strokeWidth={2.6} />
+                    </button>
+                </div>
 
                 <div className="canvas-inspector__columns">
                     {table.uniqueConstraints.length === 0 ? (
@@ -165,15 +175,19 @@ export function CanvasInspector({
             </div>
 
             <div className="canvas-inspector__section">
-                <span className="canvas-inspector__section-title">Indexes</span>
+                <div className="canvas-inspector__section-header">
+                    <span className="canvas-inspector__section-title">Indexes</span>
 
-                <button
-                    className="canvas-inspector__section-action"
-                    type="button"
-                    onClick={onAddIndex}
-                >
-                    Add index
-                </button>
+                    <button
+                        className="canvas-inspector__section-icon-button"
+                        type="button"
+                        title="Add index"
+                        aria-label="Add index"
+                        onClick={onAddIndex}
+                    >
+                        <Plus size={15} strokeWidth={2.6} />
+                    </button>
+                </div>
 
                 <div className="canvas-inspector__columns">
                     {table.indexes.length === 0 ? (

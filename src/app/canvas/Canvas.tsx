@@ -1,51 +1,60 @@
+import type { OnNodeDrag, Node as ReactFlowNode } from "@xyflow/react";
 import {
     applyNodeChanges,
     Background,
     Controls,
-    MiniMap,
     ReactFlow,
     ReactFlowProvider,
     useEdgesState,
     useNodesState,
+    type NodeChange,
     type ReactFlowInstance
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DatabaseProject } from "../../core/model";
 import {
     addColumn,
     addForeignKey,
     addIndex,
+    addSequence,
     addTable,
     addUniqueConstraint,
     removeColumn,
     removeForeignKey,
     removeIndex,
+    removeSchema,
+    removeSequence,
     removeTable,
     removeUniqueConstraint,
     updateColumn,
     updateForeignKey,
     updateIndex,
+    updateSchema,
+    updateSequence,
     updateTable,
     updateTableNodePosition,
     updateUniqueConstraint
 } from "../../core/model";
 import { AddColumnModal } from "./AddColumnModal";
 import { AddForeignKeyModal } from "./AddForeignKeyModal";
+import { AddIndexModal } from "./AddIndexModal";
+import { AddUniqueConstraintModal } from "./AddUniqueConstraintModal";
 import "./Canvas.css";
 import { CanvasInspector } from "./CanvasInspector";
+import { CanvasSidebar } from "./CanvasSidebar";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { DatabaseTableNode } from "./DatabaseTableNode";
 import { EditColumnModal } from "./EditColumnModal";
+import { EditForeignKeyModal } from "./EditForeignKeyModal";
+import { EditIndexModal } from "./EditIndexModal";
+import { EditUniqueConstraintModal } from "./EditUniqueConstraintModal";
 import {
     mapProjectToFlow,
     mapProjectToFlowEdges,
 } from "./mapProjectToFlow";
-import { EditForeignKeyModal } from "./EditForeignKeyModal";
-import { AddUniqueConstraintModal } from "./AddUniqueConstraintModal";
-import { EditUniqueConstraintModal } from "./EditUniqueConstraintModal";
-import { EditIndexModal } from "./EditIndexModal";
-import { AddIndexModal } from "./AddIndexModal";
+import { SchemaModal } from "./SchemaModal";
+import { SequenceModal } from "./SequenceModal";
 
 type CanvasProps = {
     project: DatabaseProject;
@@ -91,22 +100,266 @@ function CanvasContent({ project, setProject }: CanvasProps) {
         setEdges(mapProjectToFlowEdges(project, nodes));
     }, [project, nodes, setEdges]);
 
-    const handleNodeDragStop = (
-        _: unknown,
-        node: { id: string; position: { x: number; y: number } }
-    ) => {
+    const handleNodeDragStop: OnNodeDrag<ReactFlowNode> = (_event, node) => {
         setProject((currentProject) =>
-            updateTableNodePosition(currentProject, node.id, {
-                x: node.position.x,
-                y: node.position.y,
-            })
+            updateTableNodePosition(currentProject, node.id, node.position)
+        );
+
+        setSelectedTableId(node.id);
+
+        setNodes((currentNodes) =>
+            currentNodes.map((currentNode) => ({
+                ...currentNode,
+                selected: currentNode.id === node.id,
+            }))
         );
     };
+
+    const handleRenameProject = (name: string) => {
+        setProject((currentProject) => ({
+            ...currentProject,
+            name,
+        }));
+    };
+
+    const [isAddSchemaModalOpen, setIsAddSchemaModalOpen] = useState(false);
+    const [editingSchemaId, setEditingSchemaId] = useState<string | null>(null);
 
     const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
     const selectedTable = project.schemas
         .flatMap((schema) => schema.tables)
         .find((table) => table.id === selectedTableId);
+
+    useEffect(() => {
+        setNodes((currentNodes) =>
+            currentNodes.map((node) => ({
+                ...node,
+                selected: node.id === selectedTableId,
+            }))
+        );
+    }, [selectedTableId, setNodes]);
+
+    const editingSchema = project.schemas.find(
+        (schema) => schema.id === editingSchemaId
+    );
+
+    const handleCreateSchema = (name: string) => {
+        setProject((currentProject) => ({
+            ...currentProject,
+            schemas: [
+                ...currentProject.schemas,
+                {
+                    id: crypto.randomUUID(),
+                    name,
+                    sequences: [],
+                    tables: [],
+                },
+            ],
+        }));
+
+        setIsAddSchemaModalOpen(false);
+    };
+
+    const handleSaveSchema = (name: string) => {
+        if (!editingSchemaId) {
+            return;
+        }
+
+        setProject((currentProject) =>
+            updateSchema(
+                currentProject,
+                editingSchemaId,
+                (currentSchema) => ({
+                    ...currentSchema,
+                    name,
+                })
+            )
+        );
+
+        setEditingSchemaId(null);
+    };
+
+    const handleDeleteSchema = (schemaId: string) => {
+        const schema = project.schemas.find(
+            (currentSchema) => currentSchema.id === schemaId
+        );
+
+        if (!schema) {
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Remove schema "${schema.name}"? This will remove its tables and sequences.`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        setProject((currentProject) => removeSchema(currentProject, schemaId));
+
+        if (
+            selectedTableId &&
+            schema.tables.some((table) => table.id === selectedTableId)
+        ) {
+            setSelectedTableId(null);
+        }
+
+        setEditingSchemaId(null);
+    };
+
+    const [addingSequenceSchemaId, setAddingSequenceSchemaId] = useState<string | null>(null);
+
+    const [editingSequence, setEditingSequence] = useState<{
+        schemaId: string;
+        sequenceId: string;
+    } | null>(null);
+
+    const addingSequenceSchema = project.schemas.find(
+        (schema) => schema.id === addingSequenceSchemaId
+    );
+
+    const editingSequenceSchema = project.schemas.find(
+        (schema) => schema.id === editingSequence?.schemaId
+    );
+
+    const editingSequenceData = editingSequenceSchema?.sequences.find(
+        (sequence) => sequence.id === editingSequence?.sequenceId
+    );
+
+    const handleCreateSequence = (sequenceData: {
+        name: string;
+        startWith: number;
+        incrementBy: number;
+    }) => {
+        if (!addingSequenceSchemaId) {
+            return;
+        }
+
+        const schema = project.schemas.find(
+            (currentSchema) => currentSchema.id === addingSequenceSchemaId
+        );
+
+        if (!schema) {
+            return;
+        }
+
+        const currentSequenceIds = new Set(
+            schema.sequences.map((sequence) => sequence.id)
+        );
+
+        const projectWithSequence = addSequence(project, addingSequenceSchemaId);
+
+        const newSequence = projectWithSequence.schemas
+            .find((currentSchema) => currentSchema.id === addingSequenceSchemaId)
+            ?.sequences.find((sequence) => !currentSequenceIds.has(sequence.id));
+
+        if (!newSequence) {
+            return;
+        }
+
+        const nextProject = updateSequence(
+            projectWithSequence,
+            addingSequenceSchemaId,
+            newSequence.id,
+            (currentSequence) => ({
+                ...currentSequence,
+                name: sequenceData.name,
+                startWith: sequenceData.startWith,
+                incrementBy: sequenceData.incrementBy,
+            })
+        );
+
+        setProject(nextProject);
+        setAddingSequenceSchemaId(null);
+    };
+
+    const handleSaveSequence = (sequenceData: {
+        name: string;
+        startWith: number;
+        incrementBy: number;
+    }) => {
+        if (!editingSequence) {
+            return;
+        }
+
+        setProject((currentProject) =>
+            updateSequence(
+                currentProject,
+                editingSequence.schemaId,
+                editingSequence.sequenceId,
+                (currentSequence) => ({
+                    ...currentSequence,
+                    name: sequenceData.name,
+                    startWith: sequenceData.startWith,
+                    incrementBy: sequenceData.incrementBy,
+                })
+            )
+        );
+
+        setEditingSequence(null);
+    };
+
+    const handleDeleteSequence = (schemaId: string, sequenceId: string) => {
+        const schema = project.schemas.find(
+            (currentSchema) => currentSchema.id === schemaId
+        );
+
+        const sequence = schema?.sequences.find(
+            (currentSequence) => currentSequence.id === sequenceId
+        );
+
+        if (!schema || !sequence) {
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Remove sequence "${sequence.name}"?`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        setProject((currentProject) =>
+            removeSequence(currentProject, schemaId, sequenceId)
+        );
+
+        setEditingSequence(null);
+    };
+
+    const handleSeeTableOnDiagram = (_schemaId: string, tableId: string) => {
+        const tableNodeExists = project.diagram.tableNodes.some(
+            (tableNode) => tableNode.tableId === tableId
+        );
+
+        if (!tableNodeExists) {
+            setProject((currentProject) =>
+                updateTableNodePosition(currentProject, tableId, {
+                    x: 160,
+                    y: 160,
+                })
+            );
+        }
+
+        setSelectedTableId(tableId);
+
+        setNodes((currentNodes) =>
+            currentNodes.map((node) => ({
+                ...node,
+                selected: node.id === tableId,
+            }))
+        );
+
+        window.requestAnimationFrame(() => {
+            reactFlowInstanceRef.current?.fitView({
+                nodes: [{ id: tableId }],
+                padding: 0.55,
+                maxZoom: 0.95,
+                duration: 300,
+            });
+        });
+    };
 
     const handleAddTable = () => {
         const firstSchema = project.schemas[0];
@@ -162,9 +415,17 @@ function CanvasContent({ project, setProject }: CanvasProps) {
         setEditingColumnId(null);
     };
 
-    const handleNodesChange = (changes: Parameters<typeof applyNodeChanges>[0]) => {
-        setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
-    };
+    const handleNodesChange = useCallback(
+        (changes: NodeChange[]) => {
+            setNodes((currentNodes) =>
+                applyNodeChanges(changes, currentNodes).map((node) => ({
+                    ...node,
+                    selected: node.id === selectedTableId,
+                }))
+            );
+        },
+        [setNodes, selectedTableId]
+    );
 
     const handleRenameTable = (name: string) => {
         if (!selectedTableId) {
@@ -713,147 +974,217 @@ function CanvasContent({ project, setProject }: CanvasProps) {
     };
 
     return (
-        <ReactFlowProvider>
-            <div className="canvas-page">
+        <div className="canvas-workspace">
+            <CanvasSidebar
+                project={project}
+                onRenameProject={handleRenameProject}
+                onAddSchema={() => setIsAddSchemaModalOpen(true)}
+                onEditSchema={setEditingSchemaId}
+                onDeleteSchema={handleDeleteSchema}
+                onAddSequence={setAddingSequenceSchemaId}
+                onEditSequence={(schemaId, sequenceId) =>
+                    setEditingSequence({ schemaId, sequenceId })
+                }
+                onDeleteSequence={handleDeleteSequence}
+                onSeeTableOnDiagram={handleSeeTableOnDiagram}
+            />
 
-                <CanvasToolbar
-                    onFitView={handleFitView}
-                    onAddTable={handleAddTable}
-                />
+            <div className="canvas-main">
+                <ReactFlowProvider>
+                    <div className="canvas-page">
 
-                {selectedTable && (
-                    <CanvasInspector
-                        table={selectedTable}
-                        onClose={() => setSelectedTableId(null)}
-                        onRenameTable={handleRenameTable}
-                        onDeleteTable={handleDeleteTable}
-                        onAddColumn={handleAddColumn}
-                        onEditColumn={setEditingColumnId}
-                        onAddForeignKey={() => setIsAddForeignKeyModalOpen(true)}
-                        onEditForeignKey={setEditingForeignKeyId}
-                        onAddUniqueConstraint={() => setIsAddUniqueConstraintModalOpen(true)}
-                        onEditUniqueConstraint={setEditingUniqueConstraintId}
-                        onAddIndex={() => setIsAddIndexModalOpen(true)}
-                        onEditIndex={setEditingIndexId}
-                    />
-                )}
+                        <CanvasToolbar
+                            onFitView={handleFitView}
+                            onAddTable={handleAddTable}
+                        />
 
-                {isAddColumnModalOpen && (
-                    <AddColumnModal
-                        existingColumnNames={selectedTable?.columns.map((column) => column.name) ?? []}
-                        onClose={() => setIsAddColumnModalOpen(false)}
-                        onCreateColumn={handleCreateColumn}
-                    />
-                )}
+                        {selectedTable && (
+                            <CanvasInspector
+                                table={selectedTable}
+                                onClose={() => setSelectedTableId(null)}
+                                onRenameTable={handleRenameTable}
+                                onDeleteTable={handleDeleteTable}
+                                onAddColumn={handleAddColumn}
+                                onEditColumn={setEditingColumnId}
+                                onAddForeignKey={() => setIsAddForeignKeyModalOpen(true)}
+                                onEditForeignKey={setEditingForeignKeyId}
+                                onAddUniqueConstraint={() => setIsAddUniqueConstraintModalOpen(true)}
+                                onEditUniqueConstraint={setEditingUniqueConstraintId}
+                                onAddIndex={() => setIsAddIndexModalOpen(true)}
+                                onEditIndex={setEditingIndexId}
+                            />
+                        )}
 
-                {editingColumn && selectedTable && (
-                    <EditColumnModal
-                        column={editingColumn}
-                        existingColumnNames={selectedTable.columns.map((column) => column.name)}
-                        onClose={() => setEditingColumnId(null)}
-                        onDeleteColumn={handleDeleteColumn}
-                        onSaveColumn={handleSaveColumn}
-                    />
-                )}
+                        {isAddColumnModalOpen && (
+                            <AddColumnModal
+                                existingColumnNames={selectedTable?.columns.map((column) => column.name) ?? []}
+                                onClose={() => setIsAddColumnModalOpen(false)}
+                                onCreateColumn={handleCreateColumn}
+                            />
+                        )}
 
-                {isAddForeignKeyModalOpen && selectedTable && (
-                    <AddForeignKeyModal
-                        project={project}
-                        sourceTable={selectedTable}
-                        onClose={() => setIsAddForeignKeyModalOpen(false)}
-                        onCreateForeignKey={handleCreateForeignKey}
-                    />
-                )}
+                        {editingColumn && selectedTable && (
+                            <EditColumnModal
+                                column={editingColumn}
+                                existingColumnNames={selectedTable.columns.map((column) => column.name)}
+                                onClose={() => setEditingColumnId(null)}
+                                onDeleteColumn={handleDeleteColumn}
+                                onSaveColumn={handleSaveColumn}
+                            />
+                        )}
 
-                {editingForeignKey && selectedTable && (
-                    <EditForeignKeyModal
-                        project={project}
-                        sourceTable={selectedTable}
-                        foreignKey={editingForeignKey}
-                        onClose={() => setEditingForeignKeyId(null)}
-                        onDeleteForeignKey={handleDeleteForeignKey}
-                        onSaveForeignKey={handleSaveForeignKey}
-                    />
-                )}
+                        {isAddForeignKeyModalOpen && selectedTable && (
+                            <AddForeignKeyModal
+                                project={project}
+                                sourceTable={selectedTable}
+                                onClose={() => setIsAddForeignKeyModalOpen(false)}
+                                onCreateForeignKey={handleCreateForeignKey}
+                            />
+                        )}
 
-                {isAddUniqueConstraintModalOpen && selectedTable && (
-                    <AddUniqueConstraintModal
-                        table={selectedTable}
-                        onClose={() => setIsAddUniqueConstraintModalOpen(false)}
-                        onCreateUniqueConstraint={handleCreateUniqueConstraint}
-                    />
-                )}
+                        {editingForeignKey && selectedTable && (
+                            <EditForeignKeyModal
+                                project={project}
+                                sourceTable={selectedTable}
+                                foreignKey={editingForeignKey}
+                                onClose={() => setEditingForeignKeyId(null)}
+                                onDeleteForeignKey={handleDeleteForeignKey}
+                                onSaveForeignKey={handleSaveForeignKey}
+                            />
+                        )}
 
-                {editingUniqueConstraint && selectedTable && (
-                    <EditUniqueConstraintModal
-                        table={selectedTable}
-                        uniqueConstraint={editingUniqueConstraint}
-                        onClose={() => setEditingUniqueConstraintId(null)}
-                        onDeleteUniqueConstraint={handleDeleteUniqueConstraint}
-                        onSaveUniqueConstraint={handleSaveUniqueConstraint}
-                    />
-                )}
+                        {isAddUniqueConstraintModalOpen && selectedTable && (
+                            <AddUniqueConstraintModal
+                                table={selectedTable}
+                                onClose={() => setIsAddUniqueConstraintModalOpen(false)}
+                                onCreateUniqueConstraint={handleCreateUniqueConstraint}
+                            />
+                        )}
 
-                {isAddIndexModalOpen && selectedTable && (
-                    <AddIndexModal
-                        table={selectedTable}
-                        onClose={() => setIsAddIndexModalOpen(false)}
-                        onCreateIndex={handleCreateIndex}
-                    />
-                )}
+                        {editingUniqueConstraint && selectedTable && (
+                            <EditUniqueConstraintModal
+                                table={selectedTable}
+                                uniqueConstraint={editingUniqueConstraint}
+                                onClose={() => setEditingUniqueConstraintId(null)}
+                                onDeleteUniqueConstraint={handleDeleteUniqueConstraint}
+                                onSaveUniqueConstraint={handleSaveUniqueConstraint}
+                            />
+                        )}
 
-                {editingIndex && selectedTable && (
-                    <EditIndexModal
-                        table={selectedTable}
-                        index={editingIndex}
-                        onClose={() => setEditingIndexId(null)}
-                        onDeleteIndex={handleDeleteIndex}
-                        onSaveIndex={handleSaveIndex}
-                    />
-                )}
+                        {isAddIndexModalOpen && selectedTable && (
+                            <AddIndexModal
+                                table={selectedTable}
+                                onClose={() => setIsAddIndexModalOpen(false)}
+                                onCreateIndex={handleCreateIndex}
+                            />
+                        )}
 
-                <ReactFlow
-                    className="canvas-flow"
-                    nodes={nodes}
-                    edges={edges}
-                    nodeTypes={nodeTypes}
-                    onNodeDragStop={handleNodeDragStop}
-                    onNodeClick={(_, node) => setSelectedTableId(node.id)}
-                    onPaneClick={() => setSelectedTableId(null)}
-                    onInit={(instance) => {
-                        reactFlowInstanceRef.current = instance;
-                    }}
-                    defaultEdgeOptions={{
-                        type: "smoothstep",
-                        style: {
-                            stroke: "#38bdf8",
-                            strokeWidth: 2,
-                        },
-                        labelStyle: {
-                            fill: "#cbd5e1",
-                            fontSize: 12,
-                            fontWeight: 600,
-                        },
-                        labelBgStyle: {
-                            fill: "#020617",
-                            fillOpacity: 0.9,
-                        },
-                    }}
-                    onNodesChange={handleNodesChange}
-                    onEdgesChange={onEdgesChange}
-                    nodesConnectable={false}
-                    elementsSelectable
-                    fitView
-                    fitViewOptions={{
-                        padding: 0.35,
-                        maxZoom: 0.85,
-                    }}
-                >
-                    <Background />
-                    <Controls />
-                    <MiniMap />
-                </ReactFlow>
+                        {editingIndex && selectedTable && (
+                            <EditIndexModal
+                                table={selectedTable}
+                                index={editingIndex}
+                                onClose={() => setEditingIndexId(null)}
+                                onDeleteIndex={handleDeleteIndex}
+                                onSaveIndex={handleSaveIndex}
+                            />
+                        )}
+
+                        {isAddSchemaModalOpen && (
+                            <SchemaModal
+                                title="Add schema"
+                                existingSchemaNames={project.schemas.map((schema) => schema.name)}
+                                onClose={() => setIsAddSchemaModalOpen(false)}
+                                onSave={handleCreateSchema}
+                            />
+                        )}
+
+                        {editingSchema && (
+                            <SchemaModal
+                                title={`Edit schema · ${editingSchema.name}`}
+                                initialName={editingSchema.name}
+                                existingSchemaNames={project.schemas.map((schema) => schema.name)}
+                                onClose={() => setEditingSchemaId(null)}
+                                onSave={handleSaveSchema}
+                            />
+                        )}
+
+                        {addingSequenceSchema && (
+                            <SequenceModal
+                                title={`Add sequence · ${addingSequenceSchema.name}`}
+                                existingSequenceNames={addingSequenceSchema.sequences.map(
+                                    (sequence) => sequence.name
+                                )}
+                                onClose={() => setAddingSequenceSchemaId(null)}
+                                onSave={handleCreateSequence}
+                            />
+                        )}
+
+                        {editingSequenceSchema && editingSequenceData && (
+                            <SequenceModal
+                                title={`Edit sequence · ${editingSequenceData.name}`}
+                                initialName={editingSequenceData.name}
+                                initialStartWith={editingSequenceData.startWith}
+                                initialIncrementBy={editingSequenceData.incrementBy}
+                                existingSequenceNames={editingSequenceSchema.sequences.map(
+                                    (sequence) => sequence.name
+                                )}
+                                onClose={() => setEditingSequence(null)}
+                                onSave={handleSaveSequence}
+                            />
+                        )}
+
+                        <ReactFlow
+                            className="canvas-flow"
+                            nodes={nodes}
+                            edges={edges}
+                            nodeTypes={nodeTypes}
+                            onNodeDragStop={handleNodeDragStop}
+                            onNodeClick={(_, node) => setSelectedTableId(node.id)}
+                            onPaneClick={() => {
+                                setSelectedTableId(null);
+
+                                setNodes((currentNodes) =>
+                                    currentNodes.map((node) => ({
+                                        ...node,
+                                        selected: false,
+                                    }))
+                                );
+                            }}
+                            onInit={(instance) => {
+                                reactFlowInstanceRef.current = instance;
+                            }}
+                            defaultEdgeOptions={{
+                                type: "smoothstep",
+                                style: {
+                                    stroke: "#38bdf8",
+                                    strokeWidth: 2,
+                                },
+                                labelStyle: {
+                                    fill: "#cbd5e1",
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                },
+                                labelBgStyle: {
+                                    fill: "#020617",
+                                    fillOpacity: 0.9,
+                                },
+                            }}
+                            onNodesChange={handleNodesChange}
+                            onEdgesChange={onEdgesChange}
+                            nodesConnectable={false}
+                            elementsSelectable
+                            fitView
+                            fitViewOptions={{
+                                padding: 0.35,
+                                maxZoom: 0.85,
+                            }}
+                        >
+                            <Background />
+                            <Controls showFitView={false} />
+                        </ReactFlow>
+                    </div>
+                </ReactFlowProvider>
             </div>
-        </ReactFlowProvider>
+        </div>
     );
 }

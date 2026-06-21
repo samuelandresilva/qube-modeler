@@ -12,8 +12,8 @@ export function Root() {
     const [project, setProject] = useState(createEmptyProject);
 
     return (
-        <>
-            <div className="root-view-switcher">
+        <div className={`root root--${viewMode}`}>
+            {/* <div className="root-view-switcher">
                 <button
                     data-active={viewMode === "editor"}
                     onClick={() => setViewMode("editor")}
@@ -27,13 +27,13 @@ export function Root() {
                 >
                     Canvas
                 </button>
-            </div>
+            </div> */}
 
             {viewMode === "editor" ? (
                 <App project={project} setProject={setProject} />
             ) : (
                 <Canvas project={project} setProject={setProject} />
             )}
-        </>
+        </div>
     );
 }
