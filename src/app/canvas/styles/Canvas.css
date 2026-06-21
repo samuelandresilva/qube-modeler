@@ -50,3 +50,6 @@
     0 0 0 2px rgba(56, 189, 248, 0.55),
     0 18px 40px rgba(56, 189, 248, 0.16);
 }
+.canvas-flow--adding-table .react-flow__pane {
+  cursor: crosshair !important;
+}

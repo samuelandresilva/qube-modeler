@@ -9,6 +9,7 @@ import type {
 export function createTable(
   project: DatabaseProject,
   schemaId: string,
+  position?: { x: number; y: number },
 ): CreateResult {
   const schema = project.schemas.find((candidate) => candidate.id === schemaId);
   const id = crypto.randomUUID();
@@ -22,6 +23,11 @@ export function createTable(
     foreignKeys: [],
     uniqueConstraints: [],
     indexes: [],
+  };
+
+  const finalPosition = position ?? {
+    x: 120 + project.diagram.tableNodes.length * 40,
+    y: 120 + project.diagram.tableNodes.length * 40,
   };
 
   return {
@@ -39,10 +45,7 @@ export function createTable(
           ...project.diagram.tableNodes,
           {
             tableId: id,
-            position: {
-              x: 120 + project.diagram.tableNodes.length * 40,
-              y: 120 + project.diagram.tableNodes.length * 40,
-            },
+            position: finalPosition,
           },
         ],
       },

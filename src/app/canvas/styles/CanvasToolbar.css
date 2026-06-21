@@ -46,3 +46,7 @@
   display: inline-grid;
   place-items: center;
 }
+.canvas-toolbar button.canvas-toolbar__button--active {
+  background: var(--color-accent);
+  color: #020617;
+}

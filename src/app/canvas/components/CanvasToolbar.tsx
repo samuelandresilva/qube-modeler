@@ -3,6 +3,7 @@ import { FileCode2, FileJson, Grid2X2Plus, Scan } from "lucide-react";
 export type CanvasToolbarProps = {
   onFitView: () => void;
   onAddTable: () => void;
+  isAddingTable: boolean;
   onExportJson: () => void;
   onGenerateSql: () => void;
 };
@@ -10,6 +11,7 @@ export type CanvasToolbarProps = {
 export function CanvasToolbar({
   onFitView,
   onAddTable,
+  isAddingTable,
   onExportJson,
   onGenerateSql,
 }: CanvasToolbarProps) {
@@ -27,7 +29,7 @@ export function CanvasToolbar({
         </button>
 
         <button
-          className="canvas-toolbar__icon-button"
+          className={`canvas-toolbar__icon-button ${isAddingTable ? "canvas-toolbar__button--active" : ""}`}
           type="button"
           title="Add table"
           aria-label="Add table"

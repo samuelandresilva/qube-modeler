@@ -3,10 +3,11 @@ import {
   Controls,
   ReactFlow,
   ReactFlowProvider,
+  useReactFlow,
   type ReactFlowProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   createTable,
   findTableContext,
@@ -48,8 +49,10 @@ export function Canvas(props: CanvasProps) {
 }
 
 function CanvasContent({ project, setProject }: CanvasProps) {
+  const { screenToFlowPosition } = useReactFlow();
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<CanvasDialogState>(null);
+  const [isAddingTable, setIsAddingTable] = useState(false);
   const context = selectedTableId
     ? findTableContext(project, selectedTableId)
     : undefined;
@@ -60,13 +63,38 @@ function CanvasContent({ project, setProject }: CanvasProps) {
     onSelectTable: setSelectedTableId,
   });
 
-  const addTable = () => {
-    const schema = project.schemas[0];
-    if (!schema) return;
-    const result = createTable(project, schema.id);
-    setProject(result.project);
-    setSelectedTableId(result.id);
-    requestAnimationFrame(flow.fitView);
+  useEffect(() => {
+    if (!isAddingTable) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsAddingTable(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isAddingTable]);
+
+  const toggleAddTableMode = () => {
+    setIsAddingTable((prev) => !prev);
+  };
+  const handlePaneClick = (event: React.MouseEvent) => {
+    if (isAddingTable) {
+      const schema = project.schemas[0];
+      if (!schema) {
+        setIsAddingTable(false);
+        return;
+      }
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      const result = createTable(project, schema.id, position);
+      setProject(result.project);
+      setSelectedTableId(result.id);
+      setIsAddingTable(false);
+    } else {
+      setSelectedTableId(null);
+    }
   };
   const deleteTable = () => {
     if (!context || !window.confirm(`Remove table "${context.table.name}"?`))
@@ -136,7 +164,8 @@ function CanvasContent({ project, setProject }: CanvasProps) {
       />
       <main className="canvas-main">
         <CanvasToolbar
-          onAddTable={addTable}
+          onAddTable={toggleAddTableMode}
+          isAddingTable={isAddingTable}
           onFitView={flow.fitView}
           onExportJson={() => download("json")}
           onGenerateSql={() => download("sql")}
@@ -180,13 +209,18 @@ function CanvasContent({ project, setProject }: CanvasProps) {
           selectedTableId={selectedTableId}
         />
         <ReactFlow
-          className="canvas-flow"
+          className={`canvas-flow ${isAddingTable ? "canvas-flow--adding-table" : ""}`}
           nodes={flow.nodes}
           edges={flow.edges}
           nodeTypes={nodeTypes}
           onNodeDragStop={flow.onNodeDragStop}
-          onNodeClick={(_, node) => setSelectedTableId(node.id)}
-          onPaneClick={() => setSelectedTableId(null)}
+          onNodeClick={(_, node) => {
+            if (isAddingTable) {
+              setIsAddingTable(false);
+            }
+            setSelectedTableId(node.id);
+          }}
+          onPaneClick={handlePaneClick}
           onInit={flow.onInit}
           defaultEdgeOptions={defaultEdgeOptions}
           onNodesChange={flow.onNodesChange}
