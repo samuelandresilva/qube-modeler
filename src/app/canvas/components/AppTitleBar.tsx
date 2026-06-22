@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import appIconUrl from "@/assets/qube-modeler-icon.png";
 
 type AppTitleBarProps = {
   title: string;
@@ -18,6 +19,13 @@ export function AppTitleBar({ title }: AppTitleBarProps) {
       <div
         className={`app-title-bar app-drag ${isMac ? "app-title-bar--mac" : ""}`}
       >
+        <img
+          className="app-title-bar__icon"
+          src={appIconUrl}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
         <span className="app-title-bar__title">{title}</span>
       </div>
 

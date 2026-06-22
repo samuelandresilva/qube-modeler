@@ -192,7 +192,7 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleOpenProject, handleSaveProject, handleSaveProjectAs]);
 
-  const windowTitle = `${openedProject.project.name}${openedProject.isDirty ? " *" : ""} — Qube Modeler`;
+  const windowTitle = `${openedProject.project.name}${openedProject.isDirty ? " *" : ""} - Qube Modeler`;
 
   return (
     <div className="app-shell">
