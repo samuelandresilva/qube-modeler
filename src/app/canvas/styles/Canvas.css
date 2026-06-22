@@ -3,6 +3,7 @@
 @import "./CanvasInspector.css";
 @import "./CanvasModal.css";
 @import "./DatabaseTableNode.css";
+@import "./LoadingOverlay.css";
 
 .canvas-workspace {
   display: flex;

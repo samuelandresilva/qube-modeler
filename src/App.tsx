@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type Dispatch,
   type SetStateAction,
@@ -28,8 +29,24 @@ export default function App() {
     isDirty: false,
   }));
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fileOperationMessage, setFileOperationMessage] = useState<
+    string | null
+  >(null);
+  const fileOperationInProgressRef = useRef(false);
   const { confirm, requestConfirm, dismissConfirm, acceptConfirm } =
     useConfirm();
+
+  const beginFileOperation = useCallback((message: string): boolean => {
+    if (fileOperationInProgressRef.current) return false;
+    fileOperationInProgressRef.current = true;
+    setFileOperationMessage(message);
+    return true;
+  }, []);
+
+  const finishFileOperation = useCallback(() => {
+    fileOperationInProgressRef.current = false;
+    setFileOperationMessage(null);
+  }, []);
 
   const setProject: Dispatch<SetStateAction<DatabaseProject>> = useCallback(
     (action) => {
@@ -71,6 +88,7 @@ export default function App() {
       );
       return;
     }
+    if (!beginFileOperation("Opening project...")) return;
 
     try {
       const result = await api.openProject();
@@ -88,8 +106,10 @@ export default function App() {
       setErrorMessage(
         `Could not open the project: ${getErrorMessage(error)}`,
       );
+    } finally {
+      finishFileOperation();
     }
-  }, []);
+  }, [beginFileOperation, finishFileOperation]);
 
   const handleOpenProject = useCallback(() => {
     if (!openedProject.isDirty) {
@@ -112,6 +132,7 @@ export default function App() {
       );
       return;
     }
+    if (!beginFileOperation("Saving project as...")) return;
 
     try {
       const result = await api.saveProjectAs({
@@ -133,8 +154,10 @@ export default function App() {
       setErrorMessage(
         `Could not save the project: ${getErrorMessage(error)}`,
       );
+    } finally {
+      finishFileOperation();
     }
-  }, [openedProject.project]);
+  }, [beginFileOperation, finishFileOperation, openedProject.project]);
 
   const handleSaveProject = useCallback(async () => {
     if (!openedProject.filePath) {
@@ -150,6 +173,7 @@ export default function App() {
       );
       return;
     }
+    if (!beginFileOperation("Saving project...")) return;
 
     try {
       const result = await api.saveProject({
@@ -171,8 +195,16 @@ export default function App() {
       setErrorMessage(
         `Could not save the project: ${getErrorMessage(error)}`,
       );
+    } finally {
+      finishFileOperation();
     }
-  }, [handleSaveProjectAs, openedProject.filePath, openedProject.project]);
+  }, [
+    beginFileOperation,
+    finishFileOperation,
+    handleSaveProjectAs,
+    openedProject.filePath,
+    openedProject.project,
+  ]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -206,6 +238,10 @@ export default function App() {
           onOpenProject={handleOpenProject}
           onSaveProject={() => void handleSaveProject()}
           onSaveProjectAs={() => void handleSaveProjectAs()}
+          fileOperationMessage={fileOperationMessage}
+          beginFileOperation={beginFileOperation}
+          finishFileOperation={finishFileOperation}
+          onFileOperationError={setErrorMessage}
         />
       </div>
       {confirm && (

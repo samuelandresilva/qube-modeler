@@ -49,6 +49,14 @@
   background: var(--color-border-strong);
   color: var(--color-text-strong);
 }
+.canvas-toolbar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.canvas-toolbar button:disabled:hover {
+  background: var(--color-border);
+  color: var(--color-text);
+}
 .canvas-toolbar__icon-button {
   display: inline-grid;
   place-items: center;

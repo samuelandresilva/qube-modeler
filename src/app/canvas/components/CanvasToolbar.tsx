@@ -14,6 +14,7 @@ export type CanvasToolbarProps = {
   onOpenProject: () => void;
   onSaveProject: () => void;
   onSaveProjectAs: () => void;
+  isFileOperationLoading: boolean;
   onFitView: () => void;
   onAddTable: () => void;
   isAddingTable: boolean;
@@ -26,6 +27,7 @@ export function CanvasToolbar({
   onOpenProject,
   onSaveProject,
   onSaveProjectAs,
+  isFileOperationLoading,
   onFitView,
   onAddTable,
   isAddingTable,
@@ -41,6 +43,7 @@ export function CanvasToolbar({
           title="New project"
           aria-label="New project"
           onClick={onNewProject}
+          disabled={isFileOperationLoading}
         >
           <FilePlus2 size={18} strokeWidth={2.4} />
         </button>
@@ -51,6 +54,7 @@ export function CanvasToolbar({
           title="Open project (Ctrl+O)"
           aria-label="Open project"
           onClick={onOpenProject}
+          disabled={isFileOperationLoading}
         >
           <FolderOpen size={18} strokeWidth={2.4} />
         </button>
@@ -61,6 +65,7 @@ export function CanvasToolbar({
           title="Save project (Ctrl+S)"
           aria-label="Save project"
           onClick={onSaveProject}
+          disabled={isFileOperationLoading}
         >
           <Save size={18} strokeWidth={2.4} />
         </button>
@@ -71,6 +76,7 @@ export function CanvasToolbar({
           title="Save as (Ctrl+Shift+S)"
           aria-label="Save as"
           onClick={onSaveProjectAs}
+          disabled={isFileOperationLoading}
         >
           <SaveAll size={18} strokeWidth={2.4} />
         </button>
@@ -103,6 +109,7 @@ export function CanvasToolbar({
           title="Export JSON"
           aria-label="Export JSON"
           onClick={onExportJson}
+          disabled={isFileOperationLoading}
         >
           <FileJson size={18} strokeWidth={2.4} />
         </button>
@@ -113,6 +120,7 @@ export function CanvasToolbar({
           title="Generate SQL"
           aria-label="Generate SQL"
           onClick={onGenerateSql}
+          disabled={isFileOperationLoading}
         >
           <FileCode2 size={18} strokeWidth={2.4} />
         </button>

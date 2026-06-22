@@ -24,6 +24,7 @@ import { CanvasSidebar } from "./components/CanvasSidebar";
 import { CanvasToolbar } from "./components/CanvasToolbar";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { DatabaseTableNode } from "./components/DatabaseTableNode";
+import { LoadingOverlay } from "./components/LoadingOverlay";
 import { CanvasDialogs } from "./dialogs/CanvasDialogs";
 import type { CanvasDialogState } from "./dialogs/dialog-state";
 import { useCanvasFlow } from "./hooks/useCanvasFlow";
@@ -37,6 +38,10 @@ type CanvasProps = {
   onOpenProject: () => void;
   onSaveProject: () => void;
   onSaveProjectAs: () => void;
+  fileOperationMessage: string | null;
+  beginFileOperation: (message: string) => boolean;
+  finishFileOperation: () => void;
+  onFileOperationError: (message: string) => void;
 };
 const nodeTypes = { databaseTable: DatabaseTableNode };
 const defaultEdgeOptions: ReactFlowProps["defaultEdgeOptions"] = {
@@ -61,6 +66,10 @@ function CanvasContent({
   onOpenProject,
   onSaveProject,
   onSaveProjectAs,
+  fileOperationMessage,
+  beginFileOperation,
+  finishFileOperation,
+  onFileOperationError,
 }: CanvasProps) {
   const { screenToFlowPosition } = useReactFlow();
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
@@ -146,19 +155,31 @@ function CanvasContent({
       setDialog(null);
     });
   };
-  const download = (kind: "json" | "sql") => {
-    if (kind === "json")
-      downloadFile(
-        "qube-modeler-project.json",
-        JSON.stringify(project, null, 2),
-        "application/json;charset=utf-8",
+  const download = async (kind: "json" | "sql") => {
+    const message = kind === "json" ? "Exporting JSON..." : "Generating SQL...";
+    if (!beginFileOperation(message)) return;
+
+    try {
+      await waitForNextPaint();
+      if (kind === "json")
+        downloadFile(
+          "qube-modeler-project.json",
+          JSON.stringify(project, null, 2),
+          "application/json;charset=utf-8",
+        );
+      else
+        downloadFile(
+          "V001__initial_schema.sql",
+          generatePostgresSql(project),
+          "text/sql;charset=utf-8",
+        );
+    } catch (error) {
+      onFileOperationError(
+        `Could not ${kind === "json" ? "export JSON" : "generate SQL"}: ${getErrorMessage(error)}`,
       );
-    else
-      downloadFile(
-        "V001__initial_schema.sql",
-        generatePostgresSql(project),
-        "text/sql;charset=utf-8",
-      );
+    } finally {
+      finishFileOperation();
+    }
   };
 
   return (
@@ -184,11 +205,12 @@ function CanvasContent({
           onOpenProject={onOpenProject}
           onSaveProject={onSaveProject}
           onSaveProjectAs={onSaveProjectAs}
+          isFileOperationLoading={fileOperationMessage !== null}
           onAddTable={toggleAddTableMode}
           isAddingTable={isAddingTable}
           onFitView={flow.fitView}
-          onExportJson={() => download("json")}
-          onGenerateSql={() => download("sql")}
+          onExportJson={() => void download("json")}
+          onGenerateSql={() => void download("sql")}
         />
         {context && (
           <CanvasInspector
@@ -263,6 +285,19 @@ function CanvasContent({
           <Controls showFitView={false} />
         </ReactFlow>
       </main>
+      {fileOperationMessage && (
+        <LoadingOverlay message={fileOperationMessage} />
+      )}
     </div>
   );
+}
+
+function waitForNextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => window.setTimeout(resolve, 0));
+  });
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error.";
 }
