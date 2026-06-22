@@ -17,6 +17,7 @@ type Args = {
   setProject: React.Dispatch<React.SetStateAction<DatabaseProject>>;
   selectedTableId: string | null;
   onSelectTable: (id: string | null) => void;
+  onDoubleClickColumn?: (tableId: string, columnId: string) => void;
 };
 
 export function useCanvasFlow({
@@ -24,15 +25,16 @@ export function useCanvasFlow({
   setProject,
   selectedTableId,
   onSelectTable,
+  onDoubleClickColumn,
 }: Args) {
   const instanceRef = useRef<ReactFlowInstance | null>(null);
-  const initial = mapProjectToFlow(project);
+  const initial = mapProjectToFlow(project, onDoubleClickColumn);
   const [nodes, setNodes] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
 
   useEffect(
-    () => setNodes(mapProjectToFlow(project).nodes),
-    [project, setNodes],
+    () => setNodes(mapProjectToFlow(project, onDoubleClickColumn).nodes),
+    [project, setNodes, onDoubleClickColumn],
   );
   useEffect(
     () => setEdges(mapProjectToFlowEdges(project, nodes)),

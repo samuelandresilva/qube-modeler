@@ -5,6 +5,7 @@ import {
   ipcMain,
   Menu,
   nativeImage,
+  OpenDialogOptions,
   type WebContents,
 } from "electron";
 import { readFile, writeFile } from "node:fs/promises";
@@ -31,18 +32,25 @@ const appIconPath = path.join(process.cwd(), "build", "icon.png");
 process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
 
 let mainWindow: BrowserWindow | null = null;
+let isWindowCloseConfirmed = false;
 
 const qbmFileFilter = [{ name: "Qube Modeler Project", extensions: ["qbm"] }];
 
 function configureProjectIpc() {
+  ipcMain.on("qbm:confirm-close", (event) => {
+    if (!mainWindow || event.sender !== mainWindow.webContents) return;
+    isWindowCloseConfirmed = true;
+    mainWindow.close();
+  });
+
   ipcMain.handle(
     "qbm:open-project",
     async (event): Promise<OpenProjectResult> => {
       try {
         const owner = getOwnerWindow(event.sender);
-        const options = {
+        const options : OpenDialogOptions = {
           title: "Open Qube Modeler Project",
-          properties: ["openFile"] as const,
+          properties: ["openFile"],
           filters: qbmFileFilter,
         };
         const result = owner
@@ -192,6 +200,7 @@ function configureApplicationMenu() {
 }
 
 function createWindow() {
+  isWindowCloseConfirmed = false;
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -213,6 +222,12 @@ function createWindow() {
   });
 
   mainWindow.maximize();
+
+  mainWindow.on("close", (event) => {
+    if (isWindowCloseConfirmed) return;
+    event.preventDefault();
+    mainWindow?.webContents.send("qbm:close-requested");
+  });
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);

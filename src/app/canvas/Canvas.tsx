@@ -7,7 +7,7 @@ import {
   type ReactFlowProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   createTable,
   findTableContext,
@@ -80,11 +80,17 @@ function CanvasContent({
   const context = selectedTableId
     ? findTableContext(project, selectedTableId)
     : undefined;
+  const handleDoubleClickColumn = useCallback((tableId: string, columnId: string) => {
+    setSelectedTableId(tableId);
+    setDialog({ kind: "column", columnId });
+  }, []);
+
   const flow = useCanvasFlow({
     project,
     setProject,
     selectedTableId,
     onSelectTable: setSelectedTableId,
+    onDoubleClickColumn: handleDoubleClickColumn,
   });
 
   useEffect(() => {
@@ -277,6 +283,10 @@ function CanvasContent({
               setIsAddingTable(false);
             }
             setSelectedTableId(node.id);
+          }}
+          onEdgeDoubleClick={(_, edge) => {
+            setSelectedTableId(edge.source);
+            setDialog({ kind: "foreign-key", foreignKeyId: edge.id });
           }}
           onPaneClick={handlePaneClick}
           onInit={flow.onInit}

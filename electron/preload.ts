@@ -11,6 +11,12 @@ const api: QubeModelerApi = {
     ipcRenderer.invoke("qbm:save-project", payload),
   saveProjectAs: (payload: SaveProjectAsPayload) =>
     ipcRenderer.invoke("qbm:save-project-as", payload),
+  onCloseRequested: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on("qbm:close-requested", listener);
+    return () => ipcRenderer.removeListener("qbm:close-requested", listener);
+  },
+  confirmClose: () => ipcRenderer.send("qbm:confirm-close"),
 };
 
 contextBridge.exposeInMainWorld("qubeModeler", api);

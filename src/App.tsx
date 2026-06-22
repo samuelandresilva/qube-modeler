@@ -10,6 +10,7 @@ import {
 import { Canvas } from "@/app/canvas/Canvas";
 import { ConfirmDialog } from "@/app/canvas/components/ConfirmDialog";
 import { MessageDialog } from "@/app/canvas/components/MessageDialog";
+import { UnsavedChangesDialog } from "@/app/canvas/components/UnsavedChangesDialog";
 import { useConfirm } from "@/app/canvas/hooks/useConfirm";
 import { createEmptyProject, type DatabaseProject } from "@/core/model";
 import type { QubeModelerApi } from "@/core/qbm/ipc-types";
@@ -32,6 +33,7 @@ export default function App() {
   const [fileOperationMessage, setFileOperationMessage] = useState<
     string | null
   >(null);
+  const [isCloseRequested, setIsCloseRequested] = useState(false);
   const fileOperationInProgressRef = useRef(false);
   const { confirm, requestConfirm, dismissConfirm, acceptConfirm } =
     useConfirm();
@@ -123,26 +125,26 @@ export default function App() {
     );
   }, [openProject, openedProject.isDirty, requestConfirm]);
 
-  const handleSaveProjectAs = useCallback(async () => {
+  const handleSaveProjectAs = useCallback(async (): Promise<boolean> => {
     const projectBeingSaved = openedProject.project;
     const api = getQubeModelerApi();
     if (!api) {
       setErrorMessage(
         "The Electron preload is unavailable. Fully restart Qube Modeler and try again.",
       );
-      return;
+      return false;
     }
-    if (!beginFileOperation("Saving project as...")) return;
+    if (!beginFileOperation("Saving project as...")) return false;
 
     try {
       const result = await api.saveProjectAs({
         project: projectBeingSaved,
         suggestedFileName: openedProject.project.name,
       });
-      if (result.canceled) return;
+      if (result.canceled) return false;
       if ("error" in result) {
         setErrorMessage(result.error);
-        return;
+        return false;
       }
       setOpenedProject((current) => ({
         ...current,
@@ -150,19 +152,20 @@ export default function App() {
         isDirty:
           current.project === projectBeingSaved ? false : current.isDirty,
       }));
+      return true;
     } catch (error) {
       setErrorMessage(
         `Could not save the project: ${getErrorMessage(error)}`,
       );
+      return false;
     } finally {
       finishFileOperation();
     }
   }, [beginFileOperation, finishFileOperation, openedProject.project]);
 
-  const handleSaveProject = useCallback(async () => {
+  const handleSaveProject = useCallback(async (): Promise<boolean> => {
     if (!openedProject.filePath) {
-      await handleSaveProjectAs();
-      return;
+      return handleSaveProjectAs();
     }
 
     const projectBeingSaved = openedProject.project;
@@ -171,19 +174,19 @@ export default function App() {
       setErrorMessage(
         "The Electron preload is unavailable. Fully restart Qube Modeler and try again.",
       );
-      return;
+      return false;
     }
-    if (!beginFileOperation("Saving project...")) return;
+    if (!beginFileOperation("Saving project...")) return false;
 
     try {
       const result = await api.saveProject({
         filePath: openedProject.filePath,
         project: projectBeingSaved,
       });
-      if (result.canceled) return;
+      if (result.canceled) return false;
       if ("error" in result) {
         setErrorMessage(result.error);
-        return;
+        return false;
       }
       setOpenedProject((current) => ({
         ...current,
@@ -191,10 +194,12 @@ export default function App() {
         isDirty:
           current.project === projectBeingSaved ? false : current.isDirty,
       }));
+      return true;
     } catch (error) {
       setErrorMessage(
         `Could not save the project: ${getErrorMessage(error)}`,
       );
+      return false;
     } finally {
       finishFileOperation();
     }
@@ -224,6 +229,31 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleOpenProject, handleSaveProject, handleSaveProjectAs]);
 
+  useEffect(() => {
+    const api = getQubeModelerApi();
+    if (!api) return;
+
+    return api.onCloseRequested(() => {
+      if (openedProject.isDirty) {
+        setIsCloseRequested(true);
+      } else {
+        api.confirmClose();
+      }
+    });
+  }, [openedProject.isDirty]);
+
+  const discardChangesAndClose = useCallback(() => {
+    setIsCloseRequested(false);
+    getQubeModelerApi()?.confirmClose();
+  }, []);
+
+  const saveChangesAndClose = useCallback(async () => {
+    const saved = await handleSaveProject();
+    if (!saved) return;
+    setIsCloseRequested(false);
+    getQubeModelerApi()?.confirmClose();
+  }, [handleSaveProject]);
+
   const windowTitle = `${openedProject.project.name}${openedProject.isDirty ? " *" : ""} - Qube Modeler`;
 
   return (
@@ -250,6 +280,13 @@ export default function App() {
           confirmLabel={confirm.confirmLabel}
           onConfirm={acceptConfirm}
           onCancel={dismissConfirm}
+        />
+      )}
+      {isCloseRequested && (
+        <UnsavedChangesDialog
+          onSave={() => void saveChangesAndClose()}
+          onDiscard={discardChangesAndClose}
+          onCancel={() => setIsCloseRequested(false)}
         />
       )}
       {errorMessage && (

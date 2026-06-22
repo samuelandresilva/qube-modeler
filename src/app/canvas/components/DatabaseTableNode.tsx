@@ -2,7 +2,9 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 export type DatabaseTableNodeData = {
   tableName: string;
+  onDoubleClickColumn?: (columnId: string) => void;
   columns: {
+    id: string;
     name: string;
     type: string;
     primaryKey?: boolean;
@@ -22,7 +24,14 @@ export function DatabaseTableNode({ data }: NodeProps) {
 
       <div className="database-table-card__columns">
         {tableData.columns.map((column) => (
-          <div className="database-table-card__column" key={column.name}>
+          <div
+            className="database-table-card__column"
+            key={column.id}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              tableData.onDoubleClickColumn?.(column.id);
+            }}
+          >
             <Handle
               type="target"
               position={Position.Left}

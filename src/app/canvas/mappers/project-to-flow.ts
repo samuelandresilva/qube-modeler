@@ -2,7 +2,10 @@ import type { Edge, Node } from "@xyflow/react";
 import type { DatabaseProject } from "@/core/model";
 import { generatePostgresColumnTypeSql } from "@/core/sql/postgres-column-type-sql";
 
-export function mapProjectToFlow(project: DatabaseProject): {
+export function mapProjectToFlow(
+  project: DatabaseProject,
+  onDoubleClickColumn?: (tableId: string, columnId: string) => void,
+): {
   nodes: Node[];
   edges: Edge[];
 } {
@@ -27,7 +30,11 @@ export function mapProjectToFlow(project: DatabaseProject): {
       },
       data: {
         tableName: table.name,
+        onDoubleClickColumn: onDoubleClickColumn
+          ? (columnId: string) => onDoubleClickColumn(table.id, columnId)
+          : undefined,
         columns: table.columns.map((column) => ({
+          id: column.id,
           name: column.name,
           type: generatePostgresColumnTypeSql(column),
           primaryKey: column.primaryKey,

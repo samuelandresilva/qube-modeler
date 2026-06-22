@@ -24,4 +24,6 @@ export type QubeModelerApi = {
   openProject(): Promise<OpenProjectResult>;
   saveProject(payload: SaveProjectPayload): Promise<SaveProjectResult>;
   saveProjectAs(payload: SaveProjectAsPayload): Promise<SaveProjectResult>;
+  onCloseRequested(callback: () => void): () => void;
+  confirmClose(): void;
 };

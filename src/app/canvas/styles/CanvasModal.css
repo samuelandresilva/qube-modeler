@@ -28,6 +28,13 @@
 .canvas-modal-actions--confirm button:last-child:hover {
   background: rgba(153, 27, 27, 0.95);
 }
+.canvas-modal-actions--unsaved .canvas-modal-actions__discard {
+  background: rgba(127, 29, 29, 0.35);
+  color: var(--color-danger);
+}
+.canvas-modal-actions--unsaved .canvas-modal-actions__discard:hover {
+  background: rgba(153, 27, 27, 0.65);
+}
 .canvas-modal {
   display: flex;
   flex-direction: column;
