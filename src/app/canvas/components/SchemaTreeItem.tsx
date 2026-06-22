@@ -21,6 +21,7 @@ type Props = {
   onEditSequence: (schemaId: string, sequenceId: string) => void;
   onDeleteSequence: (schemaId: string, sequenceId: string) => void;
   onSeeTableOnDiagram: (schemaId: string, tableId: string) => void;
+  onDeleteTable: (schemaId: string, tableId: string) => void;
 };
 
 export function SchemaTreeItem({
@@ -31,6 +32,7 @@ export function SchemaTreeItem({
   onEditSequence,
   onDeleteSequence,
   onSeeTableOnDiagram,
+  onDeleteTable,
 }: Props) {
   const [expanded, setExpanded] = useState(true);
   const [sequencesExpanded, setSequencesExpanded] = useState(true);
@@ -150,6 +152,12 @@ export function SchemaTreeItem({
                         icon: <Search size={14} />,
                         onSelect: () =>
                           onSeeTableOnDiagram(schema.id, table.id),
+                      },
+                      {
+                        label: "Delete table",
+                        icon: <Trash2 size={14} />,
+                        danger: true,
+                        onSelect: () => onDeleteTable(schema.id, table.id),
                       },
                     ]}
                   >

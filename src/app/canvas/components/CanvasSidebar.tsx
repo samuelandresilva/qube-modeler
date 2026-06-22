@@ -14,6 +14,7 @@ type Props = {
   onEditSequence: (schemaId: string, sequenceId: string) => void;
   onDeleteSequence: (schemaId: string, sequenceId: string) => void;
   onSeeTableOnDiagram: (schemaId: string, tableId: string) => void;
+  onDeleteTable: (schemaId: string, tableId: string) => void;
 };
 
 export function CanvasSidebar({

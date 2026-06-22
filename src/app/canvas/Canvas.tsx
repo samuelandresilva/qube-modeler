@@ -120,14 +120,18 @@ function CanvasContent({
       setSelectedTableId(null);
     }
   };
-  const deleteTable = () => {
-    if (!context) return;
-    requestConfirm(`Remove table "${context.table.name}"?`, () => {
+  const deleteTable = (schemaId: string, tableId: string) => {
+    const schema = project.schemas.find((item) => item.id === schemaId);
+    const table = schema?.tables.find((item) => item.id === tableId);
+    if (!schema || !table) return;
+    requestConfirm(`Remove table "${table.name}"?`, () => {
       setProject((current) =>
-        removeTable(current, context.schema.id, context.table.id),
+        removeTable(current, schema.id, table.id),
       );
-      setSelectedTableId(null);
-      setDialog(null);
+      if (selectedTableId === table.id) {
+        setSelectedTableId(null);
+        setDialog(null);
+      }
     });
   };
   const deleteSchema = (schemaId: string) => {
@@ -198,6 +202,7 @@ function CanvasContent({
         }
         onDeleteSequence={deleteSequence}
         onSeeTableOnDiagram={(_schemaId, tableId) => flow.focusTable(tableId)}
+        onDeleteTable={deleteTable}
       />
       <main className="canvas-main">
         <CanvasToolbar
@@ -226,7 +231,9 @@ function CanvasContent({
                 ),
               )
             }
-            onDeleteTable={deleteTable}
+            onDeleteTable={() =>
+              deleteTable(context.schema.id, context.table.id)
+            }
             onAddColumn={() => setDialog({ kind: "column" })}
             onEditColumn={(columnId) => setDialog({ kind: "column", columnId })}
             onAddForeignKey={() => setDialog({ kind: "foreign-key" })}
