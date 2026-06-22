@@ -33,6 +33,10 @@ import "./styles/Canvas.css";
 type CanvasProps = {
   project: DatabaseProject;
   setProject: React.Dispatch<React.SetStateAction<DatabaseProject>>;
+  onNewProject: () => void;
+  onOpenProject: () => void;
+  onSaveProject: () => void;
+  onSaveProjectAs: () => void;
 };
 const nodeTypes = { databaseTable: DatabaseTableNode };
 const defaultEdgeOptions: ReactFlowProps["defaultEdgeOptions"] = {
@@ -50,7 +54,14 @@ export function Canvas(props: CanvasProps) {
   );
 }
 
-function CanvasContent({ project, setProject }: CanvasProps) {
+function CanvasContent({
+  project,
+  setProject,
+  onNewProject,
+  onOpenProject,
+  onSaveProject,
+  onSaveProjectAs,
+}: CanvasProps) {
   const { screenToFlowPosition } = useReactFlow();
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<CanvasDialogState>(null);
@@ -169,6 +180,10 @@ function CanvasContent({ project, setProject }: CanvasProps) {
       />
       <main className="canvas-main">
         <CanvasToolbar
+          onNewProject={onNewProject}
+          onOpenProject={onOpenProject}
+          onSaveProject={onSaveProject}
+          onSaveProjectAs={onSaveProjectAs}
           onAddTable={toggleAddTableMode}
           isAddingTable={isAddingTable}
           onFitView={flow.fitView}

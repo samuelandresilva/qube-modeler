@@ -1,6 +1,21 @@
-import { app, BrowserWindow, Menu, nativeImage } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  nativeImage,
+  type WebContents,
+} from "electron";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createQbmFile, parseQbmFile } from "../src/core/qbm/qbm-file";
+import type { DatabaseProject } from "../src/core/model/types";
+import type {
+  OpenProjectResult,
+  SaveProjectResult,
+} from "../src/core/qbm/ipc-types";
 
 app.commandLine.appendSwitch("log-level", "3");
 app.setName("Qube Modeler");
@@ -16,6 +31,143 @@ const appIconPath = path.join(process.cwd(), "build", "icon.png");
 process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
 
 let mainWindow: BrowserWindow | null = null;
+
+const qbmFileFilter = [{ name: "Qube Modeler Project", extensions: ["qbm"] }];
+
+function configureProjectIpc() {
+  ipcMain.handle(
+    "qbm:open-project",
+    async (event): Promise<OpenProjectResult> => {
+      try {
+        const owner = getOwnerWindow(event.sender);
+        const options = {
+          title: "Open Qube Modeler Project",
+          properties: ["openFile"] as const,
+          filters: qbmFileFilter,
+        };
+        const result = owner
+          ? await dialog.showOpenDialog(owner, options)
+          : await dialog.showOpenDialog(options);
+
+        if (result.canceled || result.filePaths.length === 0)
+          return { canceled: true };
+
+        const filePath = result.filePaths[0];
+        if (!hasQbmExtension(filePath))
+          return { canceled: false, error: "Only .qbm files can be opened." };
+
+        const raw = await readFile(filePath, "utf8");
+        return {
+          canceled: false,
+          filePath,
+          project: parseQbmFile(raw),
+        };
+      } catch (error) {
+        return {
+          canceled: false,
+          error: `Could not open the project: ${getErrorMessage(error)}`,
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "qbm:save-project",
+    async (_event, payload: unknown): Promise<SaveProjectResult> => {
+      try {
+        if (!isRecord(payload) || typeof payload.filePath !== "string")
+          throw new Error("Invalid save request.");
+        if (!hasQbmExtension(payload.filePath))
+          throw new Error("The project path must use the .qbm extension.");
+
+        await writeProjectFile(
+          payload.filePath,
+          payload.project as DatabaseProject,
+        );
+        return { canceled: false, filePath: payload.filePath };
+      } catch (error) {
+        return {
+          canceled: false,
+          error: `Could not save the project: ${getErrorMessage(error)}`,
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "qbm:save-project-as",
+    async (event, payload: unknown): Promise<SaveProjectResult> => {
+      try {
+        if (!isRecord(payload)) throw new Error("Invalid save request.");
+
+        const owner = getOwnerWindow(event.sender);
+        const suggestedFileName = getSuggestedFileName(
+          typeof payload.suggestedFileName === "string"
+            ? payload.suggestedFileName
+            : undefined,
+        );
+        const options = {
+          title: "Save Qube Modeler Project",
+          defaultPath: suggestedFileName,
+          filters: qbmFileFilter,
+        };
+        const result = owner
+          ? await dialog.showSaveDialog(owner, options)
+          : await dialog.showSaveDialog(options);
+
+        if (result.canceled || !result.filePath) return { canceled: true };
+
+        const filePath = ensureQbmExtension(result.filePath);
+        await writeProjectFile(filePath, payload.project as DatabaseProject);
+        return { canceled: false, filePath };
+      } catch (error) {
+        return {
+          canceled: false,
+          error: `Could not save the project: ${getErrorMessage(error)}`,
+        };
+      }
+    },
+  );
+}
+
+async function writeProjectFile(
+  filePath: string,
+  project: DatabaseProject,
+): Promise<void> {
+  const qbmFile = createQbmFile(project, app.getVersion());
+  await writeFile(filePath, JSON.stringify(qbmFile, null, 2), "utf8");
+}
+
+function getOwnerWindow(webContents: WebContents): BrowserWindow | null {
+  return BrowserWindow.fromWebContents(webContents) ?? mainWindow;
+}
+
+function hasQbmExtension(filePath: string): boolean {
+  return path.extname(filePath).toLowerCase() === ".qbm";
+}
+
+function ensureQbmExtension(filePath: string): string {
+  return hasQbmExtension(filePath) ? filePath : `${filePath}.qbm`;
+}
+
+function getSuggestedFileName(suggestedFileName?: string): string {
+  const fallback = "qube-modeler-project";
+  const safeName = path
+    .basename(suggestedFileName?.trim() || fallback)
+    .replace(/[<>:"/\\|?*]/g, "-")
+    .split("")
+    .map((character) => (character.charCodeAt(0) < 32 ? "-" : character))
+    .join("");
+  return ensureQbmExtension(safeName || fallback);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error.";
+}
 
 function configureApplicationMenu() {
   app.setName("Qube Modeler");
@@ -54,7 +206,7 @@ function createWindow() {
       height: 40,
     },
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -79,6 +231,7 @@ app.whenReady().then(() => {
     app.dock?.setIcon(nativeImage.createFromPath(appIconPath));
   }
   configureApplicationMenu();
+  configureProjectIpc();
   createWindow();
 
   app.on("activate", () => {

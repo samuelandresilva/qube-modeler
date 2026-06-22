@@ -9,6 +9,7 @@ import { validateSchema } from "./schema";
 
 export function validateProject(project: unknown): DatabaseProject {
   if (!isObject(project)) throw new Error("Invalid project file.");
+  validateRequiredString(project.id, "Project id");
   if (project.engine !== "postgresql")
     throw new Error("Only PostgreSQL projects are supported.");
   validateRequiredString(project.name, "Project name");
