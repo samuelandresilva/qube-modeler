@@ -15,6 +15,34 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 32px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--color-border-strong);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-subtle);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 body {
@@ -54,15 +82,27 @@ select {
   flex: 0 0 40px;
   display: flex;
   align-items: center;
+  gap: 8px;
   padding-left: 14px;
   background: #020817;
   color: #dbeafe;
   user-select: none;
 }
 
+.app-title-bar__icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
 .app-title-bar__title {
+  overflow: hidden;
   font-size: 12px;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-title-bar-divider {
