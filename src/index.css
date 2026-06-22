@@ -29,7 +29,7 @@ select {
   font: inherit;
 }
 
-.react-flow__panel {
+.react-flow__attribution {
   display: none !important;
 }
 
