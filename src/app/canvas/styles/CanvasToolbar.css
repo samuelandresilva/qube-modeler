@@ -1,7 +1,7 @@
 .canvas-toolbar {
   position: fixed;
   top: 50px;
-  left: 460px;
+  left: 520px;
   z-index: 100;
   display: flex;
   align-items: center;
@@ -17,7 +17,14 @@
 }
 .canvas-toolbar__actions {
   display: flex;
+  align-items: center;
   gap: 10px;
+}
+.canvas-toolbar__separator {
+  align-self: stretch;
+  width: 1px;
+  margin: 3px 2px;
+  background: var(--color-border-strong);
 }
 .canvas-toolbar strong {
   color: var(--color-text-strong);

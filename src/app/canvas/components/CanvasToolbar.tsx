@@ -75,6 +75,8 @@ export function CanvasToolbar({
           <SaveAll size={18} strokeWidth={2.4} />
         </button>
 
+        <div className="canvas-toolbar__separator" aria-hidden="true" />
+
         <button
           className="canvas-toolbar__icon-button"
           type="button"
