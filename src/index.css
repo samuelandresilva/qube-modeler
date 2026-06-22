@@ -29,6 +29,10 @@ select {
   font: inherit;
 }
 
+.react-flow__panel {
+  display: none !important;
+}
+
 .app-drag {
   -webkit-app-region: drag;
 }

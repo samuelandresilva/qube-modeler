@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from "electron";
+import { app, BrowserWindow, Menu, nativeImage } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -10,6 +10,8 @@ app.setName("Qube Modeler");
 // mas fornecemos um fallback seguro para compatibilidade ESM.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const appIconPath = path.join(process.cwd(), "build", "icon.png");
 
 process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
 
@@ -44,6 +46,7 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     title: "Qube Modeler",
+    icon: appIconPath,
     titleBarStyle: "hidden",
     titleBarOverlay: {
       color: "#020817",
@@ -72,6 +75,9 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  if (process.platform === "darwin") {
+    app.dock?.setIcon(nativeImage.createFromPath(appIconPath));
+  }
   configureApplicationMenu();
   createWindow();
 

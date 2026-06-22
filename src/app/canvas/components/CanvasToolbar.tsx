@@ -1,4 +1,4 @@
-import { FileCode2, FileJson, Grid2X2Plus, Scan } from "lucide-react";
+import { FileCode2, FileJson, Grid2X2Plus, Save, SaveAll, Scan } from "lucide-react";
 
 export type CanvasToolbarProps = {
   onFitView: () => void;
@@ -56,6 +56,24 @@ export function CanvasToolbar({
           onClick={onGenerateSql}
         >
           <FileCode2 size={18} strokeWidth={2.4} />
+        </button>
+
+        <button
+          className="canvas-toolbar__icon-button"
+          type="button"
+          title="Save Project"
+          aria-label="Save Project"
+        >
+          <Save size={18} strokeWidth={2.4} />
+        </button>
+
+        <button
+          className="canvas-toolbar__icon-button"
+          type="button"
+          title="Save as..."
+          aria-label="Save as..."
+        >
+          <SaveAll size={18} strokeWidth={2.4} />
         </button>
       </div>
     </div>
