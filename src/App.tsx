@@ -14,11 +14,13 @@ import { UnsavedChangesDialog } from "@/app/canvas/components/UnsavedChangesDial
 import { useConfirm } from "@/app/canvas/hooks/useConfirm";
 import { createEmptyProject, type DatabaseProject } from "@/core/model";
 import type { QubeModelerApi } from "@/core/qbm/ipc-types";
+import type { QbmFlywayConfig } from "@/core/qbm/qbm-file";
 import { AppTitleBar } from "./app/canvas/components/AppTitleBar";
 
 type OpenedProjectState = {
   project: DatabaseProject;
   filePath: string | null;
+  flyway: QbmFlywayConfig;
   isDirty: boolean;
 };
 
@@ -26,6 +28,7 @@ export default function App() {
   const [openedProject, setOpenedProject] = useState<OpenedProjectState>(() => ({
     project: createEmptyProject(),
     filePath: null,
+    flyway: { versions: [] },
     // A new untouched project has no user changes to preserve yet.
     isDirty: false,
   }));
@@ -66,6 +69,7 @@ export default function App() {
     setOpenedProject({
       project: createEmptyProject(),
       filePath: null,
+      flyway: { versions: [] },
       isDirty: false,
     });
   }, []);
@@ -102,6 +106,7 @@ export default function App() {
       setOpenedProject({
         project: result.project,
         filePath: result.filePath,
+        flyway: result.flyway,
         isDirty: false,
       });
     } catch (error) {
@@ -139,6 +144,7 @@ export default function App() {
     try {
       const result = await api.saveProjectAs({
         project: projectBeingSaved,
+        flyway: openedProject.flyway,
         suggestedFileName: openedProject.project.name,
       });
       if (result.canceled) return false;
@@ -161,7 +167,7 @@ export default function App() {
     } finally {
       finishFileOperation();
     }
-  }, [beginFileOperation, finishFileOperation, openedProject.project]);
+  }, [beginFileOperation, finishFileOperation, openedProject.project, openedProject.flyway]);
 
   const handleSaveProject = useCallback(async (): Promise<boolean> => {
     if (!openedProject.filePath) {
@@ -182,6 +188,7 @@ export default function App() {
       const result = await api.saveProject({
         filePath: openedProject.filePath,
         project: projectBeingSaved,
+        flyway: openedProject.flyway,
       });
       if (result.canceled) return false;
       if ("error" in result) {
@@ -209,6 +216,7 @@ export default function App() {
     handleSaveProjectAs,
     openedProject.filePath,
     openedProject.project,
+    openedProject.flyway,
   ]);
 
   useEffect(() => {

@@ -11,7 +11,7 @@ import {
 import { readFile, writeFile } from "node:fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createQbmFile, parseQbmFile } from "../src/core/qbm/qbm-file";
+import { createQbmFile, parseQbmFile, type QbmFlywayConfig } from "../src/core/qbm/qbm-file";
 import type { DatabaseProject } from "../src/core/model/types";
 import type {
   OpenProjectResult,
@@ -65,10 +65,12 @@ function configureProjectIpc() {
           return { canceled: false, error: "Only .qbm files can be opened." };
 
         const raw = await readFile(filePath, "utf8");
+        const { project, flyway } = parseQbmFile(raw);
         return {
           canceled: false,
           filePath,
-          project: parseQbmFile(raw),
+          project,
+          flyway,
         };
       } catch (error) {
         return {
@@ -91,6 +93,7 @@ function configureProjectIpc() {
         await writeProjectFile(
           payload.filePath,
           payload.project as DatabaseProject,
+          payload.flyway as QbmFlywayConfig,
         );
         return { canceled: false, filePath: payload.filePath };
       } catch (error) {
@@ -126,7 +129,11 @@ function configureProjectIpc() {
         if (result.canceled || !result.filePath) return { canceled: true };
 
         const filePath = ensureQbmExtension(result.filePath);
-        await writeProjectFile(filePath, payload.project as DatabaseProject);
+        await writeProjectFile(
+          filePath,
+          payload.project as DatabaseProject,
+          payload.flyway as QbmFlywayConfig,
+        );
         return { canceled: false, filePath };
       } catch (error) {
         return {
@@ -141,8 +148,9 @@ function configureProjectIpc() {
 async function writeProjectFile(
   filePath: string,
   project: DatabaseProject,
+  flyway: QbmFlywayConfig,
 ): Promise<void> {
-  const qbmFile = createQbmFile(project, app.getVersion());
+  const qbmFile = createQbmFile(project, flyway, app.getVersion());
   await writeFile(filePath, JSON.stringify(qbmFile, null, 2), "utf8");
 }
 

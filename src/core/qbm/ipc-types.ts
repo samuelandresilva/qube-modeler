@@ -1,17 +1,20 @@
 import type { DatabaseProject } from "../model/types";
+import type { QbmFlywayConfig } from "./qbm-file";
 
 export type OpenProjectResult =
   | { canceled: true }
-  | { canceled: false; filePath: string; project: DatabaseProject }
+  | { canceled: false; filePath: string; project: DatabaseProject; flyway: QbmFlywayConfig }
   | { canceled: false; error: string };
 
 export type SaveProjectPayload = {
   filePath: string;
   project: DatabaseProject;
+  flyway: QbmFlywayConfig;
 };
 
 export type SaveProjectAsPayload = {
   project: DatabaseProject;
+  flyway: QbmFlywayConfig;
   suggestedFileName?: string;
 };
 
