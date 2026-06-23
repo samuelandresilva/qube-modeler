@@ -5,6 +5,8 @@ type FlywayMigrationsDetailsProps = {
   lastVersion: QbmFlywayVersion | null;
   selectedVersion: QbmFlywayVersion | null;
   onGenerateMigration?: () => void;
+  onGenerateInitialMigration?: () => void;
+  hasContent?: boolean;
 };
 
 export function FlywayMigrationsDetails({
@@ -12,6 +14,8 @@ export function FlywayMigrationsDetails({
   lastVersion,
   selectedVersion,
   onGenerateMigration,
+  onGenerateInitialMigration,
+  hasContent = false,
 }: FlywayMigrationsDetailsProps) {
   if (totalCount === 0) {
     return (
@@ -21,7 +25,12 @@ export function FlywayMigrationsDetails({
           Create the first Flyway migration from the current model.
         </p>
         <div className="flyway-details-actions">
-          <button className="flyway-button flyway-button--primary" type="button">
+          <button
+            className="flyway-button flyway-button--primary"
+            type="button"
+            onClick={onGenerateInitialMigration}
+            disabled={!hasContent}
+          >
             Create initial migration
           </button>
         </div>

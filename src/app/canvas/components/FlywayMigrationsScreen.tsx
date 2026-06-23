@@ -9,6 +9,7 @@ import {
 import { diffProjects } from "@/core/diff/project-diff";
 import type { ProjectDiff } from "@/core/diff/project-diff-types";
 import { generatePostgresMigrationSql } from "@/core/migration/postgres-migration-generator";
+import { generatePostgresSql } from "@/core/sql/postgres-generator";
 import { FlywayMigrationsTable } from "./FlywayMigrationsTable";
 import { FlywayMigrationsDetails } from "./FlywayMigrationsDetails";
 import { CanvasModal } from "./CanvasModal";
@@ -92,6 +93,7 @@ export function FlywayMigrationsScreen({
   const [previewData, setPreviewData] = useState<PreviewState | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSqlModalOpen, setIsSqlModalOpen] = useState(false);
+  const [migrationFlowMode, setMigrationFlowMode] = useState<"initial" | "next" | null>(null);
   const [versionInput, setVersionInput] = useState("");
   const [descriptionInput, setDescriptionInput] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -99,6 +101,10 @@ export function FlywayMigrationsScreen({
   const versions = getFlywayVersions(qbmFile);
   const lastVersion = getLastFlywayVersion(qbmFile);
   const totalCount = versions.length;
+
+  const hasContent = qbmFile.project.schemas.some(
+    (s) => s.tables.length > 0 || s.sequences.length > 0
+  );
 
   const handleGenerateMigration = () => {
     if (!lastVersion) return;
@@ -145,10 +151,19 @@ export function FlywayMigrationsScreen({
     }
   };
 
+  const handleOpenInitialConfirmForm = () => {
+    setMigrationFlowMode("initial");
+    setVersionInput("001");
+    setDescriptionInput("initial_schema");
+    setFormError(null);
+    setIsFormOpen(true);
+  };
+
   const handleOpenConfirmForm = () => {
     if (!previewData || previewData.sql === "" || previewData.diff.operations.length === 0 || previewData.diff.unsupportedOperations.length > 0) {
       return;
     }
+    setMigrationFlowMode("next");
     const nextVer = lastVersion ? suggestNextVersion(lastVersion.version) : "001";
     setVersionInput(nextVer);
     setDescriptionInput("migration");
@@ -184,8 +199,19 @@ export function FlywayMigrationsScreen({
       return;
     }
 
-    if (!previewData || !previewData.sql) {
-      setFormError("No generated SQL to confirm.");
+    let generatedSql: string;
+    if (migrationFlowMode === "initial") {
+      generatedSql = generatePostgresSql(qbmFile.project);
+    } else {
+      if (!previewData || !previewData.sql) {
+        setFormError("No generated SQL to confirm.");
+        return;
+      }
+      generatedSql = previewData.sql;
+    }
+
+    if (!generatedSql) {
+      setFormError("Generated SQL is empty.");
       return;
     }
 
@@ -196,12 +222,14 @@ export function FlywayMigrationsScreen({
       fileName: computedFileName,
       createdAt: new Date().toISOString(),
       projectSnapshot: JSON.parse(JSON.stringify(qbmFile.project)),
-      generatedSql: previewData.sql,
+      generatedSql,
     };
 
     onConfirmMigration(newMigration);
 
+    // Resetar estados
     setPreviewData(null);
+    setMigrationFlowMode(null);
     setIsFormOpen(false);
     setSelectedVersion(null);
   };
@@ -273,7 +301,7 @@ export function FlywayMigrationsScreen({
               />
             </div>
             <div className="flyway-column-right">
-              {isFormOpen && previewData ? (
+              {isFormOpen ? (
                 <form onSubmit={handleConfirmSubmit} className="flyway-details-panel">
                   <div className="flyway-details-header">
                     <span className="flyway-details-badge">Confirm Migration</span>
@@ -287,7 +315,7 @@ export function FlywayMigrationsScreen({
                         id="migration-version"
                         type="text"
                         className="flyway-search-input"
-                        placeholder="e.g. 002"
+                        placeholder="e.g. 001"
                         value={versionInput}
                         onChange={(e) => {
                           setVersionInput(e.target.value);
@@ -302,7 +330,7 @@ export function FlywayMigrationsScreen({
                         id="migration-desc"
                         type="text"
                         className="flyway-search-input"
-                        placeholder="e.g. add columns"
+                        placeholder="e.g. initial schema"
                         value={descriptionInput}
                         onChange={(e) => {
                           setDescriptionInput(e.target.value);
@@ -332,6 +360,7 @@ export function FlywayMigrationsScreen({
                       type="button"
                       onClick={() => {
                         setIsFormOpen(false);
+                        setMigrationFlowMode(null);
                         setFormError(null);
                       }}
                     >
@@ -430,6 +459,8 @@ export function FlywayMigrationsScreen({
                   lastVersion={lastVersion}
                   selectedVersion={null}
                   onGenerateMigration={handleGenerateMigration}
+                  onGenerateInitialMigration={handleOpenInitialConfirmForm}
+                  hasContent={hasContent}
                 />
               )}
             </div>
