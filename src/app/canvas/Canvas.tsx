@@ -42,6 +42,7 @@ type CanvasProps = {
   beginFileOperation: (message: string) => boolean;
   finishFileOperation: () => void;
   onFileOperationError: (message: string) => void;
+  onViewFlyway?: () => void;
 };
 const nodeTypes = { databaseTable: DatabaseTableNode };
 const defaultEdgeOptions: ReactFlowProps["defaultEdgeOptions"] = {
@@ -70,6 +71,7 @@ function CanvasContent({
   beginFileOperation,
   finishFileOperation,
   onFileOperationError,
+  onViewFlyway,
 }: CanvasProps) {
   const { screenToFlowPosition } = useReactFlow();
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
@@ -209,6 +211,7 @@ function CanvasContent({
         onDeleteSequence={deleteSequence}
         onSeeTableOnDiagram={(_schemaId, tableId) => flow.focusTable(tableId)}
         onDeleteTable={deleteTable}
+        onViewFlyway={onViewFlyway}
       />
       <main className="canvas-main">
         <CanvasToolbar

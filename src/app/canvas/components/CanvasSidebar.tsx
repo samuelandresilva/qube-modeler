@@ -1,4 +1,4 @@
-import { ChevronDown, FolderTree, Plus } from "lucide-react";
+import { ChevronDown, Database, FolderTree, Plus } from "lucide-react";
 import { useState } from "react";
 import type { DatabaseProject } from "@/core/model";
 import { SchemaTreeItem } from "./SchemaTreeItem";
@@ -15,12 +15,14 @@ type Props = {
   onDeleteSequence: (schemaId: string, sequenceId: string) => void;
   onSeeTableOnDiagram: (schemaId: string, tableId: string) => void;
   onDeleteTable: (schemaId: string, tableId: string) => void;
+  onViewFlyway?: () => void;
 };
 
 export function CanvasSidebar({
   project,
   onRenameProject,
   onAddSchema,
+  onViewFlyway,
   ...actions
 }: Props) {
   const [expanded, setExpanded] = useState(true);
@@ -34,6 +36,14 @@ export function CanvasSidebar({
           onChange={(event) => onRenameProject(event.target.value)}
           placeholder="Project name"
         />
+        <button
+          className="canvas-sidebar__flyway-button"
+          type="button"
+          onClick={onViewFlyway}
+        >
+          <Database size={14} />
+          <span>Flyway Migrations</span>
+        </button>
       </div>
       <div className="canvas-sidebar__tree">
         <SidebarContextMenu

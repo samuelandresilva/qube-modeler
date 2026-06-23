@@ -14,8 +14,9 @@ import { UnsavedChangesDialog } from "@/app/canvas/components/UnsavedChangesDial
 import { useConfirm } from "@/app/canvas/hooks/useConfirm";
 import { createEmptyProject, type DatabaseProject } from "@/core/model";
 import type { QubeModelerApi } from "@/core/qbm/ipc-types";
-import type { QbmFlywayConfig } from "@/core/qbm/qbm-file";
+import type { QbmFile, QbmFlywayConfig } from "@/core/qbm/qbm-file";
 import { AppTitleBar } from "./app/canvas/components/AppTitleBar";
+import { FlywayMigrationsScreen } from "@/app/canvas/components/FlywayMigrationsScreen";
 
 type OpenedProjectState = {
   project: DatabaseProject;
@@ -25,6 +26,7 @@ type OpenedProjectState = {
 };
 
 export default function App() {
+  const [view, setView] = useState<"canvas" | "flyway">("canvas");
   const [openedProject, setOpenedProject] = useState<OpenedProjectState>(() => ({
     project: createEmptyProject(),
     filePath: null,
@@ -269,18 +271,36 @@ export default function App() {
       <AppTitleBar title={windowTitle} />
 
       <div className="app-content">
-        <Canvas
-          project={openedProject.project}
-          setProject={setProject}
-          onNewProject={handleNewProject}
-          onOpenProject={handleOpenProject}
-          onSaveProject={() => void handleSaveProject()}
-          onSaveProjectAs={() => void handleSaveProjectAs()}
-          fileOperationMessage={fileOperationMessage}
-          beginFileOperation={beginFileOperation}
-          finishFileOperation={finishFileOperation}
-          onFileOperationError={setErrorMessage}
-        />
+        {view === "canvas" ? (
+          <Canvas
+            project={openedProject.project}
+            setProject={setProject}
+            onNewProject={handleNewProject}
+            onOpenProject={handleOpenProject}
+            onSaveProject={() => void handleSaveProject()}
+            onSaveProjectAs={() => void handleSaveProjectAs()}
+            fileOperationMessage={fileOperationMessage}
+            beginFileOperation={beginFileOperation}
+            finishFileOperation={finishFileOperation}
+            onFileOperationError={setErrorMessage}
+            onViewFlyway={() => setView("flyway")}
+          />
+        ) : (
+          <FlywayMigrationsScreen
+            qbmFile={{
+              format: "qube-modeler-project",
+              formatVersion: 1,
+              createdWith: {
+                app: "Qube Modeler",
+                version: "0.0.0",
+              },
+              savedAt: new Date().toISOString(),
+              project: openedProject.project,
+              flyway: openedProject.flyway,
+            } as QbmFile}
+            onBack={() => setView("canvas")}
+          />
+        )}
       </div>
       {confirm && (
         <ConfirmDialog
