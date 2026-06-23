@@ -4,6 +4,7 @@ import type { QbmFile, QbmFlywayVersion } from "@/core/qbm/qbm-file";
 import {
   getFlywayVersions,
   getLastFlywayVersion,
+  buildFlywayFileName,
 } from "@/core/qbm/qbm-flyway";
 import { diffProjects } from "@/core/diff/project-diff";
 import type { ProjectDiff } from "@/core/diff/project-diff-types";
@@ -15,6 +16,7 @@ import "../styles/FlywayMigrationsScreen.css";
 type FlywayMigrationsScreenProps = {
   qbmFile: QbmFile;
   onBack: () => void;
+  onConfirmMigration: (newVersion: QbmFlywayVersion) => void;
 };
 
 type PreviewState = {
@@ -24,12 +26,41 @@ type PreviewState = {
   noChanges: boolean;
 };
 
+function suggestNextVersion(lastVersionStr: string): string {
+  const match = lastVersionStr.match(/^0*(\d+)$/);
+  if (match) {
+    const num = parseInt(match[1], 10) + 1;
+    return String(num).padStart(Math.max(3, lastVersionStr.length), "0");
+  }
+  const numOnly = parseInt(lastVersionStr.replace(/\D/g, ""), 10);
+  if (!isNaN(numOnly)) {
+    return String(numOnly + 1).padStart(3, "0");
+  }
+  return "001";
+}
+
+function cryptoUuid(): string {
+  if (typeof window !== "undefined" && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export function FlywayMigrationsScreen({
   qbmFile,
   onBack,
+  onConfirmMigration,
 }: FlywayMigrationsScreenProps) {
   const [selectedVersion, setSelectedVersion] = useState<QbmFlywayVersion | null>(null);
   const [previewData, setPreviewData] = useState<PreviewState | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [versionInput, setVersionInput] = useState("");
+  const [descriptionInput, setDescriptionInput] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const versions = getFlywayVersions(qbmFile);
   const lastVersion = getLastFlywayVersion(qbmFile);
@@ -40,7 +71,6 @@ export function FlywayMigrationsScreen({
 
     try {
       const diff = diffProjects(lastVersion.projectSnapshot, qbmFile.project);
-
       const noChanges = diff.operations.length === 0 && diff.unsupportedOperations.length === 0;
 
       if (noChanges) {
@@ -53,7 +83,6 @@ export function FlywayMigrationsScreen({
         return;
       }
 
-      // Se houver mudanças não suportadas, bloqueamos a geração do SQL e exibimos os avisos
       if (diff.unsupportedOperations.length > 0) {
         setPreviewData({
           sql: "",
@@ -64,7 +93,6 @@ export function FlywayMigrationsScreen({
         return;
       }
 
-      // Senão, geramos o SQL incremental com segurança
       const sql = generatePostgresMigrationSql(diff, qbmFile.project);
       setPreviewData({
         sql,
@@ -82,6 +110,104 @@ export function FlywayMigrationsScreen({
       });
     }
   };
+
+  const handleOpenConfirmForm = () => {
+    if (!previewData || previewData.sql === "" || previewData.diff.operations.length === 0 || previewData.diff.unsupportedOperations.length > 0) {
+      return;
+    }
+    const nextVer = lastVersion ? suggestNextVersion(lastVersion.version) : "001";
+    setVersionInput(nextVer);
+    setDescriptionInput("migration");
+    setFormError(null);
+    setIsFormOpen(true);
+  };
+
+  const handleConfirmSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const ver = versionInput.trim();
+    const desc = descriptionInput.trim();
+
+    if (!ver) {
+      setFormError("Version is required.");
+      return;
+    }
+    if (!desc) {
+      setFormError("Description is required.");
+      return;
+    }
+
+    const computedFileName = buildFlywayFileName(ver, desc);
+
+    const versionExists = versions.some((v) => v.version === ver);
+    if (versionExists) {
+      setFormError(`Version "${ver}" already exists in migrations history.`);
+      return;
+    }
+
+    const fileNameExists = versions.some((v) => v.fileName === computedFileName);
+    if (fileNameExists) {
+      setFormError(`File name "${computedFileName}" already exists in migrations history.`);
+      return;
+    }
+
+    if (!previewData || !previewData.sql) {
+      setFormError("No generated SQL to confirm.");
+      return;
+    }
+
+    // Criar nova versão de migration congelada
+    const newMigration: QbmFlywayVersion = {
+      id: cryptoUuid(),
+      version: ver,
+      description: desc,
+      fileName: computedFileName,
+      createdAt: new Date().toISOString(),
+      projectSnapshot: JSON.parse(JSON.stringify(qbmFile.project)),
+      generatedSql: previewData.sql,
+    };
+
+    onConfirmMigration(newMigration);
+
+    // Resetar estados
+    setPreviewData(null);
+    setIsFormOpen(false);
+    setSelectedVersion(null);
+  };
+
+  const handleExportSql = async () => {
+    if (!selectedVersion) return;
+    if (!selectedVersion.generatedSql) {
+      alert("This migration does not contain any generated SQL.");
+      return;
+    }
+
+    try {
+      const api = window.qubeModeler;
+      if (!api) {
+        alert("Electron API is not available.");
+        return;
+      }
+
+      const result = await api.exportMigrationSql({
+        fileName: selectedVersion.fileName,
+        sql: selectedVersion.generatedSql,
+      });
+
+      if (result && !result.canceled && "error" in result && result.error) {
+        alert(result.error);
+      }
+    } catch (error) {
+      alert(`Error exporting migration: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  // Botão Confirmar habilitado se houver preview válido, sem erros e sem operações não suportadas
+  const isConfirmEnabled =
+    previewData &&
+    previewData.sql !== "" &&
+    previewData.diff.operations.length > 0 &&
+    previewData.diff.unsupportedOperations.length === 0 &&
+    !previewData.error;
 
   return (
     <div className="flyway-screen">
@@ -116,7 +242,79 @@ export function FlywayMigrationsScreen({
               />
             </div>
             <div className="flyway-column-right">
-              {previewData ? (
+              {isFormOpen && previewData ? (
+                <form onSubmit={handleConfirmSubmit} className="flyway-details-panel">
+                  <div className="flyway-details-header">
+                    <span className="flyway-details-badge">Confirm Migration</span>
+                    <h3 className="flyway-details-title">Define Migration Metadata</h3>
+                  </div>
+
+                  <div className="flyway-form-body">
+                    <div className="flyway-form-field">
+                      <label className="flyway-details-label" htmlFor="migration-version">Version</label>
+                      <input
+                        id="migration-version"
+                        type="text"
+                        className="flyway-search-input"
+                        placeholder="e.g. 002"
+                        value={versionInput}
+                        onChange={(e) => {
+                          setVersionInput(e.target.value);
+                          setFormError(null);
+                        }}
+                      />
+                    </div>
+
+                    <div className="flyway-form-field">
+                      <label className="flyway-details-label" htmlFor="migration-desc">Description</label>
+                      <input
+                        id="migration-desc"
+                        type="text"
+                        className="flyway-search-input"
+                        placeholder="e.g. add columns"
+                        value={descriptionInput}
+                        onChange={(e) => {
+                          setDescriptionInput(e.target.value);
+                          setFormError(null);
+                        }}
+                      />
+                    </div>
+
+                    <div className="flyway-preview-filename-box">
+                      <span className="flyway-details-label">Target File Name</span>
+                      <span className="flyway-preview-filename-value">
+                        {buildFlywayFileName(versionInput, descriptionInput)}
+                      </span>
+                    </div>
+
+                    {formError && (
+                      <div className="flyway-preview-message flyway-preview-message--error">
+                        <strong>Validation Error</strong>
+                        <p>{formError}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flyway-details-actions">
+                    <button
+                      className="flyway-button flyway-button--secondary"
+                      type="button"
+                      onClick={() => {
+                        setIsFormOpen(false);
+                        setFormError(null);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="flyway-button flyway-button--primary"
+                      type="submit"
+                    >
+                      Confirm and Save
+                    </button>
+                  </div>
+                </form>
+              ) : previewData ? (
                 <div className="flyway-details-panel">
                   <div className="flyway-details-header">
                     <span className="flyway-details-badge">Migration Preview</span>
@@ -188,7 +386,8 @@ export function FlywayMigrationsScreen({
                     <button
                       className="flyway-button flyway-button--primary"
                       type="button"
-                      disabled
+                      onClick={handleOpenConfirmForm}
+                      disabled={!isConfirmEnabled}
                     >
                       Confirm migration
                     </button>
@@ -240,7 +439,8 @@ export function FlywayMigrationsScreen({
                 <button
                   className="flyway-button flyway-button--secondary"
                   type="button"
-                  disabled
+                  onClick={handleExportSql}
+                  disabled={!selectedVersion.generatedSql}
                 >
                   Export SQL
                 </button>

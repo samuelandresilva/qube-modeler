@@ -16,6 +16,7 @@ import type { DatabaseProject } from "../src/core/model/types";
 import type {
   OpenProjectResult,
   SaveProjectResult,
+  ExportMigrationSqlResult,
 } from "../src/core/qbm/ipc-types";
 
 app.commandLine.appendSwitch("log-level", "3");
@@ -139,6 +140,43 @@ function configureProjectIpc() {
         return {
           canceled: false,
           error: `Could not save the project: ${getErrorMessage(error)}`,
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "qbm:export-migration-sql",
+    async (event, payload: unknown): Promise<ExportMigrationSqlResult> => {
+      try {
+        if (
+          !isRecord(payload) ||
+          typeof payload.fileName !== "string" ||
+          typeof payload.sql !== "string"
+        ) {
+          throw new Error("Invalid export request.");
+        }
+
+        const owner = getOwnerWindow(event.sender);
+        const options = {
+          title: "Export Migration SQL",
+          defaultPath: payload.fileName,
+          filters: [{ name: "SQL Files", extensions: ["sql"] }],
+        };
+        const result = owner
+          ? await dialog.showSaveDialog(owner, options)
+          : await dialog.showSaveDialog(options);
+
+        if (result.canceled || !result.filePath) {
+          return { canceled: true };
+        }
+
+        await writeFile(result.filePath, payload.sql, "utf8");
+        return { canceled: false, filePath: result.filePath };
+      } catch (error) {
+        return {
+          canceled: false,
+          error: `Could not export migration SQL: ${getErrorMessage(error)}`,
         };
       }
     },

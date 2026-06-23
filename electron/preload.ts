@@ -3,6 +3,7 @@ import type {
   QubeModelerApi,
   SaveProjectAsPayload,
   SaveProjectPayload,
+  ExportMigrationSqlPayload,
 } from "../src/core/qbm/ipc-types";
 
 const api: QubeModelerApi = {
@@ -17,6 +18,8 @@ const api: QubeModelerApi = {
     return () => ipcRenderer.removeListener("qbm:close-requested", listener);
   },
   confirmClose: () => ipcRenderer.send("qbm:confirm-close"),
+  exportMigrationSql: (payload: ExportMigrationSqlPayload) =>
+    ipcRenderer.invoke("qbm:export-migration-sql", payload),
 };
 
 contextBridge.exposeInMainWorld("qubeModeler", api);

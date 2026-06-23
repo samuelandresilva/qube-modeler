@@ -23,10 +23,21 @@ export type SaveProjectResult =
   | { canceled: false; filePath: string }
   | { canceled: false; error: string };
 
+export type ExportMigrationSqlPayload = {
+  fileName: string;
+  sql: string;
+};
+
+export type ExportMigrationSqlResult =
+  | { canceled: true }
+  | { canceled: false; filePath: string }
+  | { canceled: false; error: string };
+
 export type QubeModelerApi = {
   openProject(): Promise<OpenProjectResult>;
   saveProject(payload: SaveProjectPayload): Promise<SaveProjectResult>;
   saveProjectAs(payload: SaveProjectAsPayload): Promise<SaveProjectResult>;
   onCloseRequested(callback: () => void): () => void;
   confirmClose(): void;
+  exportMigrationSql(payload: ExportMigrationSqlPayload): Promise<ExportMigrationSqlResult>;
 };

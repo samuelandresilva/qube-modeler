@@ -433,3 +433,41 @@
   overflow-y: auto;
 }
 
+/* Form Styles */
+.flyway-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.flyway-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.flyway-form-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.flyway-preview-filename-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.flyway-preview-filename-value {
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--color-accent-soft);
+  word-break: break-all;
+}
+
+

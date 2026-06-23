@@ -14,7 +14,7 @@ import { UnsavedChangesDialog } from "@/app/canvas/components/UnsavedChangesDial
 import { useConfirm } from "@/app/canvas/hooks/useConfirm";
 import { createEmptyProject, type DatabaseProject } from "@/core/model";
 import type { QubeModelerApi } from "@/core/qbm/ipc-types";
-import type { QbmFile, QbmFlywayConfig } from "@/core/qbm/qbm-file";
+import type { QbmFile, QbmFlywayConfig, QbmFlywayVersion } from "@/core/qbm/qbm-file";
 import { AppTitleBar } from "./app/canvas/components/AppTitleBar";
 import { FlywayMigrationsScreen } from "@/app/canvas/components/FlywayMigrationsScreen";
 
@@ -264,6 +264,17 @@ export default function App() {
     getQubeModelerApi()?.confirmClose();
   }, [handleSaveProject]);
 
+  const handleConfirmMigration = useCallback((newVersion: QbmFlywayVersion) => {
+    setOpenedProject((current) => ({
+      ...current,
+      flyway: {
+        ...current.flyway,
+        versions: [...current.flyway.versions, newVersion],
+      },
+      isDirty: true,
+    }));
+  }, []);
+
   const windowTitle = `${openedProject.project.name}${openedProject.isDirty ? " *" : ""} - Qube Modeler`;
 
   return (
@@ -299,6 +310,7 @@ export default function App() {
               flyway: openedProject.flyway,
             } as QbmFile}
             onBack={() => setView("canvas")}
+            onConfirmMigration={handleConfirmMigration}
           />
         )}
       </div>
