@@ -34,7 +34,7 @@ function generateSchemaSql(schema: DatabaseSchema): string {
   return [schemaSql, ...sequenceSql, ...tableSql, ...indexSql].join("\n\n");
 }
 
-function generateSequenceSql(
+export function generateSequenceSql(
   schema: DatabaseSchema,
   sequence: DatabaseSequence,
 ): string {
@@ -45,7 +45,7 @@ function generateSequenceSql(
   ].join("\n");
 }
 
-function generateTableSql(
+export function generateTableSql(
   schema: DatabaseSchema,
   table: DatabaseTable,
 ): string {
@@ -110,7 +110,7 @@ function generateColumnTypeSql(column: DatabaseColumn): string {
   return column.type;
 }
 
-function generateColumnSql(
+export function generateColumnSql(
   schema: DatabaseSchema,
   column: DatabaseColumn,
 ): string {
@@ -131,7 +131,7 @@ function generateColumnSql(
   return parts.join(" ");
 }
 
-function generateForeignKeySql(foreignKey: DatabaseForeignKey): string {
+export function generateForeignKeySql(foreignKey: DatabaseForeignKey): string {
   const sourceColumns = foreignKey.sourceColumns.join(", ");
   const targetColumns = foreignKey.targetColumns.join(", ");
 
@@ -152,7 +152,7 @@ function generateForeignKeySql(foreignKey: DatabaseForeignKey): string {
   return parts.join(" ");
 }
 
-function generateUniqueConstraintSql(
+export function generateUniqueConstraintSql(
   uniqueConstraint: DatabaseUniqueConstraint,
 ): string {
   const columns = uniqueConstraint.columns.join(", ");
@@ -160,7 +160,7 @@ function generateUniqueConstraintSql(
   return `    CONSTRAINT ${uniqueConstraint.name} UNIQUE (${columns})`;
 }
 
-function generateIndexSql(
+export function generateIndexSql(
   schema: DatabaseSchema,
   table: DatabaseTable,
   index: DatabaseIndex,

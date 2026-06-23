@@ -5,6 +5,9 @@ import {
   getFlywayVersions,
   getLastFlywayVersion,
 } from "@/core/qbm/qbm-flyway";
+import { diffProjects } from "@/core/diff/project-diff";
+import type { ProjectDiff } from "@/core/diff/project-diff-types";
+import { generatePostgresMigrationSql } from "@/core/migration/postgres-migration-generator";
 import { FlywayMigrationsTable } from "./FlywayMigrationsTable";
 import { FlywayMigrationsDetails } from "./FlywayMigrationsDetails";
 import "../styles/FlywayMigrationsScreen.css";
@@ -14,15 +17,71 @@ type FlywayMigrationsScreenProps = {
   onBack: () => void;
 };
 
+type PreviewState = {
+  sql: string;
+  diff: ProjectDiff;
+  error: string | null;
+  noChanges: boolean;
+};
+
 export function FlywayMigrationsScreen({
   qbmFile,
   onBack,
 }: FlywayMigrationsScreenProps) {
   const [selectedVersion, setSelectedVersion] = useState<QbmFlywayVersion | null>(null);
+  const [previewData, setPreviewData] = useState<PreviewState | null>(null);
 
   const versions = getFlywayVersions(qbmFile);
   const lastVersion = getLastFlywayVersion(qbmFile);
   const totalCount = versions.length;
+
+  const handleGenerateMigration = () => {
+    if (!lastVersion) return;
+
+    try {
+      const diff = diffProjects(lastVersion.projectSnapshot, qbmFile.project);
+
+      const noChanges = diff.operations.length === 0 && diff.unsupportedOperations.length === 0;
+
+      if (noChanges) {
+        setPreviewData({
+          sql: "",
+          diff,
+          error: null,
+          noChanges: true,
+        });
+        return;
+      }
+
+      // Se houver mudanças não suportadas, bloqueamos a geração do SQL e exibimos os avisos
+      if (diff.unsupportedOperations.length > 0) {
+        setPreviewData({
+          sql: "",
+          diff,
+          error: null,
+          noChanges: false,
+        });
+        return;
+      }
+
+      // Senão, geramos o SQL incremental com segurança
+      const sql = generatePostgresMigrationSql(diff, qbmFile.project);
+      setPreviewData({
+        sql,
+        diff,
+        error: null,
+        noChanges: false,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error occurred.";
+      setPreviewData({
+        sql: "",
+        diff: { operations: [], unsupportedOperations: [] },
+        error: msg,
+        noChanges: false,
+      });
+    }
+  };
 
   return (
     <div className="flyway-screen">
@@ -57,11 +116,92 @@ export function FlywayMigrationsScreen({
               />
             </div>
             <div className="flyway-column-right">
-              <FlywayMigrationsDetails
-                totalCount={totalCount}
-                lastVersion={lastVersion}
-                selectedVersion={null}
-              />
+              {previewData ? (
+                <div className="flyway-details-panel">
+                  <div className="flyway-details-header">
+                    <span className="flyway-details-badge">Migration Preview</span>
+                    <h3 className="flyway-details-title">SQL Migration Details</h3>
+                  </div>
+
+                  <div className="flyway-preview-meta-info">
+                    <div className="flyway-preview-meta-row">
+                      <span className="flyway-preview-meta-label">Base Migration:</span>
+                      <span className="flyway-preview-meta-value">{lastVersion?.fileName}</span>
+                    </div>
+                    <div className="flyway-preview-meta-row">
+                      <span className="flyway-preview-meta-label">Supported Ops:</span>
+                      <span className="flyway-preview-meta-value">{previewData.diff.operations.length}</span>
+                    </div>
+                    <div className="flyway-preview-meta-row">
+                      <span className="flyway-preview-meta-label">Unsupported Ops:</span>
+                      <span className={`flyway-preview-meta-value ${previewData.diff.unsupportedOperations.length > 0 ? "flyway-preview-meta-value--warning" : ""}`}>
+                        {previewData.diff.unsupportedOperations.length}
+                      </span>
+                    </div>
+                  </div>
+
+                  {previewData.noChanges && (
+                    <div className="flyway-preview-message flyway-preview-message--info">
+                      <strong>No pending changes</strong>
+                      <p>No changes detected between the last migration snapshot and the current model.</p>
+                    </div>
+                  )}
+
+                  {previewData.error && (
+                    <div className="flyway-preview-message flyway-preview-message--error">
+                      <strong>Generation Error</strong>
+                      <p>{previewData.error}</p>
+                    </div>
+                  )}
+
+                  {previewData.diff.unsupportedOperations.length > 0 && (
+                    <div className="flyway-preview-message flyway-preview-message--warning">
+                      <strong>Unsupported Changes Detected</strong>
+                      <p>The following changes are unsupported in migrations (requires manual action):</p>
+                      <ul className="flyway-unsupported-list">
+                        {previewData.diff.unsupportedOperations.map((op, idx) => (
+                          <li key={idx}>
+                            [{op.objectType}] {op.objectName} - {op.reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {previewData.sql && (
+                    <div className="flyway-sql-preview-container">
+                      <span className="flyway-details-label">Generated SQL Preview</span>
+                      <pre className="flyway-sql-preview">
+                        <code>{previewData.sql}</code>
+                      </pre>
+                    </div>
+                  )}
+
+                  <div className="flyway-details-actions">
+                    <button
+                      className="flyway-button flyway-button--secondary"
+                      type="button"
+                      onClick={() => setPreviewData(null)}
+                    >
+                      Close preview
+                    </button>
+                    <button
+                      className="flyway-button flyway-button--primary"
+                      type="button"
+                      disabled
+                    >
+                      Confirm migration
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <FlywayMigrationsDetails
+                  totalCount={totalCount}
+                  lastVersion={lastVersion}
+                  selectedVersion={null}
+                  onGenerateMigration={handleGenerateMigration}
+                />
+              )}
             </div>
           </div>
 

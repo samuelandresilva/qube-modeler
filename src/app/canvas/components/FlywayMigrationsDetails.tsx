@@ -4,12 +4,14 @@ type FlywayMigrationsDetailsProps = {
   totalCount: number;
   lastVersion: QbmFlywayVersion | null;
   selectedVersion: QbmFlywayVersion | null;
+  onGenerateMigration?: () => void;
 };
 
 export function FlywayMigrationsDetails({
   totalCount,
   lastVersion,
   selectedVersion,
+  onGenerateMigration,
 }: FlywayMigrationsDetailsProps) {
   if (totalCount === 0) {
     return (
@@ -98,7 +100,11 @@ export function FlywayMigrationsDetails({
       </div>
 
       <div className="flyway-details-actions">
-        <button className="flyway-button flyway-button--primary" type="button">
+        <button
+          className="flyway-button flyway-button--primary"
+          type="button"
+          onClick={onGenerateMigration}
+        >
           Generate next migration
         </button>
       </div>
