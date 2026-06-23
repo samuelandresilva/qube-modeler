@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { ArrowLeft } from "lucide-react";
 import type { QbmFile, QbmFlywayVersion } from "@/core/qbm/qbm-file";
 import {
@@ -11,6 +11,7 @@ import type { ProjectDiff } from "@/core/diff/project-diff-types";
 import { generatePostgresMigrationSql } from "@/core/migration/postgres-migration-generator";
 import { FlywayMigrationsTable } from "./FlywayMigrationsTable";
 import { FlywayMigrationsDetails } from "./FlywayMigrationsDetails";
+import { CanvasModal } from "./CanvasModal";
 import "../styles/FlywayMigrationsScreen.css";
 
 type FlywayMigrationsScreenProps = {
@@ -50,6 +51,38 @@ function cryptoUuid(): string {
   });
 }
 
+function SqlEditorPreview({ sql }: { sql: string }) {
+  const gutterRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lines = sql.split("\n");
+
+  const handleScroll = () => {
+    if (textareaRef.current && gutterRef.current) {
+      gutterRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  };
+
+  return (
+    <div className="sql-editor-preview-container">
+      <div className="sql-editor-gutter" ref={gutterRef}>
+        {lines.map((_, i) => (
+          <div key={i} className="sql-editor-line-number">
+            {i + 1}
+          </div>
+        ))}
+      </div>
+      <textarea
+        className="sql-editor-textarea"
+        ref={textareaRef}
+        value={sql}
+        readOnly
+        spellCheck={false}
+        onScroll={handleScroll}
+      />
+    </div>
+  );
+}
+
 export function FlywayMigrationsScreen({
   qbmFile,
   onBack,
@@ -58,6 +91,7 @@ export function FlywayMigrationsScreen({
   const [selectedVersion, setSelectedVersion] = useState<QbmFlywayVersion | null>(null);
   const [previewData, setPreviewData] = useState<PreviewState | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isSqlModalOpen, setIsSqlModalOpen] = useState(false);
   const [versionInput, setVersionInput] = useState("");
   const [descriptionInput, setDescriptionInput] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -155,7 +189,6 @@ export function FlywayMigrationsScreen({
       return;
     }
 
-    // Criar nova versão de migration congelada
     const newMigration: QbmFlywayVersion = {
       id: cryptoUuid(),
       version: ver,
@@ -168,7 +201,6 @@ export function FlywayMigrationsScreen({
 
     onConfirmMigration(newMigration);
 
-    // Resetar estados
     setPreviewData(null);
     setIsFormOpen(false);
     setSelectedVersion(null);
@@ -201,7 +233,6 @@ export function FlywayMigrationsScreen({
     }
   };
 
-  // Botão Confirmar habilitado se houver preview válido, sem erros e sem operações não suportadas
   const isConfirmEnabled =
     previewData &&
     previewData.sql !== "" &&
@@ -432,7 +463,8 @@ export function FlywayMigrationsScreen({
                 <button
                   className="flyway-button flyway-button--secondary"
                   type="button"
-                  disabled
+                  onClick={() => setIsSqlModalOpen(true)}
+                  disabled={!selectedVersion.generatedSql}
                 >
                   View SQL
                 </button>
@@ -456,6 +488,16 @@ export function FlywayMigrationsScreen({
           )}
         </div>
       </main>
+
+      {isSqlModalOpen && selectedVersion && (
+        <CanvasModal
+          title={`SQL Preview - ${selectedVersion.fileName}`}
+          onClose={() => setIsSqlModalOpen(false)}
+          elevated
+        >
+          <SqlEditorPreview sql={selectedVersion.generatedSql} />
+        </CanvasModal>
+      )}
     </div>
   );
 }

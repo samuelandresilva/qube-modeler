@@ -470,4 +470,51 @@
   word-break: break-all;
 }
 
+/* SQL Editor Modal View Styles */
+.sql-editor-preview-container {
+  display: flex;
+  height: 450px;
+  background-color: #020617;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: 'Fira Code', Consolas, Monaco, monospace;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.sql-editor-gutter {
+  width: 45px;
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  color: var(--color-text-subtle);
+  text-align: right;
+  padding: 12px 10px 12px 0;
+  user-select: none;
+  overflow-y: hidden;
+  box-sizing: border-box;
+}
+
+.sql-editor-line-number {
+  height: 20px;
+  line-height: 20px;
+}
+
+.sql-editor-textarea {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #f8fafc;
+  padding: 12px;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 20px;
+  overflow-y: auto;
+  overflow-x: auto;
+  white-space: pre;
+  box-sizing: border-box;
+}
+
+
 
