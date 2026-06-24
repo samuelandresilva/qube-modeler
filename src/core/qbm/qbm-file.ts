@@ -4,6 +4,14 @@ import { validateProject } from "../validation/project";
 export const QBM_FORMAT = "qube-modeler-project" as const;
 export const QBM_FORMAT_VERSION = 1 as const;
 
+export type QbmFlywayManualScript = {
+  id: string;
+  name: string;
+  execution: "before" | "after";
+  order: number;
+  sql: string;
+};
+
 export type QbmFlywayVersion = {
   id: string;
   version: string;
@@ -12,6 +20,7 @@ export type QbmFlywayVersion = {
   createdAt: string;
   projectSnapshot: DatabaseProject;
   generatedSql: string;
+  manualScripts: QbmFlywayManualScript[];
 };
 
 export type QbmFlywayConfig = {
@@ -94,6 +103,22 @@ export function parseQbmFile(raw: string): {
         typeof v.generatedSql === "string" &&
         v.projectSnapshot
       ) {
+        const rawManualScripts = v.manualScripts;
+        const manualScripts: QbmFlywayManualScript[] = [];
+        if (Array.isArray(rawManualScripts)) {
+          for (const ms of rawManualScripts) {
+            if (isObject(ms)) {
+              manualScripts.push({
+                id: typeof ms.id === "string" ? ms.id : "",
+                name: typeof ms.name === "string" ? ms.name : "",
+                execution: ms.execution === "before" ? "before" : "after",
+                order: typeof ms.order === "number" ? ms.order : 0,
+                sql: typeof ms.sql === "string" ? ms.sql : "",
+              });
+            }
+          }
+        }
+
         try {
           versions.push({
             id: v.id,
@@ -103,6 +128,7 @@ export function parseQbmFile(raw: string): {
             createdAt: v.createdAt,
             projectSnapshot: validateProject(v.projectSnapshot),
             generatedSql: v.generatedSql,
+            manualScripts,
           });
         } catch {
           // Se a validação do snapshot falhar, podemos manter o snapshot como está
@@ -114,6 +140,7 @@ export function parseQbmFile(raw: string): {
             createdAt: v.createdAt,
             projectSnapshot: v.projectSnapshot as DatabaseProject,
             generatedSql: v.generatedSql,
+            manualScripts,
           });
         }
       }

@@ -1,10 +1,11 @@
 import { useState, useRef } from "react";
 import { ArrowLeft } from "lucide-react";
-import type { QbmFile, QbmFlywayVersion } from "@/core/qbm/qbm-file";
+import type { QbmFile, QbmFlywayVersion, QbmFlywayManualScript } from "@/core/qbm/qbm-file";
 import {
   getFlywayVersions,
   getLastFlywayVersion,
   buildFlywayFileName,
+  buildFlywayVersionSql,
 } from "@/core/qbm/qbm-flyway";
 import { diffProjects } from "@/core/diff/project-diff";
 import type { ProjectDiff } from "@/core/diff/project-diff-types";
@@ -89,6 +90,8 @@ export function FlywayMigrationsScreen({
   onBack,
   onConfirmMigration,
 }: FlywayMigrationsScreenProps) {
+
+
   const [selectedVersion, setSelectedVersion] = useState<QbmFlywayVersion | null>(null);
   const [previewData, setPreviewData] = useState<PreviewState | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -105,6 +108,107 @@ export function FlywayMigrationsScreen({
   const hasContent = qbmFile.project.schemas.some(
     (s) => s.tables.length > 0 || s.sequences.length > 0
   );
+
+  const [tempManualScripts, setTempManualScripts] = useState<QbmFlywayManualScript[]>([]);
+
+  // State to manage the modal form for adding/editing a temporary manual script in the confirmation form
+  const [isScriptModalOpen, setIsScriptModalOpen] = useState(false);
+  const [editingScript, setEditingScript] = useState<QbmFlywayManualScript | null>(null);
+  const [formScriptName, setFormScriptName] = useState("");
+  const [formScriptExecution, setFormScriptExecution] = useState<"before" | "after">("after");
+  const [formScriptOrder, setFormScriptOrder] = useState<number | "">("");
+  const [formScriptSql, setFormScriptSql] = useState("");
+  const [scriptFormError, setScriptFormError] = useState<string | null>(null);
+
+  const handleOpenAddScriptForm = () => {
+    setEditingScript(null);
+    setFormScriptName("");
+    setFormScriptExecution("after");
+    
+    // Auto-suggest next order number
+    const groupScripts = tempManualScripts.filter((s) => s.execution === "after");
+    const nextOrder = groupScripts.length > 0 ? Math.max(...groupScripts.map((s) => s.order)) + 1 : 1;
+    
+    setFormScriptOrder(nextOrder);
+    setFormScriptSql("");
+    setScriptFormError(null);
+    setIsScriptModalOpen(true);
+  };
+
+  const handleOpenEditScriptForm = (script: QbmFlywayManualScript) => {
+    setEditingScript(script);
+    setFormScriptName(script.name);
+    setFormScriptExecution(script.execution);
+    setFormScriptOrder(script.order);
+    setFormScriptSql(script.sql);
+    setScriptFormError(null);
+    setIsScriptModalOpen(true);
+  };
+
+  const handleScriptExecutionChange = (execution: "before" | "after") => {
+    setFormScriptExecution(execution);
+    if (!editingScript) {
+      const groupScripts = tempManualScripts.filter((s) => s.execution === execution);
+      const nextOrder = groupScripts.length > 0 ? Math.max(...groupScripts.map((s) => s.order)) + 1 : 1;
+      setFormScriptOrder(nextOrder);
+    }
+  };
+
+  const handleAddTempManualScript = (script: Omit<QbmFlywayManualScript, "id">) => {
+    const newScript: QbmFlywayManualScript = {
+      ...script,
+      id: cryptoUuid(),
+    };
+    setTempManualScripts((prev) => [...prev, newScript]);
+  };
+
+  const handleEditTempManualScript = (script: QbmFlywayManualScript) => {
+    setTempManualScripts((prev) =>
+      prev.map((s) => (s.id === script.id ? script : s))
+    );
+  };
+
+  const handleDeleteTempManualScript = (scriptId: string) => {
+    setTempManualScripts((prev) => prev.filter((s) => s.id !== scriptId));
+  };
+
+  const handleSubmitScriptForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formScriptName.trim()) {
+      setScriptFormError("Name is required.");
+      return;
+    }
+    if (!formScriptExecution) {
+      setScriptFormError("Execution is required.");
+      return;
+    }
+    if (formScriptOrder === "" || isNaN(Number(formScriptOrder))) {
+      setScriptFormError("Order must be a valid number.");
+      return;
+    }
+    if (!formScriptSql.trim()) {
+      setScriptFormError("SQL is required.");
+      return;
+    }
+
+    if (editingScript) {
+      handleEditTempManualScript({
+        id: editingScript.id,
+        name: formScriptName.trim(),
+        execution: formScriptExecution,
+        order: Number(formScriptOrder),
+        sql: formScriptSql,
+      });
+    } else {
+      handleAddTempManualScript({
+        name: formScriptName.trim(),
+        execution: formScriptExecution,
+        order: Number(formScriptOrder),
+        sql: formScriptSql,
+      });
+    }
+    setIsScriptModalOpen(false);
+  };
 
   const handleGenerateMigration = () => {
     if (!lastVersion) return;
@@ -156,6 +260,7 @@ export function FlywayMigrationsScreen({
     setVersionInput("001");
     setDescriptionInput("initial_schema");
     setFormError(null);
+    setTempManualScripts([]);
     setIsFormOpen(true);
   };
 
@@ -168,6 +273,7 @@ export function FlywayMigrationsScreen({
     setVersionInput(nextVer);
     setDescriptionInput("migration");
     setFormError(null);
+    setTempManualScripts([]);
     setIsFormOpen(true);
   };
 
@@ -223,6 +329,7 @@ export function FlywayMigrationsScreen({
       createdAt: new Date().toISOString(),
       projectSnapshot: JSON.parse(JSON.stringify(qbmFile.project)),
       generatedSql,
+      manualScripts: tempManualScripts,
     };
 
     onConfirmMigration(newMigration);
@@ -250,7 +357,7 @@ export function FlywayMigrationsScreen({
 
       const result = await api.exportMigrationSql({
         fileName: selectedVersion.fileName,
-        sql: selectedVersion.generatedSql,
+        sql: buildFlywayVersionSql(selectedVersion),
       });
 
       if (result && !result.canceled && "error" in result && result.error) {
@@ -344,6 +451,63 @@ export function FlywayMigrationsScreen({
                       <span className="flyway-preview-filename-value">
                         {buildFlywayFileName(versionInput, descriptionInput)}
                       </span>
+                    </div>
+
+                    {/* Manual Scripts Editable Section inside Form */}
+                    <div className="flyway-manual-scripts-section" style={{ borderTop: "1px solid var(--color-border)", paddingTop: "16px", marginTop: "8px" }}>
+                      <div className="flyway-manual-scripts-header">
+                        <span className="flyway-details-label">Manual scripts</span>
+                        <button
+                          className="flyway-button flyway-button--primary flyway-button--small"
+                          type="button"
+                          onClick={handleOpenAddScriptForm}
+                        >
+                          Add manual script
+                        </button>
+                      </div>
+
+                      {tempManualScripts.length === 0 ? (
+                        <p className="flyway-manual-scripts-empty">
+                          No manual scripts configured for this migration.
+                        </p>
+                      ) : (
+                        <div className="flyway-manual-scripts-list">
+                          {[...tempManualScripts]
+                            .sort((a, b) => {
+                              if (a.execution !== b.execution) {
+                                return a.execution === "before" ? -1 : 1;
+                              }
+                              return a.order - b.order;
+                            })
+                            .map((script) => (
+                              <div key={script.id} className="flyway-manual-script-item">
+                                <div className="flyway-manual-script-item__info">
+                                  <span className="flyway-manual-script-item__name">{script.name}</span>
+                                  <span className={`flyway-manual-script-item__badge flyway-manual-script-item__badge--${script.execution}`}>
+                                    {script.execution}
+                                  </span>
+                                  <span className="flyway-manual-script-item__order">Order: {script.order}</span>
+                                </div>
+                                <div className="flyway-manual-script-item__actions">
+                                  <button
+                                    className="flyway-button flyway-button--secondary flyway-button--small"
+                                    type="button"
+                                    onClick={() => handleOpenEditScriptForm(script)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    className="flyway-button flyway-button--secondary flyway-button--small flyway-button--danger"
+                                    type="button"
+                                    onClick={() => handleDeleteTempManualScript(script.id)}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
                     </div>
 
                     {formError && (
@@ -467,55 +631,13 @@ export function FlywayMigrationsScreen({
           </div>
 
           {selectedVersion && (
-            <div className="flyway-selected-details-panel">
-              <div className="flyway-selected-details-header">
-                <span className="flyway-details-badge">Migration Selected</span>
-                <h3 className="flyway-details-title">{selectedVersion.fileName}</h3>
-              </div>
-
-              <div className="flyway-selected-details-grid">
-                <div className="flyway-details-field">
-                  <span className="flyway-details-label">Version</span>
-                  <span className="flyway-details-value">{selectedVersion.version}</span>
-                </div>
-                <div className="flyway-details-field">
-                  <span className="flyway-details-label">Description</span>
-                  <span className="flyway-details-value">{selectedVersion.description}</span>
-                </div>
-                <div className="flyway-details-field">
-                  <span className="flyway-details-label">Created At</span>
-                  <span className="flyway-details-value">
-                    {new Date(selectedVersion.createdAt).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flyway-selected-details-actions">
-                <button
-                  className="flyway-button flyway-button--secondary"
-                  type="button"
-                  onClick={() => setIsSqlModalOpen(true)}
-                  disabled={!selectedVersion.generatedSql}
-                >
-                  View SQL
-                </button>
-                <button
-                  className="flyway-button flyway-button--secondary"
-                  type="button"
-                  onClick={handleExportSql}
-                  disabled={!selectedVersion.generatedSql}
-                >
-                  Export SQL
-                </button>
-                <button
-                  className="flyway-button flyway-button--secondary"
-                  type="button"
-                  disabled
-                >
-                  View snapshot
-                </button>
-              </div>
-            </div>
+            <FlywayMigrationsDetails
+              totalCount={totalCount}
+              lastVersion={lastVersion}
+              selectedVersion={selectedVersion}
+              onViewSql={() => setIsSqlModalOpen(true)}
+              onExportSql={handleExportSql}
+            />
           )}
         </div>
       </main>
@@ -526,7 +648,85 @@ export function FlywayMigrationsScreen({
           onClose={() => setIsSqlModalOpen(false)}
           elevated
         >
-          <SqlEditorPreview sql={selectedVersion.generatedSql} />
+          <SqlEditorPreview sql={buildFlywayVersionSql(selectedVersion)} />
+        </CanvasModal>
+      )}
+
+      {isScriptModalOpen && (
+        <CanvasModal
+          title={editingScript ? "Edit manual script" : "Add manual script"}
+          onClose={() => setIsScriptModalOpen(false)}
+          elevated
+        >
+          <form onSubmit={handleSubmitScriptForm} className="canvas-modal-form">
+            <label>
+              <span>Name</span>
+              <input
+                type="text"
+                placeholder="e.g. create extra index"
+                value={formScriptName}
+                onChange={(e) => setFormScriptName(e.target.value)}
+              />
+            </label>
+
+            <div className="canvas-modal-form__row">
+              <label>
+                <span>Execution</span>
+                <select
+                  value={formScriptExecution}
+                  onChange={(e) => handleScriptExecutionChange(e.target.value as "before" | "after")}
+                >
+                  <option value="before">Before generated SQL</option>
+                  <option value="after">After generated SQL</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Order</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formScriptOrder}
+                  onChange={(e) =>
+                    setFormScriptOrder(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                />
+              </label>
+            </div>
+
+            <label>
+              <span>SQL script</span>
+              <textarea
+                className="sql-editor-textarea"
+                style={{
+                  height: "150px",
+                  width: "100%",
+                  background: "var(--color-bg)",
+                  border: "1px solid var(--color-border-strong)",
+                  borderRadius: "var(--radius-md)",
+                  color: "var(--color-text)",
+                  padding: "10px 12px",
+                  fontFamily: "monospace",
+                  resize: "vertical",
+                }}
+                placeholder="CREATE INDEX ..."
+                value={formScriptSql}
+                onChange={(e) => setFormScriptSql(e.target.value)}
+              />
+            </label>
+
+            {scriptFormError && <p className="canvas-modal-error">{scriptFormError}</p>}
+
+            <div className="canvas-modal-actions">
+              <button type="button" onClick={() => setIsScriptModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="submit">
+                {editingScript ? "Save changes" : "Add script"}
+              </button>
+            </div>
+          </form>
         </CanvasModal>
       )}
     </div>

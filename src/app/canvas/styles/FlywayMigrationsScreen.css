@@ -66,7 +66,7 @@
 .flyway-main-content {
   flex: 1;
   padding: 24px;
-  overflow-y: auto;
+  overflow-y: scroll;
 }
 
 .flyway-layout-container {
@@ -514,6 +514,111 @@
   overflow-x: auto;
   white-space: pre;
   box-sizing: border-box;
+}
+
+.flyway-manual-scripts-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+}
+
+.flyway-manual-scripts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flyway-manual-scripts-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-strong);
+}
+
+.flyway-button--small {
+  padding: 6px 12px;
+  font-size: 11px;
+}
+
+.flyway-button--danger {
+  background-color: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  color: #fda4af;
+}
+
+.flyway-button--danger:hover {
+  background-color: rgba(244, 63, 94, 0.2) !important;
+  border-color: rgba(244, 63, 94, 0.5) !important;
+}
+
+.flyway-manual-scripts-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+.flyway-manual-scripts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flyway-manual-script-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.flyway-manual-script-item__info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.flyway-manual-script-item__name {
+  font-weight: 500;
+  color: var(--color-text-strong);
+}
+
+.flyway-manual-script-item__badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: var(--color-border-strong);
+}
+
+.flyway-manual-script-item__badge--before {
+  color: var(--color-accent);
+  background-color: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.flyway-manual-script-item__badge--after {
+  color: #fcd34d;
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.flyway-manual-script-item__order {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.flyway-manual-script-item__actions {
+  display: flex;
+  gap: 6px;
 }
 
 

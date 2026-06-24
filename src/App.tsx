@@ -275,6 +275,8 @@ export default function App() {
     }));
   }, []);
 
+
+
   const windowTitle = `${openedProject.project.name}${openedProject.isDirty ? " *" : ""} - Qube Modeler`;
 
   return (

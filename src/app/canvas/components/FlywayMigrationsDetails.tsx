@@ -7,6 +7,8 @@ type FlywayMigrationsDetailsProps = {
   onGenerateMigration?: () => void;
   onGenerateInitialMigration?: () => void;
   hasContent?: boolean;
+  onViewSql?: () => void;
+  onExportSql?: () => void;
 };
 
 export function FlywayMigrationsDetails({
@@ -16,6 +18,8 @@ export function FlywayMigrationsDetails({
   onGenerateMigration,
   onGenerateInitialMigration,
   hasContent = false,
+  onViewSql,
+  onExportSql,
 }: FlywayMigrationsDetailsProps) {
   if (totalCount === 0) {
     return (
@@ -40,14 +44,25 @@ export function FlywayMigrationsDetails({
 
   if (selectedVersion) {
     const formattedDate = new Date(selectedVersion.createdAt).toLocaleString();
+    
+    // Sort manual scripts for rendering:
+    // 1. execution = before, order ascending
+    // 2. execution = after, order ascending
+    const sortedScripts = [...(selectedVersion.manualScripts || [])].sort((a, b) => {
+      if (a.execution !== b.execution) {
+        return a.execution === "before" ? -1 : 1;
+      }
+      return a.order - b.order;
+    });
+
     return (
-      <div className="flyway-details-panel">
-        <div className="flyway-details-header">
+      <div className="flyway-selected-details-panel">
+        <div className="flyway-selected-details-header">
           <span className="flyway-details-badge">Migration Selected</span>
           <h3 className="flyway-details-title">{selectedVersion.fileName}</h3>
         </div>
 
-        <div className="flyway-details-grid">
+        <div className="flyway-selected-details-grid">
           <div className="flyway-details-field">
             <span className="flyway-details-label">Version</span>
             <span className="flyway-details-value">{selectedVersion.version}</span>
@@ -62,18 +77,20 @@ export function FlywayMigrationsDetails({
           </div>
         </div>
 
-        <div className="flyway-details-actions">
+        <div className="flyway-selected-details-actions">
           <button
             className="flyway-button flyway-button--secondary"
             type="button"
-            disabled
+            onClick={onViewSql}
+            disabled={!selectedVersion.generatedSql}
           >
             View SQL
           </button>
           <button
             className="flyway-button flyway-button--secondary"
             type="button"
-            disabled
+            onClick={onExportSql}
+            disabled={!selectedVersion.generatedSql}
           >
             Export SQL
           </button>
@@ -84,6 +101,33 @@ export function FlywayMigrationsDetails({
           >
             View snapshot
           </button>
+        </div>
+
+        {/* Seção Manual Scripts (Apenas Leitura) */}
+        <div className="flyway-manual-scripts-section">
+          <div className="flyway-manual-scripts-header">
+            <h4 className="flyway-manual-scripts-title">Manual scripts</h4>
+          </div>
+
+          {sortedScripts.length === 0 ? (
+            <p className="flyway-manual-scripts-empty">
+              No manual scripts configured for this migration.
+            </p>
+          ) : (
+            <div className="flyway-manual-scripts-list">
+              {sortedScripts.map((script) => (
+                <div key={script.id} className="flyway-manual-script-item">
+                  <div className="flyway-manual-script-item__info">
+                    <span className="flyway-manual-script-item__name">{script.name}</span>
+                    <span className={`flyway-manual-script-item__badge flyway-manual-script-item__badge--${script.execution}`}>
+                      {script.execution}
+                    </span>
+                    <span className="flyway-manual-script-item__order">Order: {script.order}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
