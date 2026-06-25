@@ -6,7 +6,7 @@ import {
   Grid2X2Plus,
   Save,
   SaveAll,
-  Scan
+  Scan,
 } from "lucide-react";
 
 export type CanvasToolbarProps = {
@@ -19,7 +19,7 @@ export type CanvasToolbarProps = {
   onFitView: () => void;
   onAddTable: () => void;
   isAddingTable: boolean;
-  onExportJson: () => void;
+  onExportJson?: () => void;
   onGenerateSql: () => void;
 };
 
@@ -33,7 +33,6 @@ export function CanvasToolbar({
   onFitView,
   onAddTable,
   isAddingTable,
-  onExportJson,
   onGenerateSql,
 }: CanvasToolbarProps) {
   return (

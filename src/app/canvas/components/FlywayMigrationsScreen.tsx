@@ -1,20 +1,20 @@
-import { useState, useRef } from "react";
-import { ArrowLeft } from "lucide-react";
-import type { QbmFile, QbmFlywayVersion, QbmFlywayManualScript } from "@/core/qbm/qbm-file";
-import {
-  getFlywayVersions,
-  getLastFlywayVersion,
-  buildFlywayFileName,
-  buildFlywayVersionSql,
-} from "@/core/qbm/qbm-flyway";
 import { diffProjects } from "@/core/diff/project-diff";
 import type { ProjectDiff } from "@/core/diff/project-diff-types";
 import { generatePostgresMigrationSql } from "@/core/migration/postgres-migration-generator";
+import type { QbmFile, QbmFlywayManualScript, QbmFlywayVersion } from "@/core/qbm/qbm-file";
+import {
+  buildFlywayFileName,
+  buildFlywayVersionSql,
+  getFlywayVersions,
+  getLastFlywayVersion,
+} from "@/core/qbm/qbm-flyway";
 import { generatePostgresSql } from "@/core/sql/postgres-generator";
-import { FlywayMigrationsTable } from "./FlywayMigrationsTable";
-import { FlywayMigrationsDetails } from "./FlywayMigrationsDetails";
-import { CanvasModal } from "./CanvasModal";
+import { ArrowLeft } from "lucide-react";
+import { useRef, useState } from "react";
 import "../styles/FlywayMigrationsScreen.css";
+import { CanvasModal } from "./CanvasModal";
+import { FlywayMigrationsDetails } from "./FlywayMigrationsDetails";
+import { FlywayMigrationsTable } from "./FlywayMigrationsTable";
 
 type FlywayMigrationsScreenProps = {
   qbmFile: QbmFile;
@@ -94,6 +94,7 @@ export function FlywayMigrationsScreen({
 
   const [selectedVersion, setSelectedVersion] = useState<QbmFlywayVersion | null>(null);
   const [previewData, setPreviewData] = useState<PreviewState | null>(null);
+  const [destructiveChangesAccepted, setDestructiveChangesAccepted] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSqlModalOpen, setIsSqlModalOpen] = useState(false);
   const [migrationFlowMode, setMigrationFlowMode] = useState<"initial" | "next" | null>(null);
@@ -212,6 +213,7 @@ export function FlywayMigrationsScreen({
 
   const handleGenerateMigration = () => {
     if (!lastVersion) return;
+    setDestructiveChangesAccepted(false);
 
     try {
       const diff = diffProjects(lastVersion.projectSnapshot, qbmFile.project);
@@ -277,6 +279,13 @@ export function FlywayMigrationsScreen({
     setIsFormOpen(true);
   };
 
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setMigrationFlowMode(null);
+    setFormError(null);
+    setDestructiveChangesAccepted(false);
+  };
+
   const handleConfirmSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const ver = versionInput.trim();
@@ -339,6 +348,7 @@ export function FlywayMigrationsScreen({
     setMigrationFlowMode(null);
     setIsFormOpen(false);
     setSelectedVersion(null);
+    setDestructiveChangesAccepted(false);
   };
 
   const handleExportSql = async () => {
@@ -368,11 +378,13 @@ export function FlywayMigrationsScreen({
     }
   };
 
+  const hasDestructive = previewData?.diff.operations.some((op) => op.risk === "destructive") ?? false;
   const isConfirmEnabled =
-    previewData &&
+    !!previewData &&
     previewData.sql !== "" &&
     previewData.diff.operations.length > 0 &&
     previewData.diff.unsupportedOperations.length === 0 &&
+    (!hasDestructive || destructiveChangesAccepted) &&
     !previewData.error;
 
   return (
@@ -522,11 +534,7 @@ export function FlywayMigrationsScreen({
                     <button
                       className="flyway-button flyway-button--secondary"
                       type="button"
-                      onClick={() => {
-                        setIsFormOpen(false);
-                        setMigrationFlowMode(null);
-                        setFormError(null);
-                      }}
+                      onClick={handleCloseForm}
                     >
                       Cancel
                     </button>
@@ -545,50 +553,130 @@ export function FlywayMigrationsScreen({
                     <h3 className="flyway-details-title">SQL Migration Details</h3>
                   </div>
 
-                  <div className="flyway-preview-meta-info">
-                    <div className="flyway-preview-meta-row">
-                      <span className="flyway-preview-meta-label">Base Migration:</span>
-                      <span className="flyway-preview-meta-value">{lastVersion?.fileName}</span>
-                    </div>
-                    <div className="flyway-preview-meta-row">
-                      <span className="flyway-preview-meta-label">Supported Ops:</span>
-                      <span className="flyway-preview-meta-value">{previewData.diff.operations.length}</span>
-                    </div>
-                    <div className="flyway-preview-meta-row">
-                      <span className="flyway-preview-meta-label">Unsupported Ops:</span>
-                      <span className={`flyway-preview-meta-value ${previewData.diff.unsupportedOperations.length > 0 ? "flyway-preview-meta-value--warning" : ""}`}>
-                        {previewData.diff.unsupportedOperations.length}
-                      </span>
-                    </div>
-                  </div>
+                  {(() => {
+                    const safeOpsCount = previewData.diff.operations.filter(op => op.risk === "safe").length;
+                    const warningOps = previewData.diff.operations.filter(op => op.risk === "warning");
+                    const destructiveOps = previewData.diff.operations.filter(op => op.risk === "destructive");
+                    const unsupportedOpsCount = previewData.diff.unsupportedOperations.length;
 
-                  {previewData.noChanges && (
-                    <div className="flyway-preview-message flyway-preview-message--info">
-                      <strong>No pending changes</strong>
-                      <p>No changes detected between the last migration snapshot and the current model.</p>
-                    </div>
-                  )}
+                    return (
+                      <>
+                        <div className="flyway-preview-meta-info">
+                          <div className="flyway-preview-meta-row">
+                            <span className="flyway-preview-meta-label">Base Migration:</span>
+                            <span className="flyway-preview-meta-value">{lastVersion?.fileName || "None"}</span>
+                          </div>
+                          <div className="flyway-preview-meta-row">
+                            <span className="flyway-preview-meta-label">Safe Ops:</span>
+                            <span className="flyway-preview-meta-value" style={{ color: "var(--color-accent)", fontWeight: "bold" }}>{safeOpsCount}</span>
+                          </div>
+                          <div className="flyway-preview-meta-row">
+                            <span className="flyway-preview-meta-label">Warning Ops:</span>
+                            <span className="flyway-preview-meta-value" style={{ color: "#eab308", fontWeight: "bold" }}>{warningOps.length}</span>
+                          </div>
+                          <div className="flyway-preview-meta-row">
+                            <span className="flyway-preview-meta-label">Destructive Ops:</span>
+                            <span className="flyway-preview-meta-value" style={{ color: "#ef4444", fontWeight: "bold" }}>{destructiveOps.length}</span>
+                          </div>
+                          <div className="flyway-preview-meta-row">
+                            <span className="flyway-preview-meta-label">Unsupported Ops:</span>
+                            <span className={`flyway-preview-meta-value ${unsupportedOpsCount > 0 ? "flyway-preview-meta-value--warning" : ""}`}>
+                              {unsupportedOpsCount}
+                            </span>
+                          </div>
+                        </div>
 
-                  {previewData.error && (
-                    <div className="flyway-preview-message flyway-preview-message--error">
-                      <strong>Generation Error</strong>
-                      <p>{previewData.error}</p>
-                    </div>
-                  )}
+                        {previewData.noChanges && (
+                          <div className="flyway-preview-message flyway-preview-message--info">
+                            <strong>No pending changes</strong>
+                            <p>No changes detected between the last migration snapshot and the current model.</p>
+                          </div>
+                        )}
 
-                  {previewData.diff.unsupportedOperations.length > 0 && (
-                    <div className="flyway-preview-message flyway-preview-message--warning">
-                      <strong>Unsupported Changes Detected</strong>
-                      <p>The following changes are unsupported in migrations (requires manual action):</p>
-                      <ul className="flyway-unsupported-list">
-                        {previewData.diff.unsupportedOperations.map((op, idx) => (
-                          <li key={idx}>
-                            [{op.objectType}] {op.objectName} - {op.reason}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                        {previewData.error && (
+                          <div className="flyway-preview-message flyway-preview-message--error">
+                            <strong>Generation Error</strong>
+                            <p>{previewData.error}</p>
+                          </div>
+                        )}
+
+                        {warningOps.length > 0 && (
+                          <div className="flyway-preview-message" style={{ borderLeft: "4px solid #eab308", background: "rgba(234, 179, 8, 0.05)", padding: "12px", borderRadius: "8px", margin: "16px 0" }}>
+                            <strong style={{ color: "#eab308", fontSize: "14px" }}>Warning Changes Detected</strong>
+                            <p style={{ margin: "4px 0 8px 0", fontSize: "13px", color: "var(--color-text-muted)" }}>These operations rename or alter schema elements:</p>
+                            <ul className="flyway-unsupported-list" style={{ paddingLeft: "20px" }}>
+                              {warningOps.map((op, idx) => {
+                                const opCast = op as {
+                                  kind: string;
+                                  schemaName?: string;
+                                  tableName?: string;
+                                  columnName?: string;
+                                  sequenceName?: string;
+                                  oldName?: string;
+                                  newName?: string;
+                                };
+                                const targetName = opCast.tableName ? `${opCast.schemaName}.${opCast.tableName}.${opCast.columnName || ""}` : opCast.oldName ? `${opCast.oldName} ➔ ${opCast.newName}` : opCast.schemaName;
+                                return (
+                                  <li key={idx} style={{ fontSize: "13px", color: "var(--color-text)", listStyleType: "disc" }}>
+                                    {opCast.kind.replace(/_/g, " ")}: {targetName}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        )}
+
+                        {destructiveOps.length > 0 && (
+                          <div className="flyway-preview-message" style={{ borderLeft: "4px solid #ef4444", background: "rgba(239, 68, 68, 0.05)", padding: "12px", borderRadius: "8px", margin: "16px 0" }}>
+                            <strong style={{ color: "#ef4444", fontSize: "14px" }}>CRITICAL: Destructive Changes Detected</strong>
+                            <p style={{ margin: "4px 0 8px 0", fontSize: "13px", color: "var(--color-text-muted)" }}>The following operations will drop objects and may result in permanent data loss:</p>
+                            <ul className="flyway-unsupported-list" style={{ paddingLeft: "20px", marginBottom: "12px" }}>
+                              {destructiveOps.map((op, idx) => {
+                                const opCast = op as {
+                                  kind: string;
+                                  schemaName?: string;
+                                  tableName?: string;
+                                  columnName?: string;
+                                  sequenceName?: string;
+                                  oldName?: string;
+                                  newName?: string;
+                                };
+                                const targetName = opCast.tableName ? `${opCast.schemaName}.${opCast.tableName}.${opCast.columnName || ""}` : opCast.sequenceName ? `${opCast.schemaName}.${opCast.sequenceName}` : opCast.schemaName;
+                                return (
+                                  <li key={idx} style={{ fontSize: "13px", color: "var(--color-text)", listStyleType: "disc" }}>
+                                    Drop {opCast.kind.replace("DROP_", "").replace(/_/g, " ").toLowerCase()}: {targetName}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "bold", cursor: "pointer", color: "var(--color-text-strong)", userSelect: "none" }}>
+                              <input
+                                type="checkbox"
+                                checked={destructiveChangesAccepted}
+                                onChange={(e) => setDestructiveChangesAccepted(e.target.checked)}
+                                style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                              />
+                              I understand this migration may cause data loss.
+                            </label>
+                          </div>
+                        )}
+
+                        {unsupportedOpsCount > 0 && (
+                          <div className="flyway-preview-message flyway-preview-message--warning">
+                            <strong>Unsupported Changes Detected</strong>
+                            <p>The following changes are unsupported in migrations. Please use manual scripts or adjust the model:</p>
+                            <ul className="flyway-unsupported-list">
+                              {previewData.diff.unsupportedOperations.map((op, idx) => (
+                                <li key={idx}>
+                                  [{op.objectType}] {op.objectName} - {op.reason}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {previewData.sql && (
                     <div className="flyway-sql-preview-container">
