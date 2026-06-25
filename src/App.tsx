@@ -161,9 +161,14 @@ export default function App() {
         setErrorMessage(result.error);
         return false;
       }
+      const nameWithoutExtension = getProjectDisplayName(result.filePath);
       setOpenedProject((current) => ({
         ...current,
         filePath: result.filePath,
+        project: {
+          ...current.project,
+          name: nameWithoutExtension,
+        },
         isDirty:
           current.project === projectBeingSaved ? false : current.isDirty,
       }));
@@ -206,9 +211,14 @@ export default function App() {
         setErrorMessage(result.error);
         return false;
       }
+      const nameWithoutExtension = getProjectDisplayName(result.filePath);
       setOpenedProject((current) => ({
         ...current,
         filePath: result.filePath,
+        project: {
+          ...current.project,
+          name: nameWithoutExtension,
+        },
         isDirty:
           current.project === projectBeingSaved ? false : current.isDirty,
       }));

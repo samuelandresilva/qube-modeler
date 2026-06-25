@@ -66,7 +66,7 @@ export function parseQbmFile(raw: string): {
   try {
     value = JSON.parse(raw);
   } catch {
-    throw new Error("The selected .qbm file is not valid JSON.");
+    throw new Error("The selected .qbm file is not valid.");
   }
 
   if (!isObject(value)) throw new Error("The .qbm file must contain an object.");
