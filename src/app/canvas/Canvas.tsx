@@ -33,9 +33,11 @@ import "./styles/Canvas.css";
 
 type CanvasProps = {
   project: DatabaseProject;
+  filePath: string | null;
   setProject: React.Dispatch<React.SetStateAction<DatabaseProject>>;
   onNewProject: () => void;
   onOpenProject: () => void;
+  onCloseProject: () => void;
   onSaveProject: () => void;
   onSaveProjectAs: () => void;
   fileOperationMessage: string | null;
@@ -62,9 +64,11 @@ export function Canvas(props: CanvasProps) {
 
 function CanvasContent({
   project,
+  filePath,
   setProject,
   onNewProject,
   onOpenProject,
+  onCloseProject,
   onSaveProject,
   onSaveProjectAs,
   fileOperationMessage,
@@ -198,9 +202,7 @@ function CanvasContent({
     <div className="canvas-workspace">
       <CanvasSidebar
         project={project}
-        onRenameProject={(name) =>
-          setProject((current) => ({ ...current, name }))
-        }
+        filePath={filePath}
         onAddSchema={() => setDialog({ kind: "schema" })}
         onEditSchema={(schemaId) => setDialog({ kind: "schema", schemaId })}
         onDeleteSchema={deleteSchema}
@@ -217,6 +219,7 @@ function CanvasContent({
         <CanvasToolbar
           onNewProject={onNewProject}
           onOpenProject={onOpenProject}
+          onCloseProject={onCloseProject}
           onSaveProject={onSaveProject}
           onSaveProjectAs={onSaveProjectAs}
           isFileOperationLoading={fileOperationMessage !== null}

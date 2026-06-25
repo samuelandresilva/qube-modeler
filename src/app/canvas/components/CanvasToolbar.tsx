@@ -1,17 +1,18 @@
 import {
   FileCode2,
-  FileJson,
   FilePlus2,
   FolderOpen,
+  FolderX,
   Grid2X2Plus,
   Save,
   SaveAll,
-  Scan,
+  Scan
 } from "lucide-react";
 
 export type CanvasToolbarProps = {
   onNewProject: () => void;
   onOpenProject: () => void;
+  onCloseProject: () => void;
   onSaveProject: () => void;
   onSaveProjectAs: () => void;
   isFileOperationLoading: boolean;
@@ -25,6 +26,7 @@ export type CanvasToolbarProps = {
 export function CanvasToolbar({
   onNewProject,
   onOpenProject,
+  onCloseProject,
   onSaveProject,
   onSaveProjectAs,
   isFileOperationLoading,
@@ -58,6 +60,19 @@ export function CanvasToolbar({
         >
           <FolderOpen size={18} strokeWidth={2.4} />
         </button>
+
+        <button
+          className="canvas-toolbar__icon-button"
+          type="button"
+          title="Close project"
+          aria-label="Close project"
+          onClick={onCloseProject}
+          disabled={isFileOperationLoading}
+        >
+          <FolderX size={18} strokeWidth={2.4} />
+        </button>
+
+        <div className="canvas-toolbar__separator" aria-hidden="true" />
 
         <button
           className="canvas-toolbar__icon-button"
@@ -101,17 +116,6 @@ export function CanvasToolbar({
           onClick={onAddTable}
         >
           <Grid2X2Plus size={18} strokeWidth={2.4} />
-        </button>
-
-        <button
-          className="canvas-toolbar__icon-button"
-          type="button"
-          title="Export JSON"
-          aria-label="Export JSON"
-          onClick={onExportJson}
-          disabled={isFileOperationLoading}
-        >
-          <FileJson size={18} strokeWidth={2.4} />
         </button>
 
         <button

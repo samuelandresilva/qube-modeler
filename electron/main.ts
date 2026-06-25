@@ -17,7 +17,10 @@ import type {
   OpenProjectResult,
   SaveProjectResult,
   ExportMigrationSqlResult,
+  RecentProject,
+  OpenProjectFileResult,
 } from "../src/core/qbm/ipc-types";
+
 
 app.commandLine.appendSwitch("log-level", "3");
 app.setName("Qube Modeler");
@@ -37,7 +40,101 @@ let isWindowCloseConfirmed = false;
 
 const qbmFileFilter = [{ name: "Qube Modeler Project", extensions: ["qbm"] }];
 
+function getRecentProjectsFilePath(): string {
+  return path.join(app.getPath("userData"), "recent-projects.json");
+}
+
+async function readRecentProjects(): Promise<RecentProject[]> {
+  const filePath = getRecentProjectsFilePath();
+  try {
+    const data = await readFile(filePath, "utf8");
+    const parsed = JSON.parse(data);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item): item is RecentProject => {
+        return (
+          item &&
+          typeof item === "object" &&
+          typeof item.filePath === "string" &&
+          typeof item.name === "string" &&
+          typeof item.lastOpenedAt === "string"
+        );
+      });
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveRecentProjects(projects: RecentProject[]): Promise<void> {
+  const filePath = getRecentProjectsFilePath();
+  await writeFile(filePath, JSON.stringify(projects, null, 2), "utf8");
+}
+
+async function addRecentProject(filePath: string): Promise<RecentProject[]> {
+  const projects = await readRecentProjects();
+  const name = path.basename(filePath, path.extname(filePath));
+  const newProject: RecentProject = {
+    filePath,
+    name,
+    lastOpenedAt: new Date().toISOString(),
+  };
+
+  const filtered = projects.filter(
+    (p) => p.filePath.toLowerCase() !== filePath.toLowerCase()
+  );
+
+  const updated = [newProject, ...filtered];
+
+  updated.sort((a, b) => new Date(b.lastOpenedAt).getTime() - new Date(a.lastOpenedAt).getTime());
+
+  const limited = updated.slice(0, 10);
+
+  await saveRecentProjects(limited);
+  return limited;
+}
+
+async function removeRecentProject(filePath: string): Promise<RecentProject[]> {
+  const projects = await readRecentProjects();
+  const filtered = projects.filter(
+    (p) => p.filePath.toLowerCase() !== filePath.toLowerCase()
+  );
+  await saveRecentProjects(filtered);
+  return filtered;
+}
+
 function configureProjectIpc() {
+  ipcMain.handle("qbm:get-recent-projects", async (): Promise<RecentProject[]> => {
+    return readRecentProjects();
+  });
+
+  ipcMain.handle("qbm:add-recent-project", async (_event, filePath: string): Promise<RecentProject[]> => {
+    return addRecentProject(filePath);
+  });
+
+  ipcMain.handle("qbm:remove-recent-project", async (_event, filePath: string): Promise<RecentProject[]> => {
+    return removeRecentProject(filePath);
+  });
+
+  ipcMain.handle("qbm:open-project-file", async (_event, filePath: string): Promise<OpenProjectFileResult> => {
+    try {
+      if (!hasQbmExtension(filePath)) {
+        return { error: "Only .qbm files can be opened." };
+      }
+      const raw = await readFile(filePath, "utf8");
+      const { project, flyway } = parseQbmFile(raw);
+      return {
+        filePath,
+        project,
+        flyway,
+      };
+    } catch (error) {
+      return {
+        error: `Could not open the project: ${getErrorMessage(error)}`,
+      };
+    }
+  });
+
   ipcMain.on("qbm:confirm-close", (event) => {
     if (!mainWindow || event.sender !== mainWindow.webContents) return;
     isWindowCloseConfirmed = true;
@@ -49,7 +146,7 @@ function configureProjectIpc() {
     async (event): Promise<OpenProjectResult> => {
       try {
         const owner = getOwnerWindow(event.sender);
-        const options : OpenDialogOptions = {
+        const options: OpenDialogOptions = {
           title: "Open Qube Modeler Project",
           properties: ["openFile"],
           filters: qbmFileFilter,
@@ -252,6 +349,8 @@ function createWindow() {
     height: 800,
     minWidth: 800,
     minHeight: 600,
+    show: false,
+    backgroundColor: "#020817",
     title: "Qube Modeler",
     icon: appIconPath,
     titleBarStyle: "hidden",
@@ -267,7 +366,10 @@ function createWindow() {
     },
   });
 
-  mainWindow.maximize();
+  mainWindow.once("ready-to-show", () => {
+    mainWindow?.maximize();
+    mainWindow?.show();
+  });
 
   mainWindow.on("close", (event) => {
     if (isWindowCloseConfirmed) return;

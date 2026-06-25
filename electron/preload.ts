@@ -20,6 +20,13 @@ const api: QubeModelerApi = {
   confirmClose: () => ipcRenderer.send("qbm:confirm-close"),
   exportMigrationSql: (payload: ExportMigrationSqlPayload) =>
     ipcRenderer.invoke("qbm:export-migration-sql", payload),
+  getRecentProjects: () => ipcRenderer.invoke("qbm:get-recent-projects"),
+  addRecentProject: (filePath: string) =>
+    ipcRenderer.invoke("qbm:add-recent-project", filePath),
+  removeRecentProject: (filePath: string) =>
+    ipcRenderer.invoke("qbm:remove-recent-project", filePath),
+  openProjectFile: (filePath: string) =>
+    ipcRenderer.invoke("qbm:open-project-file", filePath),
 };
 
 contextBridge.exposeInMainWorld("qubeModeler", api);

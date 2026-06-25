@@ -154,3 +154,13 @@ export function parseQbmFile(raw: string): {
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+export function getProjectDisplayName(filePath: string | null): string {
+  if (!filePath) return "Untitled";
+  const parts = filePath.split(/[/\\]/);
+  const baseName = parts[parts.length - 1];
+  if (baseName.toLowerCase().endsWith(".qbm")) {
+    return baseName.slice(0, -4);
+  }
+  return baseName;
+}

@@ -14,9 +14,11 @@ import { UnsavedChangesDialog } from "@/app/canvas/components/UnsavedChangesDial
 import { useConfirm } from "@/app/canvas/hooks/useConfirm";
 import { createEmptyProject, type DatabaseProject } from "@/core/model";
 import type { QubeModelerApi } from "@/core/qbm/ipc-types";
-import type { QbmFile, QbmFlywayConfig, QbmFlywayVersion } from "@/core/qbm/qbm-file";
+import { getProjectDisplayName, type QbmFile, type QbmFlywayConfig, type QbmFlywayVersion } from "@/core/qbm/qbm-file";
 import { AppTitleBar } from "./app/canvas/components/AppTitleBar";
 import { FlywayMigrationsScreen } from "@/app/canvas/components/FlywayMigrationsScreen";
+import { WelcomeScreen } from "@/app/canvas/components/WelcomeScreen";
+import type { RecentProject } from "@/core/qbm/ipc-types";
 
 type OpenedProjectState = {
   project: DatabaseProject;
@@ -26,7 +28,8 @@ type OpenedProjectState = {
 };
 
 export default function App() {
-  const [view, setView] = useState<"canvas" | "flyway">("canvas");
+  const [view, setView] = useState<"canvas" | "flyway" | "welcome">("welcome");
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [openedProject, setOpenedProject] = useState<OpenedProjectState>(() => ({
     project: createEmptyProject(),
     filePath: null,
@@ -74,6 +77,7 @@ export default function App() {
       flyway: { versions: [] },
       isDirty: false,
     });
+    setView("canvas");
   }, []);
 
   const handleNewProject = useCallback(() => {
@@ -111,6 +115,9 @@ export default function App() {
         flyway: result.flyway,
         isDirty: false,
       });
+      const updated = await api.addRecentProject(result.filePath).catch(() => null);
+      if (updated) setRecentProjects(updated);
+      setView("canvas");
     } catch (error) {
       setErrorMessage(
         `Could not open the project: ${getErrorMessage(error)}`,
@@ -146,8 +153,8 @@ export default function App() {
     try {
       const result = await api.saveProjectAs({
         project: projectBeingSaved,
-        flyway: openedProject.flyway,
-        suggestedFileName: openedProject.project.name,
+        flyway: openedProject.filePath ? openedProject.flyway : { versions: [] },
+        suggestedFileName: getProjectDisplayName(openedProject.filePath),
       });
       if (result.canceled) return false;
       if ("error" in result) {
@@ -160,6 +167,8 @@ export default function App() {
         isDirty:
           current.project === projectBeingSaved ? false : current.isDirty,
       }));
+      const updated = await api.addRecentProject(result.filePath).catch(() => null);
+      if (updated) setRecentProjects(updated);
       return true;
     } catch (error) {
       setErrorMessage(
@@ -169,7 +178,7 @@ export default function App() {
     } finally {
       finishFileOperation();
     }
-  }, [beginFileOperation, finishFileOperation, openedProject.project, openedProject.flyway]);
+  }, [beginFileOperation, finishFileOperation, openedProject.project, openedProject.flyway, openedProject.filePath]);
 
   const handleSaveProject = useCallback(async (): Promise<boolean> => {
     if (!openedProject.filePath) {
@@ -203,6 +212,8 @@ export default function App() {
         isDirty:
           current.project === projectBeingSaved ? false : current.isDirty,
       }));
+      const updated = await api.addRecentProject(result.filePath).catch(() => null);
+      if (updated) setRecentProjects(updated);
       return true;
     } catch (error) {
       setErrorMessage(
@@ -264,6 +275,83 @@ export default function App() {
     getQubeModelerApi()?.confirmClose();
   }, [handleSaveProject]);
 
+  useEffect(() => {
+    const api = getQubeModelerApi();
+    if (api) {
+      api.getRecentProjects().then(setRecentProjects).catch(() => {});
+    }
+  }, []);
+
+  const handleOpenRecentProject = useCallback(async (filePath: string) => {
+    const api = getQubeModelerApi();
+    if (!api) {
+      setErrorMessage("The Electron preload is unavailable.");
+      return;
+    }
+    if (!beginFileOperation("Opening project...")) return;
+    try {
+      const result = await api.openProjectFile(filePath);
+      if ("error" in result) {
+        finishFileOperation();
+        requestConfirm(
+          `Could not open the project. It might have been moved or deleted.\nError: ${result.error}\nDo you want to remove it from the recent projects list?`,
+          async () => {
+            const updated = await api.removeRecentProject(filePath);
+            setRecentProjects(updated);
+          },
+          "Remove",
+        );
+        return;
+      }
+      setOpenedProject({
+        project: result.project,
+        filePath: result.filePath,
+        flyway: result.flyway,
+        isDirty: false,
+      });
+      const updated = await api.addRecentProject(result.filePath).catch(() => null);
+      if (updated) setRecentProjects(updated);
+      setView("canvas");
+    } catch (error) {
+      setErrorMessage(`Could not open the project: ${getErrorMessage(error)}`);
+    } finally {
+      finishFileOperation();
+    }
+  }, [beginFileOperation, finishFileOperation, requestConfirm]);
+
+  const handleRemoveRecentProject = useCallback(async (filePath: string) => {
+    const api = getQubeModelerApi();
+    if (!api) return;
+    try {
+      const updated = await api.removeRecentProject(filePath);
+      setRecentProjects(updated);
+    } catch (error) {
+      setErrorMessage(`Could not remove recent project: ${getErrorMessage(error)}`);
+    }
+  }, []);
+
+  const handleCloseProject = useCallback(() => {
+    const performClose = () => {
+      setOpenedProject({
+        project: createEmptyProject(),
+        filePath: null,
+        flyway: { versions: [] },
+        isDirty: false,
+      });
+      setView("welcome");
+    };
+
+    if (openedProject.isDirty) {
+      requestConfirm(
+        "Discard the unsaved changes to the current project?",
+        performClose,
+        "Discard",
+      );
+    } else {
+      performClose();
+    }
+  }, [openedProject.isDirty, requestConfirm]);
+
   const handleConfirmMigration = useCallback((newVersion: QbmFlywayVersion) => {
     setOpenedProject((current) => ({
       ...current,
@@ -277,19 +365,31 @@ export default function App() {
 
 
 
-  const windowTitle = `${openedProject.project.name}${openedProject.isDirty ? " *" : ""} - Qube Modeler`;
+  const windowTitle = view === "welcome"
+    ? "Qube Modeler"
+    : `${getProjectDisplayName(openedProject.filePath)}${openedProject.isDirty ? " *" : ""} - Qube Modeler`;
 
   return (
     <div className="app-shell">
       <AppTitleBar title={windowTitle} />
 
       <div className="app-content">
-        {view === "canvas" ? (
+        {view === "welcome" ? (
+          <WelcomeScreen
+            recentProjects={recentProjects}
+            onNewProject={handleNewProject}
+            onOpenProject={handleOpenProject}
+            onOpenRecentProject={handleOpenRecentProject}
+            onRemoveRecentProject={handleRemoveRecentProject}
+          />
+        ) : view === "canvas" ? (
           <Canvas
             project={openedProject.project}
+            filePath={openedProject.filePath}
             setProject={setProject}
             onNewProject={handleNewProject}
             onOpenProject={handleOpenProject}
+            onCloseProject={handleCloseProject}
             onSaveProject={() => void handleSaveProject()}
             onSaveProjectAs={() => void handleSaveProjectAs()}
             fileOperationMessage={fileOperationMessage}
