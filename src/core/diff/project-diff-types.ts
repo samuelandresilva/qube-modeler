@@ -29,6 +29,11 @@ export type ProjectDiffOperation =
   | AlterColumnSizeDiffOperation
   | AlterColumnNullabilityDiffOperation
   | AlterColumnDefaultDiffOperation
+  // Constraint / Index alterations
+  | AlterPrimaryKeyDiffOperation
+  | AlterForeignKeyDiffOperation
+  | AlterUniqueConstraintDiffOperation
+  | AlterIndexDiffOperation
   // Destructive drops
   | DropSchemaDiffOperation
   | DropSequenceDiffOperation
@@ -346,4 +351,52 @@ export type UnsupportedDiffOperation = {
   reason: string;
   objectType: string;
   objectName: string;
+};
+
+export type AlterPrimaryKeyDiffOperation = {
+  kind: "ALTER_PRIMARY_KEY";
+  risk: DiffOperationRisk;
+  schemaId: string;
+  schemaName: string;
+  tableId: string;
+  tableName: string;
+  oldName: string;
+  newName: string;
+  columnNames: string[];
+};
+
+export type AlterForeignKeyDiffOperation = {
+  kind: "ALTER_FOREIGN_KEY";
+  risk: DiffOperationRisk;
+  schemaId: string;
+  schemaName: string;
+  tableId: string;
+  tableName: string;
+  foreignKeyId: string;
+  oldName: string;
+  newName: string;
+};
+
+export type AlterUniqueConstraintDiffOperation = {
+  kind: "ALTER_UNIQUE_CONSTRAINT";
+  risk: DiffOperationRisk;
+  schemaId: string;
+  schemaName: string;
+  tableId: string;
+  tableName: string;
+  uniqueConstraintId: string;
+  oldName: string;
+  newName: string;
+};
+
+export type AlterIndexDiffOperation = {
+  kind: "ALTER_INDEX";
+  risk: DiffOperationRisk;
+  schemaId: string;
+  schemaName: string;
+  tableId: string;
+  tableName: string;
+  indexId: string;
+  oldName: string;
+  newName: string;
 };

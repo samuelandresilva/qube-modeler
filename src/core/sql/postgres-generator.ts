@@ -90,7 +90,7 @@ export function generateTableSql(
   ].join("\n");
 }
 
-function generateColumnTypeSql(column: DatabaseColumn): string {
+export function generateColumnTypeSql(column: DatabaseColumn): string {
   if (supportsScale(column.type)) {
     if (typeof column.size === "number" && typeof column.scale === "number") {
       return `${column.type}(${column.size},${column.scale})`;

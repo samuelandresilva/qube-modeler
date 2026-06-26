@@ -7,6 +7,7 @@ import {
   generateForeignKeySql,
   generateUniqueConstraintSql,
   generateIndexSql,
+  generateColumnTypeSql,
 } from "../sql/postgres-generator";
 
 function formatStatement(sql: string, risk: string): string {
@@ -16,6 +17,20 @@ function formatStatement(sql: string, risk: string): string {
   return sql;
 }
 
+const OPERATION_ORDER: Record<string, number> = {
+  DROP_FOREIGN_KEY: 1,
+  DROP_UNIQUE_CONSTRAINT: 2,
+  DROP_PRIMARY_KEY: 3,
+  DROP_INDEX: 4,
+  ALTER_FOREIGN_KEY: 5,
+  ALTER_UNIQUE_CONSTRAINT: 6,
+  ALTER_PRIMARY_KEY: 7,
+  ALTER_INDEX: 8,
+  DROP_COLUMN: 9,
+  DROP_SEQUENCE: 10,
+  DROP_TABLE: 11,
+};
+
 export function generatePostgresMigrationSql(
   diff: ProjectDiff,
   currentProject: DatabaseProject,
@@ -24,9 +39,21 @@ export function generatePostgresMigrationSql(
     return "";
   }
 
+  const sortedOperations = [...diff.operations]
+    .map((op, index) => ({ op, index }))
+    .sort((a, b) => {
+      const orderA = OPERATION_ORDER[a.op.kind] !== undefined ? OPERATION_ORDER[a.op.kind] : 100;
+      const orderB = OPERATION_ORDER[b.op.kind] !== undefined ? OPERATION_ORDER[b.op.kind] : 100;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return a.index - b.index;
+    })
+    .map((item) => item.op);
+
   const sqlStatements: string[] = [];
 
-  for (const op of diff.operations) {
+  for (const op of sortedOperations) {
     if (op.risk === "unsupported") {
       continue;
     }
@@ -172,6 +199,89 @@ export function generatePostgresMigrationSql(
         break;
       }
 
+      case "ALTER_PRIMARY_KEY": {
+        const schema = currentProject.schemas.find((s) => s.id === op.schemaId);
+        if (!schema) {
+          throw new Error(`Schema ${op.schemaName} (ID: ${op.schemaId}) not found in current project.`);
+        }
+        const table = schema.tables.find((t) => t.id === op.tableId);
+        if (!table) {
+          throw new Error(`Table ${op.tableName} (ID: ${op.tableId}) not found in schema ${schema.name}.`);
+        }
+        const sql = [
+          `ALTER TABLE ${schema.name}.${table.name} DROP CONSTRAINT ${op.oldName};`,
+          `ALTER TABLE ${schema.name}.${table.name} ADD CONSTRAINT ${op.newName} PRIMARY KEY (${op.columnNames.join(", ")});`
+        ].join("\n");
+        sqlStatements.push(formatStatement(sql, op.risk));
+        break;
+      }
+
+      case "ALTER_FOREIGN_KEY": {
+        const schema = currentProject.schemas.find((s) => s.id === op.schemaId);
+        if (!schema) {
+          throw new Error(`Schema ${op.schemaName} (ID: ${op.schemaId}) not found in current project.`);
+        }
+        const table = schema.tables.find((t) => t.id === op.tableId);
+        if (!table) {
+          throw new Error(`Table ${op.tableName} (ID: ${op.tableId}) not found in schema ${schema.name}.`);
+        }
+        const fk = table.foreignKeys.find((f) => f.id === op.foreignKeyId);
+        if (!fk) {
+          throw new Error(`Foreign Key (ID: ${op.foreignKeyId}) not found in table ${table.name}.`);
+        }
+        const fkDef = generateForeignKeySql(fk).trim();
+        const sql = [
+          `ALTER TABLE ${schema.name}.${table.name} DROP CONSTRAINT ${op.oldName};`,
+          `ALTER TABLE ${schema.name}.${table.name} ADD ${fkDef};`
+        ].join("\n");
+        sqlStatements.push(formatStatement(sql, op.risk));
+        break;
+      }
+
+      case "ALTER_UNIQUE_CONSTRAINT": {
+        const schema = currentProject.schemas.find((s) => s.id === op.schemaId);
+        if (!schema) {
+          throw new Error(`Schema ${op.schemaName} (ID: ${op.schemaId}) not found in current project.`);
+        }
+        const table = schema.tables.find((t) => t.id === op.tableId);
+        if (!table) {
+          throw new Error(`Table ${op.tableName} (ID: ${op.tableId}) not found in schema ${schema.name}.`);
+        }
+        const uc = table.uniqueConstraints.find((u) => u.id === op.uniqueConstraintId);
+        if (!uc) {
+          throw new Error(`Unique Constraint (ID: ${op.uniqueConstraintId}) not found in table ${table.name}.`);
+        }
+        const ucDef = generateUniqueConstraintSql(uc).trim();
+        const sql = [
+          `ALTER TABLE ${schema.name}.${table.name} DROP CONSTRAINT ${op.oldName};`,
+          `ALTER TABLE ${schema.name}.${table.name} ADD ${ucDef};`
+        ].join("\n");
+        sqlStatements.push(formatStatement(sql, op.risk));
+        break;
+      }
+
+      case "ALTER_INDEX": {
+        const schema = currentProject.schemas.find((s) => s.id === op.schemaId);
+        if (!schema) {
+          throw new Error(`Schema ${op.schemaName} (ID: ${op.schemaId}) not found in current project.`);
+        }
+        const table = schema.tables.find((t) => t.id === op.tableId);
+        if (!table) {
+          throw new Error(`Table ${op.tableName} (ID: ${op.tableId}) not found in schema ${schema.name}.`);
+        }
+        const idx = table.indexes.find((i) => i.id === op.indexId);
+        if (!idx) {
+          throw new Error(`Index (ID: ${op.indexId}) not found in table ${table.name}.`);
+        }
+        const idxDef = generateIndexSql(schema, table, idx).trim();
+        const sql = [
+          `DROP INDEX ${schema.name}.${op.oldName};`,
+          idxDef
+        ].join("\n");
+        sqlStatements.push(formatStatement(sql, op.risk));
+        break;
+      }
+
       // Renames
       case "RENAME_SCHEMA": {
         sqlStatements.push(formatStatement(
@@ -225,8 +335,21 @@ export function generatePostgresMigrationSql(
 
       // Column alterations
       case "ALTER_COLUMN_TYPE": {
+        const schema = currentProject.schemas.find((s) => s.id === op.schemaId);
+        if (!schema) {
+          throw new Error(`Schema ${op.schemaName} (ID: ${op.schemaId}) not found in current project.`);
+        }
+        const table = schema.tables.find((t) => t.id === op.tableId);
+        if (!table) {
+          throw new Error(`Table ${op.tableName} (ID: ${op.tableId}) not found in schema ${schema.name}.`);
+        }
+        const column = table.columns.find((c) => c.id === op.columnId);
+        if (!column) {
+          throw new Error(`Column ${op.columnName} (ID: ${op.columnId}) not found in table ${table.name}.`);
+        }
+        const fullType = generateColumnTypeSql(column);
         sqlStatements.push(formatStatement(
-          `ALTER TABLE ${op.schemaName}.${op.tableName} ALTER COLUMN ${op.columnName} TYPE ${op.newType};`,
+          `ALTER TABLE ${op.schemaName}.${op.tableName} ALTER COLUMN ${op.columnName} TYPE ${fullType};`,
           op.risk
         ));
         break;

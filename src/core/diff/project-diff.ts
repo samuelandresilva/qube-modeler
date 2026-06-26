@@ -1,5 +1,40 @@
-import type { DatabaseProject } from "../model/types";
+import type { DatabaseProject, DatabaseForeignKey, DatabaseUniqueConstraint, DatabaseIndex } from "../model/types";
 import type { ProjectDiff, ProjectDiffOperation, UnsupportedDiffOperation } from "./project-diff-types";
+
+function didForeignKeyChange(prevFk: DatabaseForeignKey, currFk: DatabaseForeignKey): boolean {
+  if (prevFk.targetSchema !== currFk.targetSchema) return true;
+  if (prevFk.targetTable !== currFk.targetTable) return true;
+  if (prevFk.onDelete !== currFk.onDelete) return true;
+  if (prevFk.onUpdate !== currFk.onUpdate) return true;
+  
+  if (prevFk.sourceColumns.length !== currFk.sourceColumns.length) return true;
+  for (let i = 0; i < prevFk.sourceColumns.length; i++) {
+    if (prevFk.sourceColumns[i] !== currFk.sourceColumns[i]) return true;
+  }
+  
+  if (prevFk.targetColumns.length !== currFk.targetColumns.length) return true;
+  for (let i = 0; i < prevFk.targetColumns.length; i++) {
+    if (prevFk.targetColumns[i] !== currFk.targetColumns[i]) return true;
+  }
+  
+  return false;
+}
+
+function didUniqueConstraintChange(prevUc: DatabaseUniqueConstraint, currUc: DatabaseUniqueConstraint): boolean {
+  if (prevUc.columns.length !== currUc.columns.length) return true;
+  for (let i = 0; i < prevUc.columns.length; i++) {
+    if (prevUc.columns[i] !== currUc.columns[i]) return true;
+  }
+  return false;
+}
+
+function didIndexChange(prevIdx: DatabaseIndex, currIdx: DatabaseIndex): boolean {
+  if (prevIdx.columns.length !== currIdx.columns.length) return true;
+  for (let i = 0; i < prevIdx.columns.length; i++) {
+    if (prevIdx.columns[i] !== currIdx.columns[i]) return true;
+  }
+  return false;
+}
 
 export function diffProjects(
   previousProject: DatabaseProject,
@@ -179,7 +214,7 @@ export function diffProjects(
             }
 
             // 3. ALTER_COLUMN_SIZE
-            if (currCol.size !== prevCol.size) {
+            if (currCol.type === prevCol.type && currCol.size !== prevCol.size) {
               let risk: "safe" | "warning" = "warning";
               if (
                 typeof currCol.size === "number" &&
@@ -280,6 +315,23 @@ export function diffProjects(
             tableId: currTable.id,
             tableName: currTable.name,
           });
+        } else if (
+          prevPkCols.length > 0 &&
+          currPkCols.length > 0 &&
+          (prevPkCols.length !== currPkCols.length ||
+            prevPkCols.some((c, i) => c.id !== currPkCols[i].id))
+        ) {
+          operations.push({
+            kind: "ALTER_PRIMARY_KEY",
+            risk: "warning",
+            schemaId: currSchema.id,
+            schemaName: currSchema.name,
+            tableId: currTable.id,
+            tableName: currTable.name,
+            oldName: `pk_${prevTable.name}`,
+            newName: `pk_${currTable.name}`,
+            columnNames: currPkCols.map((c) => c.name),
+          });
         }
 
         // Foreign Keys additions, renames & drops
@@ -299,18 +351,33 @@ export function diffProjects(
               foreignKeyId: currFk.id,
               foreignKeyName: currFk.name,
             });
-          } else if (currFk.name !== prevFk.name) {
-            operations.push({
-              kind: "RENAME_FOREIGN_KEY",
-              risk: "warning",
-              schemaId: currSchema.id,
-              schemaName: currSchema.name,
-              tableId: currTable.id,
-              tableName: currTable.name,
-              foreignKeyId: currFk.id,
-              oldName: prevFk.name,
-              newName: currFk.name,
-            });
+          } else {
+            const hasCompositionChanged = didForeignKeyChange(prevFk, currFk);
+            if (hasCompositionChanged) {
+              operations.push({
+                kind: "ALTER_FOREIGN_KEY",
+                risk: "warning",
+                schemaId: currSchema.id,
+                schemaName: currSchema.name,
+                tableId: currTable.id,
+                tableName: currTable.name,
+                foreignKeyId: currFk.id,
+                oldName: prevFk.name,
+                newName: currFk.name,
+              });
+            } else if (currFk.name !== prevFk.name) {
+              operations.push({
+                kind: "RENAME_FOREIGN_KEY",
+                risk: "warning",
+                schemaId: currSchema.id,
+                schemaName: currSchema.name,
+                tableId: currTable.id,
+                tableName: currTable.name,
+                foreignKeyId: currFk.id,
+                oldName: prevFk.name,
+                newName: currFk.name,
+              });
+            }
           }
         }
 
@@ -346,18 +413,33 @@ export function diffProjects(
               uniqueConstraintId: currUc.id,
               uniqueConstraintName: currUc.name,
             });
-          } else if (currUc.name !== prevUc.name) {
-            operations.push({
-              kind: "RENAME_UNIQUE_CONSTRAINT",
-              risk: "warning",
-              schemaId: currSchema.id,
-              schemaName: currSchema.name,
-              tableId: currTable.id,
-              tableName: currTable.name,
-              uniqueConstraintId: currUc.id,
-              oldName: prevUc.name,
-              newName: currUc.name,
-            });
+          } else {
+            const hasCompositionChanged = didUniqueConstraintChange(prevUc, currUc);
+            if (hasCompositionChanged) {
+              operations.push({
+                kind: "ALTER_UNIQUE_CONSTRAINT",
+                risk: "warning",
+                schemaId: currSchema.id,
+                schemaName: currSchema.name,
+                tableId: currTable.id,
+                tableName: currTable.name,
+                uniqueConstraintId: currUc.id,
+                oldName: prevUc.name,
+                newName: currUc.name,
+              });
+            } else if (currUc.name !== prevUc.name) {
+              operations.push({
+                kind: "RENAME_UNIQUE_CONSTRAINT",
+                risk: "warning",
+                schemaId: currSchema.id,
+                schemaName: currSchema.name,
+                tableId: currTable.id,
+                tableName: currTable.name,
+                uniqueConstraintId: currUc.id,
+                oldName: prevUc.name,
+                newName: currUc.name,
+              });
+            }
           }
         }
 
@@ -393,18 +475,33 @@ export function diffProjects(
               indexId: currIdx.id,
               indexName: currIdx.name,
             });
-          } else if (currIdx.name !== prevIdx.name) {
-            operations.push({
-              kind: "RENAME_INDEX",
-              risk: "warning",
-              schemaId: currSchema.id,
-              schemaName: currSchema.name,
-              tableId: currTable.id,
-              tableName: currTable.name,
-              indexId: currIdx.id,
-              oldName: prevIdx.name,
-              newName: currIdx.name,
-            });
+          } else {
+            const hasCompositionChanged = didIndexChange(prevIdx, currIdx);
+            if (hasCompositionChanged) {
+              operations.push({
+                kind: "ALTER_INDEX",
+                risk: "warning",
+                schemaId: currSchema.id,
+                schemaName: currSchema.name,
+                tableId: currTable.id,
+                tableName: currTable.name,
+                indexId: currIdx.id,
+                oldName: prevIdx.name,
+                newName: currIdx.name,
+              });
+            } else if (currIdx.name !== prevIdx.name) {
+              operations.push({
+                kind: "RENAME_INDEX",
+                risk: "warning",
+                schemaId: currSchema.id,
+                schemaName: currSchema.name,
+                tableId: currTable.id,
+                tableName: currTable.name,
+                indexId: currIdx.id,
+                oldName: prevIdx.name,
+                newName: currIdx.name,
+              });
+            }
           }
         }
 
