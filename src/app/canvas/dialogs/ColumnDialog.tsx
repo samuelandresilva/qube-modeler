@@ -31,8 +31,8 @@ export function ColumnDialog({
   onDelete,
 }: ColumnDialogProps) {
   const [name, setName] = useState(column?.name ?? "");
-  const [type, setType] = useState(column?.type ?? "varchar");
-  const [size, setSize] = useState<number | undefined>(column?.size ?? 255);
+  const [type, setType] = useState(column?.type ?? "bigint");
+  const [size, setSize] = useState<number | undefined>(column?.size);
   const [scale, setScale] = useState<number | undefined>(column?.scale);
   const [nullable, setNullable] = useState(column?.nullable ?? true);
   const [primaryKey, setPrimaryKey] = useState(column?.primaryKey ?? false);
