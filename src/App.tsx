@@ -153,7 +153,7 @@ export default function App() {
     try {
       const result = await api.saveProjectAs({
         project: projectBeingSaved,
-        flyway: openedProject.filePath ? openedProject.flyway : { versions: [] },
+        flyway: openedProject.flyway,
         suggestedFileName: getProjectDisplayName(openedProject.filePath),
       });
       if (result.canceled) return false;
