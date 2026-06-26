@@ -604,7 +604,7 @@ export function FlywayMigrationsScreen({
                           <div className="flyway-preview-message" style={{ borderLeft: "4px solid #eab308", background: "rgba(234, 179, 8, 0.05)", padding: "12px", borderRadius: "8px", margin: "16px 0" }}>
                             <strong style={{ color: "#eab308", fontSize: "14px" }}>Warning Changes Detected</strong>
                             <p style={{ margin: "4px 0 8px 0", fontSize: "13px", color: "var(--color-text-muted)" }}>These operations rename or alter schema elements:</p>
-                            <ul className="flyway-unsupported-list" style={{ paddingLeft: "20px" }}>
+                            <ul className="flyway-warning-list">
                               {warningOps.map((op, idx) => {
                                 const opCast = op as {
                                   kind: string;
@@ -615,7 +615,35 @@ export function FlywayMigrationsScreen({
                                   oldName?: string;
                                   newName?: string;
                                 };
-                                const targetName = opCast.tableName ? `${opCast.schemaName}.${opCast.tableName}.${opCast.columnName || ""}` : opCast.oldName ? `${opCast.oldName} ➔ ${opCast.newName}` : opCast.schemaName;
+                                const targetName = (() => {
+                                  if (opCast.kind === "RENAME_COLUMN") {
+                                    return `${opCast.schemaName}.${opCast.tableName}.${opCast.oldName} -> ${opCast.newName}`;
+                                  }
+                                  if (opCast.kind === "RENAME_TABLE") {
+                                    return `${opCast.schemaName}.${opCast.oldName} -> ${opCast.newName}`;
+                                  }
+                                  if (opCast.kind === "RENAME_SEQUENCE") {
+                                    return `${opCast.schemaName}.${opCast.oldName} -> ${opCast.newName}`;
+                                  }
+                                  if (opCast.kind === "RENAME_INDEX") {
+                                    return `${opCast.schemaName}.${opCast.oldName} -> ${opCast.newName}`;
+                                  }
+                                  if (
+                                    opCast.kind === "RENAME_UNIQUE_CONSTRAINT" ||
+                                    opCast.kind === "RENAME_FOREIGN_KEY" ||
+                                    opCast.kind === "RENAME_PRIMARY_KEY"
+                                  ) {
+                                    return `${opCast.schemaName}.${opCast.tableName}.${opCast.oldName} -> ${opCast.newName}`;
+                                  }
+                                  if (opCast.kind === "RENAME_SCHEMA") {
+                                    return `${opCast.oldName} -> ${opCast.newName}`;
+                                  }
+                                  return opCast.tableName
+                                    ? (opCast.columnName ? `${opCast.schemaName}.${opCast.tableName}.${opCast.columnName}` : `${opCast.schemaName}.${opCast.tableName}`)
+                                    : opCast.oldName
+                                      ? `${opCast.oldName} ➔ ${opCast.newName}`
+                                      : opCast.schemaName || "";
+                                })();
                                 return (
                                   <li key={idx} style={{ fontSize: "13px", color: "var(--color-text)", listStyleType: "disc" }}>
                                     {opCast.kind.replace(/_/g, " ")}: {targetName}
