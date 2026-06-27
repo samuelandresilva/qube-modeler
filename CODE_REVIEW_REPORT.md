@@ -57,13 +57,14 @@ A release 1.0.0 deve ser bloqueada até corrigir os itens CRITICAL e os HIGH lig
 ### HIGH-002
 
 - Severity: HIGH
+- Status: CORRIGIDO
 - Area: SQL generator / initial migration
 - File(s): `src/core/sql/postgres-generator.ts`
 - Problem: FKs são geradas inline no `CREATE TABLE`, sem ordenação topológica e sem fase separada de constraints.
 - Why it matters: uma tabela pode referenciar outra ainda não criada; ciclos de FK são impossíveis inline.
 - Scenario: tabela `orders` criada/listada antes de `customers`, com FK para `customers`; a initial migration falha no PostgreSQL.
 - Recommended fix: gerar schemas/sequences, depois tabelas sem FKs, depois PK/UK/FK/indexes em `ALTER TABLE`/`CREATE INDEX`.
-- Release blocking: Yes
+- Release blocking: No, corrigido
 
 ### HIGH-003
 
@@ -292,4 +293,4 @@ Riscos:
 
 Não recomendo lançar a 1.0.0 neste estado.
 
-A release deve aguardar correção dos itens HIGH-002 a HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.
+A release deve aguardar correção dos itens HIGH-003 a HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.

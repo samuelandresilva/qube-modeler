@@ -24,14 +24,24 @@ function generateSchemaSql(schema: DatabaseSchema): string {
   );
 
   const tableSql = schema.tables.map((table) =>
-    generateTableSql(schema, table),
+    generateTableSql(schema, table, { includeConstraints: false }),
+  );
+
+  const tablePostCreateSql = schema.tables.flatMap((table) =>
+    generateTablePostCreateSql(schema, table),
   );
 
   const indexSql = schema.tables.flatMap((table) =>
     table.indexes.map((index) => generateIndexSql(schema, table, index)),
   );
 
-  return [schemaSql, ...sequenceSql, ...tableSql, ...indexSql].join("\n\n");
+  return [
+    schemaSql,
+    ...sequenceSql,
+    ...tableSql,
+    ...tablePostCreateSql,
+    ...indexSql,
+  ].join("\n\n");
 }
 
 export function generateSequenceSql(
@@ -48,11 +58,50 @@ export function generateSequenceSql(
 export function generateTableSql(
   schema: DatabaseSchema,
   table: DatabaseTable,
+  options: { includeConstraints?: boolean } = {},
 ): string {
+  const includeConstraints = options.includeConstraints ?? true;
   const columnLines = table.columns.map((column) =>
     generateColumnSql(schema, column),
   );
 
+  const lines = includeConstraints
+    ? [
+        ...columnLines,
+        ...generateInlineTableConstraintSql(table),
+      ]
+    : columnLines;
+
+  return [
+    `CREATE TABLE IF NOT EXISTS ${schema.name}.${table.name}`,
+    `(`,
+    lines
+      .map((line, index) => `${line}${index < lines.length - 1 ? "," : ""}`)
+      .join("\n"),
+    `);`,
+  ].join("\n");
+}
+
+export function generateTablePostCreateSql(
+  schema: DatabaseSchema,
+  table: DatabaseTable,
+): string[] {
+  const primaryKeySql = generateAddPrimaryKeySql(schema, table);
+  const uniqueConstraintSql = table.uniqueConstraints.map((constraint) =>
+    generateAddUniqueConstraintSql(schema, table, constraint),
+  );
+  const foreignKeySql = table.foreignKeys.map((foreignKey) =>
+    generateAddForeignKeySql(schema, table, foreignKey),
+  );
+
+  return [
+    ...(primaryKeySql ? [primaryKeySql] : []),
+    ...uniqueConstraintSql,
+    ...foreignKeySql,
+  ];
+}
+
+function generateInlineTableConstraintSql(table: DatabaseTable): string[] {
   const primaryKeyColumns = table.columns
     .filter((column) => column.primaryKey)
     .map((column) => column.name);
@@ -73,21 +122,40 @@ export function generateTableSql(
     generateUniqueConstraintSql,
   );
 
-  const lines = [
-    ...columnLines,
+  return [
     ...primaryKeyConstraintLines,
     ...uniqueConstraintLines,
     ...foreignKeyConstraintLines,
   ];
+}
 
-  return [
-    `CREATE TABLE IF NOT EXISTS ${schema.name}.${table.name}`,
-    `(`,
-    lines
-      .map((line, index) => `${line}${index < lines.length - 1 ? "," : ""}`)
-      .join("\n"),
-    `);`,
-  ].join("\n");
+export function generateAddPrimaryKeySql(
+  schema: DatabaseSchema,
+  table: DatabaseTable,
+): string | null {
+  const primaryKeyColumns = table.columns
+    .filter((column) => column.primaryKey)
+    .map((column) => column.name);
+
+  if (primaryKeyColumns.length === 0) return null;
+
+  return `ALTER TABLE ${schema.name}.${table.name} ADD CONSTRAINT pk_${table.name} PRIMARY KEY (${primaryKeyColumns.join(", ")});`;
+}
+
+export function generateAddUniqueConstraintSql(
+  schema: DatabaseSchema,
+  table: DatabaseTable,
+  uniqueConstraint: DatabaseUniqueConstraint,
+): string {
+  return `ALTER TABLE ${schema.name}.${table.name} ADD ${generateUniqueConstraintSql(uniqueConstraint).trim()};`;
+}
+
+export function generateAddForeignKeySql(
+  schema: DatabaseSchema,
+  table: DatabaseTable,
+  foreignKey: DatabaseForeignKey,
+): string {
+  return `ALTER TABLE ${schema.name}.${table.name} ADD ${generateForeignKeySql(foreignKey).trim()};`;
 }
 
 export function generateColumnTypeSql(column: DatabaseColumn): string {

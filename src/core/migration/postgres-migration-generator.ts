@@ -8,6 +8,7 @@ import {
   generateUniqueConstraintSql,
   generateIndexSql,
   generateColumnTypeSql,
+  generateTablePostCreateSql,
 } from "../sql/postgres-generator";
 
 function formatStatement(sql: string, risk: string): string {
@@ -26,6 +27,9 @@ const OPERATION_ORDER: Record<string, number> = {
   RENAME_FOREIGN_KEY: 5,
   RENAME_UNIQUE_CONSTRAINT: 5,
   RENAME_INDEX: 5,
+  CREATE_SCHEMA: 10,
+  CREATE_SEQUENCE: 11,
+  CREATE_TABLE: 12,
   DROP_FOREIGN_KEY: 20,
   DROP_UNIQUE_CONSTRAINT: 21,
   DROP_PRIMARY_KEY: 22,
@@ -116,10 +120,22 @@ export function generatePostgresMigrationSql(
     .map((item) => item.op);
 
   const sqlStatements: string[] = [];
+  const createdTablePostCreateStatements: string[] = [];
+  let createdTablePostCreateStatementsFlushed = false;
+
+  const flushCreatedTablePostCreateStatements = () => {
+    if (createdTablePostCreateStatementsFlushed) return;
+    sqlStatements.push(...createdTablePostCreateStatements);
+    createdTablePostCreateStatementsFlushed = true;
+  };
 
   for (const op of sortedOperations) {
     if (op.risk === "unsupported") {
       continue;
+    }
+
+    if (op.kind !== "CREATE_SCHEMA" && op.kind !== "CREATE_SEQUENCE" && op.kind !== "CREATE_TABLE") {
+      flushCreatedTablePostCreateStatements();
     }
 
     switch (op.kind) {
@@ -157,9 +173,17 @@ export function generatePostgresMigrationSql(
           throw new Error(`Table ${op.tableName} (ID: ${op.tableId}) not found in schema ${schema.name}.`);
         }
         sqlStatements.push(formatStatement(
-          generateTableSql(schema, table),
+          generateTableSql(schema, table, { includeConstraints: false }),
           op.risk
         ));
+        createdTablePostCreateStatements.push(
+          ...generateTablePostCreateSql(schema, table).map((sql) =>
+            formatStatement(sql, op.risk),
+          ),
+          ...table.indexes.map((index) =>
+            formatStatement(generateIndexSql(schema, table, index), op.risk),
+          ),
+        );
         break;
       }
 
@@ -520,6 +544,8 @@ export function generatePostgresMigrationSql(
         break;
     }
   }
+
+  flushCreatedTablePostCreateStatements();
 
   return sqlStatements.join("\n\n");
 }
