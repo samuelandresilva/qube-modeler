@@ -8,7 +8,7 @@ import {
   OpenDialogOptions,
   type WebContents,
 } from "electron";
-import { readFile, writeFile } from "node:fs/promises";
+import { open, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createQbmFile, parseQbmFile, type QbmFlywayConfig } from "../src/core/qbm/qbm-file";
@@ -350,7 +350,34 @@ async function writeProjectFile(
     name: nameWithoutExtension,
   };
   const qbmFile = createQbmFile(updatedProject, flyway, app.getVersion());
-  await writeFile(filePath, JSON.stringify(qbmFile, null, 2), "utf8");
+  const serializedProject = JSON.stringify(qbmFile, null, 2);
+  await writeFileAtomically(filePath, serializedProject);
+}
+
+async function writeFileAtomically(filePath: string, content: string): Promise<void> {
+  const directory = path.dirname(filePath);
+  const fileName = path.basename(filePath);
+  const tempPath = path.join(
+    directory,
+    `.${fileName}.${process.pid}.${Date.now()}.tmp`,
+  );
+
+  let handle: Awaited<ReturnType<typeof open>> | null = null;
+
+  try {
+    handle = await open(tempPath, "w");
+    await handle.writeFile(content, "utf8");
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await rename(tempPath, filePath);
+  } catch (error) {
+    if (handle) {
+      await handle.close().catch(() => {});
+    }
+    await unlink(tempPath).catch(() => {});
+    throw error;
+  }
 }
 
 function getOwnerWindow(webContents: WebContents): BrowserWindow | null {
