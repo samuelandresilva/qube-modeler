@@ -23,12 +23,25 @@
       "dist-electron/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icons/app/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
-    }
+    },
+    "linux": {
+      "icon": "build/icons/app/icon.png"
+    },
+    "fileAssociations": [
+      {
+        "ext": "qbm",
+        "name": "Qube Modeler Project",
+        "description": "Qube Modeler project file",
+        "role": "Editor",
+        "icon": "build/icons/file/qbm-file"
+      }
+    ]
   },
   "dependencies": {
     "@radix-ui/react-context-menu": "^2.3.1",

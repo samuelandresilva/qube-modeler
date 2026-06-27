@@ -27,6 +27,12 @@ const api: QubeModelerApi = {
     ipcRenderer.invoke("qbm:remove-recent-project", filePath),
   openProjectFile: (filePath: string) =>
     ipcRenderer.invoke("qbm:open-project-file", filePath),
+  getPendingFile: () => ipcRenderer.invoke("qbm:get-pending-file"),
+  onOpenFileRequested: (callback: (filePath: string) => void) => {
+    const listener = (_event: import("electron").IpcRendererEvent, filePath: string) => callback(filePath);
+    ipcRenderer.on("qbm:open-file-requested", listener);
+    return () => ipcRenderer.removeListener("qbm:open-file-requested", listener);
+  },
 };
 
 contextBridge.exposeInMainWorld("qubeModeler", api);

@@ -292,42 +292,80 @@ export default function App() {
     }
   }, []);
 
-  const handleOpenRecentProject = useCallback(async (filePath: string) => {
+  const handleOpenProjectFile = useCallback(async (filePath: string) => {
     const api = getQubeModelerApi();
     if (!api) {
       setErrorMessage("The Electron preload is unavailable.");
       return;
     }
-    if (!beginFileOperation("Opening project...")) return;
-    try {
-      const result = await api.openProjectFile(filePath);
-      if ("error" in result) {
+
+    const loadProject = async () => {
+      if (!beginFileOperation("Opening project...")) return;
+      try {
+        const result = await api.openProjectFile(filePath);
+        if ("error" in result) {
+          finishFileOperation();
+          requestConfirm(
+            `Could not open the project. It might have been moved or deleted.\nError: ${result.error}\nDo you want to remove it from the recent projects list?`,
+            async () => {
+              const updated = await api.removeRecentProject(filePath);
+              setRecentProjects(updated);
+            },
+            "Remove",
+          );
+          return;
+        }
+        setOpenedProject({
+          project: result.project,
+          filePath: result.filePath,
+          flyway: result.flyway,
+          isDirty: false,
+        });
+        const updated = await api.addRecentProject(result.filePath).catch(() => null);
+        if (updated) setRecentProjects(updated);
+        setView("canvas");
+      } catch (error) {
+        setErrorMessage(`Could not open the project: ${getErrorMessage(error)}`);
+      } finally {
         finishFileOperation();
-        requestConfirm(
-          `Could not open the project. It might have been moved or deleted.\nError: ${result.error}\nDo you want to remove it from the recent projects list?`,
-          async () => {
-            const updated = await api.removeRecentProject(filePath);
-            setRecentProjects(updated);
-          },
-          "Remove",
-        );
-        return;
       }
-      setOpenedProject({
-        project: result.project,
-        filePath: result.filePath,
-        flyway: result.flyway,
-        isDirty: false,
-      });
-      const updated = await api.addRecentProject(result.filePath).catch(() => null);
-      if (updated) setRecentProjects(updated);
-      setView("canvas");
-    } catch (error) {
-      setErrorMessage(`Could not open the project: ${getErrorMessage(error)}`);
-    } finally {
-      finishFileOperation();
+    };
+
+    if (openedProject.isDirty) {
+      requestConfirm(
+        "Discard the unsaved changes to the current project and open the selected project?",
+        loadProject,
+        "Discard and open",
+      );
+    } else {
+      await loadProject();
     }
-  }, [beginFileOperation, finishFileOperation, requestConfirm]);
+  }, [openedProject.isDirty, beginFileOperation, finishFileOperation, requestConfirm]);
+
+  const handleOpenRecentProject = useCallback(async (filePath: string) => {
+    await handleOpenProjectFile(filePath);
+  }, [handleOpenProjectFile]);
+
+  useEffect(() => {
+    const api = getQubeModelerApi();
+    if (!api) return;
+
+    api.getPendingFile().then((filePath) => {
+      if (filePath) {
+        void handleOpenProjectFile(filePath);
+      }
+    }).catch((err) => {
+      console.error("Failed to check pending file:", err);
+    });
+
+    const unsubscribe = api.onOpenFileRequested((filePath) => {
+      void handleOpenProjectFile(filePath);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [handleOpenProjectFile]);
 
   const handleRemoveRecentProject = useCallback(async (filePath: string) => {
     const api = getQubeModelerApi();

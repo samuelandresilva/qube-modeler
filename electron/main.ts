@@ -26,6 +26,54 @@ import type {
 app.commandLine.appendSwitch("log-level", "3");
 app.setName("Qube Modeler");
 
+let pendingQbmPath: string | null = null;
+
+function getQbmFilePathFromArgs(args: string[]): string | null {
+  for (const arg of args) {
+    if (arg.endsWith(".qbm")) {
+      return path.resolve(arg);
+    }
+  }
+  return null;
+}
+
+// Request single instance lock
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", (_event, commandLine) => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+
+      const secondInstancePath = getQbmFilePathFromArgs(commandLine);
+      if (secondInstancePath) {
+        mainWindow.webContents.send("qbm:open-file-requested", secondInstancePath);
+      }
+    }
+  });
+}
+
+// Listen to macOS file open
+app.on("open-file", (event, filePath) => {
+  event.preventDefault();
+  if (filePath.endsWith(".qbm")) {
+    const resolvedPath = path.resolve(filePath);
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send("qbm:open-file-requested", resolvedPath);
+    } else {
+      pendingQbmPath = resolvedPath;
+    }
+  }
+});
+
+// Check if a path was passed via args on startup
+const startupPath = getQbmFilePathFromArgs(process.argv);
+if (startupPath) {
+  pendingQbmPath = startupPath;
+}
+
 // Em ambientes ESM (como "type": "module" no package.json), __dirname não existe por padrão.
 // O vite-plugin-electron lida com o bundling de forma que define __dirname corretamente em produção,
 // mas fornecemos um fallback seguro para compatibilidade ESM.
@@ -134,6 +182,12 @@ function configureProjectIpc() {
         error: `Could not open the project: ${getErrorMessage(error)}`,
       };
     }
+  });
+
+  ipcMain.handle("qbm:get-pending-file", async (): Promise<string | null> => {
+    const pathToSend = pendingQbmPath;
+    pendingQbmPath = null;
+    return pathToSend;
   });
 
   ipcMain.on("qbm:confirm-close", (event) => {
