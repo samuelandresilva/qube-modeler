@@ -31,13 +31,14 @@ A release 1.0.0 deve ser bloqueada até corrigir os itens CRITICAL e os HIGH lig
 ### CRIT-002
 
 - Severity: CRITICAL
+- Status: CORRIGIDO
 - Area: `.qbm` parse / migration history
 - File(s): `src/core/qbm/qbm-file.ts`, `parseQbmFile`
 - Problem: `flyway.versions` é validado de forma permissiva; versões inválidas são silenciosamente ignoradas e `flyway` malformado vira `{ versions: [] }`.
 - Why it matters: abrir um `.qbm` parcialmente inválido e salvar novamente pode apagar histórico de migrations sem aviso.
 - Reproduction / Scenario: um `.qbm` tem uma entrada `flyway.versions` sem `generatedSql` ou com shape inesperado; o app abre com menos versões; usuário salva; o histórico omitido desaparece do arquivo.
 - Recommended fix: validar `flyway` estritamente. Se houver versão inválida, falhar abertura ou abrir em modo read-only/erro explícito. Nunca descartar versões silenciosamente.
-- Release blocking: Yes
+- Release blocking: No, corrigido
 
 ## 4. High Priority Findings
 
@@ -290,4 +291,4 @@ Riscos:
 
 Não recomendo lançar a 1.0.0 neste estado.
 
-A release deve aguardar correção do CRIT-002 e dos itens HIGH-001 a HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.
+A release deve aguardar correção dos itens HIGH-001 a HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.
