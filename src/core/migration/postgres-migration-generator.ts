@@ -1,5 +1,5 @@
 import type { DatabaseProject } from "../model/types";
-import type { ProjectDiff } from "../diff/project-diff-types";
+import type { ProjectDiff, ProjectDiffOperation } from "../diff/project-diff-types";
 import {
   generateSequenceSql,
   generateTableSql,
@@ -18,18 +18,89 @@ function formatStatement(sql: string, risk: string): string {
 }
 
 const OPERATION_ORDER: Record<string, number> = {
-  DROP_FOREIGN_KEY: 1,
-  DROP_UNIQUE_CONSTRAINT: 2,
-  DROP_PRIMARY_KEY: 3,
-  DROP_INDEX: 4,
-  ALTER_FOREIGN_KEY: 5,
-  ALTER_UNIQUE_CONSTRAINT: 6,
-  ALTER_PRIMARY_KEY: 7,
-  ALTER_INDEX: 8,
-  DROP_COLUMN: 9,
-  DROP_SEQUENCE: 10,
-  DROP_TABLE: 11,
+  RENAME_SCHEMA: 1,
+  RENAME_SEQUENCE: 2,
+  RENAME_TABLE: 3,
+  RENAME_COLUMN: 4,
+  RENAME_PRIMARY_KEY: 5,
+  RENAME_FOREIGN_KEY: 5,
+  RENAME_UNIQUE_CONSTRAINT: 5,
+  RENAME_INDEX: 5,
+  DROP_FOREIGN_KEY: 20,
+  DROP_UNIQUE_CONSTRAINT: 21,
+  DROP_PRIMARY_KEY: 22,
+  DROP_INDEX: 23,
+  ALTER_FOREIGN_KEY: 24,
+  ALTER_UNIQUE_CONSTRAINT: 25,
+  ALTER_PRIMARY_KEY: 26,
+  ALTER_INDEX: 27,
+  DROP_COLUMN: 28,
+  DROP_SEQUENCE: 29,
+  DROP_TABLE: 30,
 };
+
+function getOperationOrder(operation: ProjectDiffOperation): number {
+  return OPERATION_ORDER[operation.kind] ?? 100;
+}
+
+function mustDropBeforeRename(
+  drop: ProjectDiffOperation,
+  rename: ProjectDiffOperation,
+): boolean {
+  switch (rename.kind) {
+    case "RENAME_SEQUENCE":
+      return (
+        drop.kind === "DROP_SEQUENCE" &&
+        drop.schemaId === rename.schemaId &&
+        drop.sequenceName === rename.newName
+      );
+    case "RENAME_TABLE":
+      return (
+        drop.kind === "DROP_TABLE" &&
+        drop.schemaId === rename.schemaId &&
+        drop.tableName === rename.newName
+      );
+    case "RENAME_COLUMN":
+      return (
+        drop.kind === "DROP_COLUMN" &&
+        drop.tableId === rename.tableId &&
+        drop.columnName === rename.newName
+      );
+    case "RENAME_FOREIGN_KEY":
+      return (
+        drop.kind === "DROP_FOREIGN_KEY" &&
+        drop.tableId === rename.tableId &&
+        drop.foreignKeyName === rename.newName
+      );
+    case "RENAME_UNIQUE_CONSTRAINT":
+      return (
+        drop.kind === "DROP_UNIQUE_CONSTRAINT" &&
+        drop.tableId === rename.tableId &&
+        drop.uniqueConstraintName === rename.newName
+      );
+    case "RENAME_INDEX":
+      return (
+        drop.kind === "DROP_INDEX" &&
+        drop.schemaId === rename.schemaId &&
+        drop.indexName === rename.newName
+      );
+    default:
+      return false;
+  }
+}
+
+function compareMigrationOperations(
+  a: { op: ProjectDiffOperation; index: number },
+  b: { op: ProjectDiffOperation; index: number },
+): number {
+  if (mustDropBeforeRename(a.op, b.op)) return -1;
+  if (mustDropBeforeRename(b.op, a.op)) return 1;
+
+  const orderA = getOperationOrder(a.op);
+  const orderB = getOperationOrder(b.op);
+  if (orderA !== orderB) return orderA - orderB;
+  return a.index - b.index;
+}
 
 export function generatePostgresMigrationSql(
   diff: ProjectDiff,
@@ -41,14 +112,7 @@ export function generatePostgresMigrationSql(
 
   const sortedOperations = [...diff.operations]
     .map((op, index) => ({ op, index }))
-    .sort((a, b) => {
-      const orderA = OPERATION_ORDER[a.op.kind] !== undefined ? OPERATION_ORDER[a.op.kind] : 100;
-      const orderB = OPERATION_ORDER[b.op.kind] !== undefined ? OPERATION_ORDER[b.op.kind] : 100;
-      if (orderA !== orderB) {
-        return orderA - orderB;
-      }
-      return a.index - b.index;
-    })
+    .sort(compareMigrationOperations)
     .map((item) => item.op);
 
   const sqlStatements: string[] = [];

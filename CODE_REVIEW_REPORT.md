@@ -45,13 +45,14 @@ A release 1.0.0 deve ser bloqueada até corrigir os itens CRITICAL e os HIGH lig
 ### HIGH-001
 
 - Severity: HIGH
+- Status: CORRIGIDO
 - Area: Migration SQL ordering
 - File(s): `src/core/migration/postgres-migration-generator.ts`, `src/core/diff/project-diff.ts`
 - Problem: renames são ordenados depois de drops/alters, mas várias operações usam nomes novos.
 - Why it matters: migrations combinando rename + alteração/drop geram SQL inválido.
 - Scenario: renomear tabela `users` para `accounts` e remover coluna. O diff guarda `tableName` atual, mas `DROP_COLUMN` roda antes de `RENAME_TABLE`, tentando alterar `accounts` antes dela existir.
 - Recommended fix: revisar ordenação por dependência ou carregar old/new names nas operações. Renames estruturais precisam ocorrer antes das operações que usam nomes novos, ou as operações precisam usar nomes antigos até o rename.
-- Release blocking: Yes
+- Release blocking: No, corrigido
 
 ### HIGH-002
 
@@ -291,4 +292,4 @@ Riscos:
 
 Não recomendo lançar a 1.0.0 neste estado.
 
-A release deve aguardar correção dos itens HIGH-001 a HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.
+A release deve aguardar correção dos itens HIGH-002 a HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.
