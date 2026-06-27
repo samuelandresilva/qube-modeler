@@ -12,6 +12,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createQbmFile, parseQbmFile, type QbmFlywayConfig } from "../src/core/qbm/qbm-file";
+import { loadWindowState, trackWindowState } from "./window-state";
 import type { DatabaseProject } from "../src/core/model/types";
 import type {
   OpenProjectResult,
@@ -349,9 +350,13 @@ function configureApplicationMenu() {
 
 function createWindow() {
   isWindowCloseConfirmed = false;
+  const state = loadWindowState();
+
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    x: state.x,
+    y: state.y,
+    width: state.width,
+    height: state.height,
     minWidth: 800,
     minHeight: 600,
     show: false,
@@ -371,8 +376,15 @@ function createWindow() {
     },
   });
 
+  trackWindowState(mainWindow);
+
   mainWindow.once("ready-to-show", () => {
-    mainWindow?.maximize();
+    if (state.isMaximized) {
+      mainWindow?.maximize();
+    }
+    if (state.isFullScreen) {
+      mainWindow?.setFullScreen(true);
+    }
     mainWindow?.show();
   });
 
