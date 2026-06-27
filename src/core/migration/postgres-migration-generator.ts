@@ -38,9 +38,10 @@ const OPERATION_ORDER: Record<string, number> = {
   ALTER_UNIQUE_CONSTRAINT: 25,
   ALTER_PRIMARY_KEY: 26,
   ALTER_INDEX: 27,
-  DROP_COLUMN: 28,
-  DROP_SEQUENCE: 29,
-  DROP_TABLE: 30,
+  ALTER_COLUMN_DEFAULT: 28,
+  DROP_COLUMN: 29,
+  DROP_SEQUENCE: 30,
+  DROP_TABLE: 31,
 };
 
 function getOperationOrder(operation: ProjectDiffOperation): number {

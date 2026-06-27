@@ -69,13 +69,14 @@ A release 1.0.0 deve ser bloqueada até corrigir os itens CRITICAL e os HIGH lig
 ### HIGH-003
 
 - Severity: HIGH
+- Status: CORRIGIDO
 - Area: Sequence/default migration ordering
 - File(s): `src/core/diff/project-diff.ts`, `src/core/migration/postgres-migration-generator.ts`
 - Problem: ao remover sequence usada por coluna, o gerador ordena `DROP_SEQUENCE` antes de `ALTER_COLUMN_DEFAULT DROP DEFAULT`.
 - Why it matters: PostgreSQL pode bloquear o drop por dependência do default.
 - Scenario: coluna usa `nextval(public.seq_id)`, usuário remove a sequence; migration tenta dropar a sequence antes de remover o default.
 - Recommended fix: ordenar remoção de defaults antes de drop de sequences; idealmente modelar dependências no diff.
-- Release blocking: Yes
+- Release blocking: No, corrigido
 
 ### HIGH-004
 
@@ -293,4 +294,4 @@ Riscos:
 
 Não recomendo lançar a 1.0.0 neste estado.
 
-A release deve aguardar correção dos itens HIGH-003 a HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.
+A release deve aguardar correção dos itens HIGH-004 a HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.
