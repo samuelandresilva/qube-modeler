@@ -5,6 +5,7 @@ type CanvasModalProps = {
   children: ReactNode;
   onClose: () => void;
   elevated?: boolean;
+  className?: string;
 };
 
 export function CanvasModal({
@@ -12,12 +13,13 @@ export function CanvasModal({
   children,
   onClose,
   elevated = false,
+  className = "",
 }: CanvasModalProps) {
   return (
     <div
       className={`canvas-modal-backdrop${elevated ? " canvas-modal-backdrop--elevated" : ""}`}
     >
-      <div className="canvas-modal">
+      <div className={`canvas-modal ${className}`}>
         <div className="canvas-modal__header">
           <strong>{title}</strong>
           <button type="button" onClick={onClose}>

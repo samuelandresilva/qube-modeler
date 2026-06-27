@@ -220,3 +220,35 @@
   border-radius: var(--radius-md);
   font-size: 14px;
 }
+
+.welcome-screen__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--color-text-subtle);
+  user-select: none;
+}
+
+.welcome-screen__meta-separator {
+  color: var(--color-border);
+}
+
+.welcome-screen__about-button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--color-accent);
+  cursor: pointer;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.welcome-screen__about-button:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}

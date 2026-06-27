@@ -9,6 +9,8 @@ type WelcomeScreenProps = {
   onOpenProject: () => void;
   onOpenRecentProject: (filePath: string) => void;
   onRemoveRecentProject: (filePath: string) => void;
+  appVersion: string;
+  onOpenAbout: () => void;
 };
 
 export function WelcomeScreen({
@@ -17,6 +19,8 @@ export function WelcomeScreen({
   onOpenProject,
   onOpenRecentProject,
   onRemoveRecentProject,
+  appVersion,
+  onOpenAbout,
 }: WelcomeScreenProps) {
   const formatLastOpened = (dateStr: string): string => {
     try {
@@ -59,6 +63,18 @@ export function WelcomeScreen({
               id="welcome-open-project-btn"
             >
               <span><FolderOpen color="#FFBF00" /></span> Open Project
+            </button>
+          </div>
+
+          <div className="welcome-screen__meta">
+            <span className="welcome-screen__version">v{appVersion}</span>
+            <span className="welcome-screen__meta-separator">·</span>
+            <button
+              className="welcome-screen__about-button"
+              onClick={onOpenAbout}
+              type="button"
+            >
+              About
             </button>
           </div>
         </div>

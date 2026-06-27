@@ -55,6 +55,7 @@ export type QubeModelerApi = {
   removeRecentProject(filePath: string): Promise<RecentProject[]>;
   openProjectFile(filePath: string): Promise<OpenProjectFileResult>;
   getPendingFile(): Promise<string | null>;
+  getAppVersion(): Promise<string>;
   onOpenFileRequested(callback: (filePath: string) => void): () => void;
 };
 

@@ -28,6 +28,7 @@ const api: QubeModelerApi = {
   openProjectFile: (filePath: string) =>
     ipcRenderer.invoke("qbm:open-project-file", filePath),
   getPendingFile: () => ipcRenderer.invoke("qbm:get-pending-file"),
+  getAppVersion: () => ipcRenderer.invoke("qbm:get-app-version"),
   onOpenFileRequested: (callback: (filePath: string) => void) => {
     const listener = (_event: import("electron").IpcRendererEvent, filePath: string) => callback(filePath);
     ipcRenderer.on("qbm:open-file-requested", listener);

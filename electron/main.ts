@@ -190,6 +190,10 @@ function configureProjectIpc() {
     return pathToSend;
   });
 
+  ipcMain.handle("qbm:get-app-version", async (): Promise<string> => {
+    return app.getVersion();
+  });
+
   ipcMain.on("qbm:confirm-close", (event) => {
     if (!mainWindow || event.sender !== mainWindow.webContents) return;
     isWindowCloseConfirmed = true;

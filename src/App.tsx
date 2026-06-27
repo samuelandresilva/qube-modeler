@@ -18,6 +18,8 @@ import { getProjectDisplayName, type QbmFile, type QbmFlywayConfig, type QbmFlyw
 import { AppTitleBar } from "./app/canvas/components/AppTitleBar";
 import { FlywayMigrationsScreen } from "@/app/canvas/components/FlywayMigrationsScreen";
 import { WelcomeScreen } from "@/app/canvas/components/WelcomeScreen";
+import { CanvasModal } from "@/app/canvas/components/CanvasModal";
+import qubeIcon from "@/assets/qube-modeler-icon.png";
 import type { RecentProject } from "@/core/qbm/ipc-types";
 
 type OpenedProjectState = {
@@ -42,6 +44,8 @@ export default function App() {
     string | null
   >(null);
   const [isCloseRequested, setIsCloseRequested] = useState(false);
+  const [appVersion, setAppVersion] = useState("0.0.0");
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
   const fileOperationInProgressRef = useRef(false);
   const { confirm, requestConfirm, dismissConfirm, acceptConfirm } =
     useConfirm();
@@ -289,6 +293,7 @@ export default function App() {
     const api = getQubeModelerApi();
     if (api) {
       api.getRecentProjects().then(setRecentProjects).catch(() => {});
+      api.getAppVersion().then(setAppVersion).catch(() => {});
     }
   }, []);
 
@@ -429,6 +434,8 @@ export default function App() {
             onOpenProject={handleOpenProject}
             onOpenRecentProject={handleOpenRecentProject}
             onRemoveRecentProject={handleRemoveRecentProject}
+            appVersion={appVersion}
+            onOpenAbout={() => setIsAboutOpen(true)}
           />
         ) : view === "canvas" ? (
           <Canvas
@@ -453,7 +460,7 @@ export default function App() {
               formatVersion: 1,
               createdWith: {
                 app: "Qube Modeler",
-                version: "0.0.0",
+                version: appVersion,
               },
               savedAt: new Date().toISOString(),
               project: openedProject.project,
@@ -485,6 +492,47 @@ export default function App() {
           message={errorMessage}
           onClose={() => setErrorMessage(null)}
         />
+      )}
+      {isAboutOpen && (
+        <CanvasModal title="About" onClose={() => setIsAboutOpen(false)} elevated className="canvas-modal--about">
+          <div className="about-modal">
+            <div className="about-modal__header">
+              <img
+                src={qubeIcon}
+                alt="Qube Modeler Icon"
+                className="about-modal__icon"
+              />
+              <div className="about-modal__title-wrapper">
+                <h3 className="about-modal__title">Qube Modeler</h3>
+                <span className="about-modal__version">Version {appVersion}</span>
+              </div>
+            </div>
+
+            <div className="about-modal__body">
+              <p className="about-modal__description">
+                Visual database modeler for PostgreSQL and Flyway migrations.
+              </p>
+              
+              <div className="about-modal__section">
+                <div className="about-modal__label">Project format</div>
+                <div className="about-modal__badge">.qbm</div>
+                <p className="about-modal__text">
+                  Local-first project files designed to be versioned with Git.
+                </p>
+              </div>
+            </div>
+
+            <div className="about-modal__footer">
+              <button
+                className="canvas-welcome__btn canvas-welcome__btn--primary about-modal__close-btn"
+                onClick={() => setIsAboutOpen(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </CanvasModal>
       )}
     </div>
   );
