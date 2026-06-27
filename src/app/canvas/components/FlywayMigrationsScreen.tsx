@@ -398,7 +398,7 @@ export function FlywayMigrationsScreen({
             type="button"
           >
             <ArrowLeft size={18} strokeWidth={2.4} />
-            <span>Back to canvas</span>
+            <span>Back to model</span>
           </button>
           <div className="flyway-header__title-container">
             <h1 className="flyway-header__title">Flyway Migrations</h1>
@@ -413,11 +413,29 @@ export function FlywayMigrationsScreen({
         <div className="flyway-layout-container">
           <div className="flyway-layout-grid">
             <div className="flyway-column-left">
-              <FlywayMigrationsTable
-                versions={versions}
-                selectedVersion={selectedVersion}
-                onSelectVersion={setSelectedVersion}
-              />
+              <div className="flyway-migrations-screen__table-panel">
+                <FlywayMigrationsTable
+                  versions={versions}
+                  selectedVersion={selectedVersion}
+                  onSelectVersion={setSelectedVersion}
+                />
+              </div>
+              <div className="flyway-migrations-screen__details-panel">
+                {selectedVersion ? (
+                  <FlywayMigrationsDetails
+                    totalCount={totalCount}
+                    lastVersion={lastVersion}
+                    selectedVersion={selectedVersion}
+                    onViewSql={() => setIsSqlModalOpen(true)}
+                    onExportSql={handleExportSql}
+                  />
+                ) : (
+                  <div className="flyway-selected-details-panel flyway-selected-details-panel--empty">
+                    <h3 className="flyway-details-title" style={{ color: "var(--color-text-muted)", marginTop: 0 }}>No migration selected</h3>
+                    <p className="flyway-details-text">Select a migration from the list to view its details, generated SQL, and manual scripts.</p>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flyway-column-right">
               {isFormOpen ? (
@@ -487,7 +505,7 @@ export function FlywayMigrationsScreen({
                           {[...tempManualScripts]
                             .sort((a, b) => {
                               if (a.execution !== b.execution) {
-                                return a.execution === "before" ? -1 : 1;
+                                  return a.execution === "before" ? -1 : 1;
                               }
                               return a.order - b.order;
                             })
@@ -745,16 +763,6 @@ export function FlywayMigrationsScreen({
               )}
             </div>
           </div>
-
-          {selectedVersion && (
-            <FlywayMigrationsDetails
-              totalCount={totalCount}
-              lastVersion={lastVersion}
-              selectedVersion={selectedVersion}
-              onViewSql={() => setIsSqlModalOpen(true)}
-              onExportSql={handleExportSql}
-            />
-          )}
         </div>
       </main>
 

@@ -185,7 +185,7 @@ function CanvasContent({
         );
       else
         downloadFile(
-          "V001__initial_schema.sql",
+          "qube-modeler-project.sql",
           generatePostgresSql(project),
           "text/sql;charset=utf-8",
         );

@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
   background-color: var(--color-bg);
   color: var(--color-text);
   box-sizing: border-box;
@@ -65,21 +66,29 @@
 
 .flyway-main-content {
   flex: 1;
+  min-height: 0;
   padding: 24px;
-  overflow-y: scroll;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .flyway-layout-container {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  height: 100%;
   gap: 24px;
 }
 
 .flyway-layout-grid {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
   display: grid;
-  grid-template-columns: 2.2fr 0.8fr;
+  grid-template-columns: minmax(0, 1fr) 360px;
   gap: 24px;
-  min-height: 400px;
 }
 
 .flyway-selected-details-panel {
@@ -91,6 +100,17 @@
   border-radius: var(--radius-md);
   padding: 24px;
   box-sizing: border-box;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.flyway-selected-details-panel--empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--color-text-muted);
 }
 
 .flyway-selected-details-header {
@@ -117,6 +137,35 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
+  height: 100%;
+  min-height: 0;
+}
+
+.flyway-migrations-screen__table-panel {
+  flex: 0 0 45%;
+  min-height: 180px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.flyway-migrations-screen__details-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--color-border);
+  overflow: auto;
+}
+
+.flyway-migrations-screen__details-panel .flyway-selected-details-panel {
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  padding: 24px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  height: 100%;
 }
 
 .flyway-column-right {
@@ -127,13 +176,16 @@
   border-radius: var(--radius-md);
   padding: 24px;
   overflow-y: auto;
+  height: 100%;
+  min-height: 0;
 }
 
 /* Table container, wrapper, table styling */
 .flyway-table-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .flyway-table-header-controls {
