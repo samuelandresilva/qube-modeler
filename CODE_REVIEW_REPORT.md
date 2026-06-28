@@ -81,13 +81,14 @@ A release 1.0.0 deve ser bloqueada até corrigir os itens CRITICAL e os HIGH lig
 ### HIGH-004
 
 - Severity: HIGH
+- Status: CORRIGIDO
 - Area: Diff correctness
 - File(s): `src/core/diff/project-diff.ts`
 - Problem: mudanças de `scale` em `numeric/decimal` e mudanças de `startWith/incrementBy` em sequences não são detectadas.
 - Why it matters: o snapshot avança, mas o SQL não altera o banco; o histórico Flyway passa a mentir sobre o estado aplicado.
 - Scenario: `numeric(10,2)` vira `numeric(10,4)`; diff não gera operação porque só compara `size`.
 - Recommended fix: comparar `scale`; comparar parâmetros de sequence e gerar operações suportadas ou marcar unsupported/warning.
-- Release blocking: Yes
+- Release blocking: No, corrigido
 
 ### HIGH-005
 
@@ -294,4 +295,4 @@ Riscos:
 
 Não recomendo lançar a 1.0.0 neste estado.
 
-A release deve aguardar correção dos itens HIGH-004 a HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.
+A release deve aguardar correção dos itens HIGH-005 a HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.

@@ -27,6 +27,7 @@ const OPERATION_ORDER: Record<string, number> = {
   RENAME_FOREIGN_KEY: 5,
   RENAME_UNIQUE_CONSTRAINT: 5,
   RENAME_INDEX: 5,
+  ALTER_SEQUENCE: 6,
   CREATE_SCHEMA: 10,
   CREATE_SEQUENCE: 11,
   CREATE_TABLE: 12,
@@ -422,6 +423,18 @@ export function generatePostgresMigrationSql(
         break;
       }
 
+      case "ALTER_SEQUENCE": {
+        sqlStatements.push(formatStatement(
+          [
+            `ALTER SEQUENCE ${op.schemaName}.${op.sequenceName}`,
+            `    START WITH ${op.newStartWith}`,
+            `    INCREMENT BY ${op.newIncrementBy};`,
+          ].join("\n"),
+          op.risk
+        ));
+        break;
+      }
+
       // Column alterations
       case "ALTER_COLUMN_TYPE": {
         const schema = currentProject.schemas.find((s) => s.id === op.schemaId);
@@ -457,10 +470,9 @@ export function generatePostgresMigrationSql(
         if (!column) {
           throw new Error(`Column ${op.columnName} (ID: ${op.columnId}) not found in table ${table.name}.`);
         }
-        const type = column.type;
-        const sizeStr = op.newSize !== undefined ? `(${op.newSize})` : "";
+        const fullType = generateColumnTypeSql(column);
         sqlStatements.push(formatStatement(
-          `ALTER TABLE ${op.schemaName}.${op.tableName} ALTER COLUMN ${op.columnName} TYPE ${type}${sizeStr};`,
+          `ALTER TABLE ${op.schemaName}.${op.tableName} ALTER COLUMN ${op.columnName} TYPE ${fullType};`,
           op.risk
         ));
         break;

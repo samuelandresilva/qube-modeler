@@ -15,6 +15,7 @@ export type ProjectDiffOperation =
   | AddForeignKeyDiffOperation
   | AddUniqueConstraintDiffOperation
   | AddIndexDiffOperation
+  | AlterSequenceDiffOperation
   // Renames
   | RenameSchemaDiffOperation
   | RenameSequenceDiffOperation
@@ -123,6 +124,19 @@ export type AddIndexDiffOperation = {
   tableName: string;
   indexId: string;
   indexName: string;
+};
+
+export type AlterSequenceDiffOperation = {
+  kind: "ALTER_SEQUENCE";
+  risk: DiffOperationRisk;
+  schemaId: string;
+  schemaName: string;
+  sequenceId: string;
+  sequenceName: string;
+  oldStartWith: number;
+  newStartWith: number;
+  oldIncrementBy: number;
+  newIncrementBy: number;
 };
 
 // Renames
@@ -238,6 +252,8 @@ export type AlterColumnSizeDiffOperation = {
   columnName: string;
   oldSize?: number;
   newSize?: number;
+  oldScale?: number;
+  newScale?: number;
 };
 
 export type AlterColumnNullabilityDiffOperation = {

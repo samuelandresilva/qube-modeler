@@ -112,6 +112,25 @@ export function diffProjects(
           newName: currSeq.name,
         });
       }
+
+      if (
+        prevSeq &&
+        (currSeq.startWith !== prevSeq.startWith ||
+          currSeq.incrementBy !== prevSeq.incrementBy)
+      ) {
+        operations.push({
+          kind: "ALTER_SEQUENCE",
+          risk: "warning",
+          schemaId: currSchema.id,
+          schemaName: currSchema.name,
+          sequenceId: currSeq.id,
+          sequenceName: currSeq.name,
+          oldStartWith: prevSeq.startWith,
+          newStartWith: currSeq.startWith,
+          oldIncrementBy: prevSeq.incrementBy,
+          newIncrementBy: currSeq.incrementBy,
+        });
+      }
     }
 
     // Detect sequence drops
@@ -214,9 +233,13 @@ export function diffProjects(
             }
 
             // 3. ALTER_COLUMN_SIZE
-            if (currCol.type === prevCol.type && currCol.size !== prevCol.size) {
+            if (
+              currCol.type === prevCol.type &&
+              (currCol.size !== prevCol.size || currCol.scale !== prevCol.scale)
+            ) {
               let risk: "safe" | "warning" = "warning";
               if (
+                currCol.scale === prevCol.scale &&
                 typeof currCol.size === "number" &&
                 typeof prevCol.size === "number" &&
                 currCol.size > prevCol.size
@@ -234,6 +257,8 @@ export function diffProjects(
                 columnName: currCol.name,
                 oldSize: prevCol.size,
                 newSize: currCol.size,
+                oldScale: prevCol.scale,
+                newScale: currCol.scale,
               });
             }
 
