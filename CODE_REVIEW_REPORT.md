@@ -4,15 +4,15 @@
 
 O projeto está funcionalmente bem encaminhado para uma release desktop 1.0.0: há Electron main/preload, isolamento de renderer, Welcome Screen, recent projects, `.qbm`, migrations Flyway, NSIS, file association e versão `1.0.0`.
 
-A release, porém, **não está pronta**. Os principais riscos estão em segurança de dados do `.qbm` e na confiabilidade do SQL de migrations. Encontrei cenários reais onde o app pode corromper/truncar arquivo de projeto, perder histórico de migrations ao abrir arquivo parcialmente inválido, ou gerar migrations inválidas quando há renames combinados, FKs inline, sequences/defaults e alterações não detectadas.
+Os riscos CRITICAL e HIGH encontrados neste relatório foram corrigidos e marcados como `CORRIGIDO`. Ainda restam itens MEDIUM/LOW recomendados para endurecer a release e reduzir risco operacional.
 
 Verificação executada: `pnpm.cmd lint` passou. Não rodei `pnpm build` nem `electron-builder` para respeitar a instrução de não alterar arquivos; há artefato existente em `release/Qube Modeler Setup 1.0.0.exe`.
 
 ## 2. Release Readiness
 
-**NOT READY**
+**READY WITH FIXES**
 
-A release 1.0.0 deve ser bloqueada até corrigir os itens CRITICAL e os HIGH ligados ao migration engine. O app pode ser liberável após ajustes focados, sem reescrita geral.
+A release 1.0.0 não tem mais bloqueadores CRITICAL/HIGH listados neste relatório. Recomendo revisar os itens MEDIUM antes de empacotar a build final.
 
 ## 3. Critical Findings
 
@@ -105,13 +105,14 @@ A release 1.0.0 deve ser bloqueada até corrigir os itens CRITICAL e os HIGH lig
 ### HIGH-006
 
 - Severity: HIGH
+- Status: CORRIGIDO
 - Area: Migration UX / data safety
 - File(s): `src/app/canvas/components/FlywayMigrationsScreen.tsx`, `src/App.tsx`
 - Problem: botão “Confirm and Save” não salva o `.qbm`; ele só adiciona a migration ao estado e marca `isDirty`.
 - Why it matters: o texto indica persistência, mas a migration ainda depende de Save manual. Fechamento mostra prompt, mas o usuário pode entender que já foi salvo.
 - Scenario: usuário confirma migration, vê “Confirm and Save”, depois descarta alterações ao fechar achando que a migration já foi gravada.
 - Recommended fix: renomear para “Confirm migration” ou disparar save real após confirmar, com tratamento de erro.
-- Release blocking: Yes
+- Release blocking: No, corrigido
 
 ## 5. Medium Priority Findings
 
@@ -296,4 +297,4 @@ Riscos:
 
 Não recomendo lançar a 1.0.0 neste estado.
 
-A release deve aguardar correção do item HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.
+Todos os itens CRITICAL e HIGH listados neste relatório foram corrigidos. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.

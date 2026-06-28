@@ -560,7 +560,7 @@ export function FlywayMigrationsScreen({
                       className="flyway-button flyway-button--primary"
                       type="submit"
                     >
-                      Confirm and Save
+                      Confirm migration
                     </button>
                   </div>
                 </form>
