@@ -20,14 +20,15 @@ function formatStatement(sql: string, risk: string): string {
 
 const OPERATION_ORDER: Record<string, number> = {
   RENAME_SCHEMA: 1,
-  RENAME_SEQUENCE: 2,
-  RENAME_TABLE: 3,
-  RENAME_COLUMN: 4,
-  RENAME_PRIMARY_KEY: 5,
-  RENAME_FOREIGN_KEY: 5,
-  RENAME_UNIQUE_CONSTRAINT: 5,
-  RENAME_INDEX: 5,
-  ALTER_SEQUENCE: 6,
+  ALTER_TABLE_SCHEMA: 2,
+  RENAME_SEQUENCE: 3,
+  RENAME_TABLE: 4,
+  RENAME_COLUMN: 5,
+  RENAME_PRIMARY_KEY: 6,
+  RENAME_FOREIGN_KEY: 6,
+  RENAME_UNIQUE_CONSTRAINT: 6,
+  RENAME_INDEX: 6,
+  ALTER_SEQUENCE: 7,
   CREATE_SCHEMA: 10,
   CREATE_SEQUENCE: 11,
   CREATE_TABLE: 12,
@@ -144,6 +145,14 @@ export function generatePostgresMigrationSql(
       case "CREATE_SCHEMA": {
         sqlStatements.push(formatStatement(
           `CREATE SCHEMA IF NOT EXISTS ${op.schemaName};`,
+          op.risk
+        ));
+        break;
+      }
+
+      case "ALTER_TABLE_SCHEMA": {
+        sqlStatements.push(formatStatement(
+          `ALTER TABLE ${op.oldSchemaName}.${op.tableName} SET SCHEMA ${op.newSchemaName};`,
           op.risk
         ));
         break;

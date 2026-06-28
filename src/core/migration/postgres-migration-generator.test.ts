@@ -237,4 +237,199 @@ describe("postgres-migration-generator", () => {
     const sql = generatePostgresMigrationSql(diff, createProjectFixture());
     expect(sql).toBeDefined();
   });
+
+  describe("schema alteration migration generation (ALTER_TABLE_SCHEMA)", () => {
+    it("generates ALTER TABLE SET SCHEMA", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "ALTER_TABLE_SCHEMA",
+            risk: "warning",
+            tableId: "t1",
+            tableName: "tb_users",
+            oldSchemaName: "public",
+            newSchemaName: "auth"
+          }
+        ],
+        unsupportedOperations: []
+      };
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [createTableFixture({ id: "t1", name: "tb_users" })]
+          })
+        ]
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain("ALTER TABLE public.tb_users SET SCHEMA auth;");
+      expect(sql).not.toContain("DROP CONSTRAINT");
+      expect(sql).not.toContain("ADD CONSTRAINT");
+    });
+
+    it("generates SQL in correct order for moving schema and adding column", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "ADD_COLUMN",
+            risk: "safe",
+            schemaId: "s2",
+            schemaName: "auth",
+            tableId: "t1",
+            tableName: "tb_users",
+            columnId: "c2",
+            columnName: "email"
+          },
+          {
+            kind: "ALTER_TABLE_SCHEMA",
+            risk: "warning",
+            tableId: "t1",
+            tableName: "tb_users",
+            oldSchemaName: "public",
+            newSchemaName: "auth"
+          }
+        ],
+        unsupportedOperations: []
+      };
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [
+              createTableFixture({
+                id: "t1",
+                name: "tb_users",
+                columns: [
+                  createColumnFixture({ id: "c1", name: "id" }),
+                  createColumnFixture({ id: "c2", name: "email", type: "varchar(200)", nullable: true })
+                ]
+              })
+            ]
+          })
+        ]
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      const setSchemaPos = sql.indexOf("ALTER TABLE public.tb_users SET SCHEMA auth;");
+      const addColumnPos = sql.indexOf("ALTER TABLE auth.tb_users ADD COLUMN email varchar(200);");
+
+      expect(setSchemaPos).toBeGreaterThan(-1);
+      expect(addColumnPos).toBeGreaterThan(-1);
+      expect(setSchemaPos).toBeLessThan(addColumnPos); // SET SCHEMA must run before ADD COLUMN
+    });
+
+    it("generates SQL in correct order for moving schema and renaming table", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "RENAME_TABLE",
+            risk: "warning",
+            schemaId: "s2",
+            schemaName: "auth",
+            tableId: "t1",
+            oldName: "tb_users",
+            newName: "tb_app_users"
+          },
+          {
+            kind: "ALTER_TABLE_SCHEMA",
+            risk: "warning",
+            tableId: "t1",
+            tableName: "tb_users",
+            oldSchemaName: "public",
+            newSchemaName: "auth"
+          }
+        ],
+        unsupportedOperations: []
+      };
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [createTableFixture({ id: "t1", name: "tb_app_users" })]
+          })
+        ]
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      const setSchemaPos = sql.indexOf("ALTER TABLE public.tb_users SET SCHEMA auth;");
+      const renamePos = sql.indexOf("ALTER TABLE auth.tb_users RENAME TO tb_app_users;");
+
+      expect(setSchemaPos).toBeGreaterThan(-1);
+      expect(renamePos).toBeGreaterThan(-1);
+      expect(setSchemaPos).toBeLessThan(renamePos); // SET SCHEMA must run before RENAME TO
+    });
+
+    it("generates SQL in correct order for moving schema, renaming table, and adding column", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "ADD_COLUMN",
+            risk: "safe",
+            schemaId: "s2",
+            schemaName: "auth",
+            tableId: "t1",
+            tableName: "tb_app_users",
+            columnId: "c2",
+            columnName: "email"
+          },
+          {
+            kind: "RENAME_TABLE",
+            risk: "warning",
+            schemaId: "s2",
+            schemaName: "auth",
+            tableId: "t1",
+            oldName: "tb_users",
+            newName: "tb_app_users"
+          },
+          {
+            kind: "ALTER_TABLE_SCHEMA",
+            risk: "warning",
+            tableId: "t1",
+            tableName: "tb_users",
+            oldSchemaName: "public",
+            newSchemaName: "auth"
+          }
+        ],
+        unsupportedOperations: []
+      };
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [
+              createTableFixture({
+                id: "t1",
+                name: "tb_app_users",
+                columns: [
+                  createColumnFixture({ id: "c1", name: "id" }),
+                  createColumnFixture({ id: "c2", name: "email", type: "varchar(200)", nullable: true })
+                ]
+              })
+            ]
+          })
+        ]
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      const setSchemaPos = sql.indexOf("ALTER TABLE public.tb_users SET SCHEMA auth;");
+      const renamePos = sql.indexOf("ALTER TABLE auth.tb_users RENAME TO tb_app_users;");
+      const addColumnPos = sql.indexOf("ALTER TABLE auth.tb_app_users ADD COLUMN email varchar(200);");
+
+      expect(setSchemaPos).toBeGreaterThan(-1);
+      expect(renamePos).toBeGreaterThan(-1);
+      expect(addColumnPos).toBeGreaterThan(-1);
+      
+      expect(setSchemaPos).toBeLessThan(renamePos);
+      expect(renamePos).toBeLessThan(addColumnPos);
+    });
+  });
 });
