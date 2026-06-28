@@ -139,10 +139,12 @@ Current version:
 1.0.0
 ```
 
-## License and usage notice
+## License
 
-Qube Modeler is provided as a modeling and SQL generation tool.
+Qube Modeler is source-available software for personal, educational, evaluation, internal development, and non-commercial use.
 
-It does not guarantee that generated SQL is safe for every database state or production environment.
+You may download, install, run, and use the application for non-commercial purposes.
 
-Always review, test and backup before applying generated SQL scripts.
+Commercial use, resale, redistribution, rebranding, publishing modified builds, or offering Qube Modeler as a product or service is not permitted without prior written permission.
+
+See [LICENSE](LICENSE) for details.
