@@ -435,4 +435,422 @@ describe("project-diff", () => {
       })
     );
   });
+
+  describe("schema alteration (ALTER_TABLE_SCHEMA)", () => {
+    it("detects change of table schema by table id", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [createTableFixture({ id: "t1", name: "users" })]
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: []
+          })
+        ]
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: []
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [createTableFixture({ id: "t1", name: "users" })]
+          })
+        ]
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toContainEqual(
+        expect.objectContaining({
+          kind: "ALTER_TABLE_SCHEMA",
+          risk: "warning",
+          tableId: "t1",
+          tableName: "users",
+          oldSchemaName: "public",
+          newSchemaName: "auth"
+        })
+      );
+      expect(diff.operations).not.toContainEqual(expect.objectContaining({ kind: "DROP_TABLE" }));
+      expect(diff.operations).not.toContainEqual(expect.objectContaining({ kind: "CREATE_TABLE" }));
+      expect(diff.operations).not.toContainEqual(expect.objectContaining({ kind: "RENAME_TABLE" }));
+    });
+
+    it("detects change of table schema and table rename simultaneously", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [createTableFixture({ id: "t1", name: "users" })]
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: []
+          })
+        ]
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: []
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [createTableFixture({ id: "t1", name: "app_users" })]
+          })
+        ]
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toContainEqual(
+        expect.objectContaining({
+          kind: "ALTER_TABLE_SCHEMA",
+          tableId: "t1",
+          oldSchemaName: "public",
+          newSchemaName: "auth"
+        })
+      );
+      expect(diff.operations).toContainEqual(
+        expect.objectContaining({
+          kind: "RENAME_TABLE",
+          tableId: "t1",
+          oldName: "users",
+          newName: "app_users"
+        })
+      );
+      expect(diff.operations).not.toContainEqual(expect.objectContaining({ kind: "DROP_TABLE" }));
+      expect(diff.operations).not.toContainEqual(expect.objectContaining({ kind: "CREATE_TABLE" }));
+    });
+
+    it("detects change of table schema and new column addition simultaneously", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [createTableFixture({ id: "t1", name: "users", columns: [createColumnFixture({ id: "c1", name: "id" })] })]
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: []
+          })
+        ]
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: []
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [
+              createTableFixture({
+                id: "t1",
+                name: "users",
+                columns: [
+                  createColumnFixture({ id: "c1", name: "id" }),
+                  createColumnFixture({ id: "c2", name: "email" })
+                ]
+              })
+            ]
+          })
+        ]
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toContainEqual(
+        expect.objectContaining({
+          kind: "ALTER_TABLE_SCHEMA",
+          tableId: "t1",
+          oldSchemaName: "public",
+          newSchemaName: "auth"
+        })
+      );
+      expect(diff.operations).toContainEqual(
+        expect.objectContaining({
+          kind: "ADD_COLUMN",
+          tableId: "t1",
+          columnId: "c2",
+          columnName: "email"
+        })
+      );
+    });
+
+    it("does not generate false ALTER_FOREIGN_KEY when referencing table schema shifts", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t_users",
+                name: "users",
+                columns: [createColumnFixture({ id: "col_u_id", name: "id" })]
+              }),
+              createTableFixture({
+                id: "t_posts",
+                name: "posts",
+                foreignKeys: [
+                  {
+                    id: "fk1",
+                    name: "fk_posts_user",
+                    sourceColumns: ["user_id"],
+                    targetSchema: "public",
+                    targetTable: "users",
+                    targetColumns: ["id"]
+                  }
+                ]
+              })
+            ]
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: []
+          })
+        ]
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t_posts",
+                name: "posts",
+                foreignKeys: [
+                  {
+                    id: "fk1",
+                    name: "fk_posts_user",
+                    sourceColumns: ["user_id"],
+                    targetSchema: "auth",
+                    targetTable: "users",
+                    targetColumns: ["id"]
+                  }
+                ]
+              })
+            ]
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [
+              createTableFixture({
+                id: "t_users",
+                name: "users",
+                columns: [createColumnFixture({ id: "col_u_id", name: "id" })]
+              })
+            ]
+          })
+        ]
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toContainEqual(
+        expect.objectContaining({
+          kind: "ALTER_TABLE_SCHEMA",
+          tableId: "t_users",
+          oldSchemaName: "public",
+          newSchemaName: "auth"
+        })
+      );
+      expect(diff.operations).not.toContainEqual(
+        expect.objectContaining({
+          kind: "ALTER_FOREIGN_KEY"
+        })
+      );
+    });
+
+    it("generates ALTER_FOREIGN_KEY if target table ID actually changes", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t_users_old",
+                name: "users",
+                columns: [createColumnFixture({ id: "col_u_id", name: "id" })]
+              }),
+              createTableFixture({
+                id: "t_posts",
+                name: "posts",
+                foreignKeys: [
+                  {
+                    id: "fk1",
+                    name: "fk_posts_user",
+                    sourceColumns: ["user_id"],
+                    targetSchema: "public",
+                    targetTable: "users",
+                    targetColumns: ["id"]
+                  }
+                ]
+              })
+            ]
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: []
+          })
+        ]
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t_posts",
+                name: "posts",
+                foreignKeys: [
+                  {
+                    id: "fk1",
+                    name: "fk_posts_user",
+                    sourceColumns: ["user_id"],
+                    targetSchema: "auth",
+                    targetTable: "accounts",
+                    targetColumns: ["id"]
+                  }
+                ]
+              })
+            ]
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [
+              createTableFixture({
+                id: "t_accounts",
+                name: "accounts",
+                columns: [createColumnFixture({ id: "col_a_id", name: "id" })]
+              })
+            ]
+          })
+        ]
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toContainEqual(
+        expect.objectContaining({
+          kind: "ALTER_FOREIGN_KEY",
+          foreignKeyId: "fk1"
+        })
+      );
+    });
+
+    it("generates ALTER_FOREIGN_KEY if same logical table is moved but targetColumns changed", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t_users",
+                name: "users",
+                columns: [createColumnFixture({ id: "col_u_id", name: "id" })]
+              }),
+              createTableFixture({
+                id: "t_posts",
+                name: "posts",
+                foreignKeys: [
+                  {
+                    id: "fk1",
+                    name: "fk_posts_user",
+                    sourceColumns: ["user_id"],
+                    targetSchema: "public",
+                    targetTable: "users",
+                    targetColumns: ["id"]
+                  }
+                ]
+              })
+            ]
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: []
+          })
+        ]
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t_posts",
+                name: "posts",
+                foreignKeys: [
+                  {
+                    id: "fk1",
+                    name: "fk_posts_user",
+                    sourceColumns: ["user_id"],
+                    targetSchema: "auth",
+                    targetTable: "users",
+                    targetColumns: ["uuid"]
+                  }
+                ]
+              })
+            ]
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [
+              createTableFixture({
+                id: "t_users",
+                name: "users",
+                columns: [createColumnFixture({ id: "col_u_id", name: "uuid" })]
+              })
+            ]
+          })
+        ]
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toContainEqual(
+        expect.objectContaining({
+          kind: "ALTER_TABLE_SCHEMA",
+          tableId: "t_users",
+          oldSchemaName: "public",
+          newSchemaName: "auth"
+        })
+      );
+      expect(diff.operations).toContainEqual(
+        expect.objectContaining({
+          kind: "ALTER_FOREIGN_KEY",
+          foreignKeyId: "fk1"
+        })
+      );
+    });
+  });
 });

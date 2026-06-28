@@ -1,9 +1,30 @@
-import type { DatabaseProject, DatabaseForeignKey, DatabaseUniqueConstraint, DatabaseIndex } from "../model/types";
+import type { DatabaseProject, DatabaseSchema, DatabaseTable, DatabaseForeignKey, DatabaseUniqueConstraint, DatabaseIndex } from "../model/types";
 import type { ProjectDiff, ProjectDiffOperation, UnsupportedDiffOperation } from "./project-diff-types";
 
-function didForeignKeyChange(prevFk: DatabaseForeignKey, currFk: DatabaseForeignKey): boolean {
-  if (prevFk.targetSchema !== currFk.targetSchema) return true;
-  if (prevFk.targetTable !== currFk.targetTable) return true;
+function findTableIdByName(
+  project: DatabaseProject,
+  schemaName: string,
+  tableName: string,
+): string | undefined {
+  const schema = project.schemas.find((s) => s.name === schemaName);
+  const table = schema?.tables.find((t) => t.name === tableName);
+  return table?.id;
+}
+
+function didForeignKeyChange(
+  prevProject: DatabaseProject,
+  currProject: DatabaseProject,
+  prevFk: DatabaseForeignKey,
+  currFk: DatabaseForeignKey,
+): boolean {
+  const prevTargetId = findTableIdByName(prevProject, prevFk.targetSchema, prevFk.targetTable);
+  const currTargetId = findTableIdByName(currProject, currFk.targetSchema, currFk.targetTable);
+  const targetTableChanged = prevTargetId !== currTargetId;
+
+  if (targetTableChanged) {
+    if (prevFk.targetSchema !== currFk.targetSchema) return true;
+    if (prevFk.targetTable !== currFk.targetTable) return true;
+  }
   if (prevFk.onDelete !== currFk.onDelete) return true;
   if (prevFk.onUpdate !== currFk.onUpdate) return true;
   
@@ -45,6 +66,20 @@ export function diffProjects(
 
   const prevSchemas = new Map(previousProject.schemas.map((s) => [s.id, s]));
   const currSchemas = new Map(currentProject.schemas.map((s) => [s.id, s]));
+
+  const prevTablesGlobal = new Map<string, { schema: DatabaseSchema; table: DatabaseTable }>();
+  for (const schema of previousProject.schemas) {
+    for (const table of schema.tables) {
+      prevTablesGlobal.set(table.id, { schema, table });
+    }
+  }
+
+  const currTablesGlobal = new Map<string, { schema: DatabaseSchema; table: DatabaseTable }>();
+  for (const schema of currentProject.schemas) {
+    for (const table of schema.tables) {
+      currTablesGlobal.set(table.id, { schema, table });
+    }
+  }
 
   // 1. Detect schema additions and renames
   for (const currSchema of currentProject.schemas) {
@@ -149,14 +184,12 @@ export function diffProjects(
       }
     }
 
-    const prevTables = new Map(prevSchema?.tables.map((t) => [t.id, t]) ?? []);
-    const currTables = new Map(currSchema.tables.map((t) => [t.id, t]));
 
     // Process tables
     for (const currTable of currSchema.tables) {
-      const prevTable = prevTables.get(currTable.id);
+      const prevEntry = prevTablesGlobal.get(currTable.id);
 
-      if (!prevTable) {
+      if (!prevEntry) {
         // Table is new: CREATE_TABLE represents the creation of the schema object.
         // Inner columns/constraints do not get separate operations.
         operations.push({
@@ -168,6 +201,21 @@ export function diffProjects(
           tableName: currTable.name,
         });
       } else {
+        const prevTable = prevEntry.table;
+        const prevSchema = prevEntry.schema;
+
+        // Detect schema change
+        if (prevSchema.id !== currSchema.id) {
+          operations.push({
+            kind: "ALTER_TABLE_SCHEMA",
+            risk: "warning",
+            tableId: currTable.id,
+            tableName: prevTable.name,
+            oldSchemaName: prevSchema.name,
+            newSchemaName: currSchema.name,
+          });
+        }
+
         // Table existed: Compare columns, PK, FK, Unique constraints, and Indexes.
 
         // Detect table rename
@@ -392,7 +440,7 @@ export function diffProjects(
               foreignKeyName: currFk.name,
             });
           } else {
-            const hasCompositionChanged = didForeignKeyChange(prevFk, currFk);
+            const hasCompositionChanged = didForeignKeyChange(previousProject, currentProject, prevFk, currFk);
             if (hasCompositionChanged) {
               operations.push({
                 kind: "ALTER_FOREIGN_KEY",
@@ -562,20 +610,19 @@ export function diffProjects(
       }
     }
 
-    // Detect table drops
-    if (prevSchema) {
-      for (const prevTable of prevSchema.tables) {
-        if (!currTables.has(prevTable.id)) {
-          operations.push({
-            kind: "DROP_TABLE",
-            risk: "destructive",
-            schemaId: currSchema.id,
-            schemaName: currSchema.name,
-            tableId: prevTable.id,
-            tableName: prevTable.name,
-          });
-        }
-      }
+  }
+
+  // Detect table drops
+  for (const [prevTableId, prevEntry] of prevTablesGlobal.entries()) {
+    if (!currTablesGlobal.has(prevTableId)) {
+      operations.push({
+        kind: "DROP_TABLE",
+        risk: "destructive",
+        schemaId: prevEntry.schema.id,
+        schemaName: prevEntry.schema.name,
+        tableId: prevTableId,
+        tableName: prevEntry.table.name,
+      });
     }
   }
 

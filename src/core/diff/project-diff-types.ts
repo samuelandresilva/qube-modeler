@@ -25,6 +25,8 @@ export type ProjectDiffOperation =
   | RenameForeignKeyDiffOperation
   | RenameUniqueConstraintDiffOperation
   | RenameIndexDiffOperation
+  // Table schema alteration
+  | AlterTableSchemaDiffOperation
   // Column alterations
   | AlterColumnTypeDiffOperation
   | AlterColumnSizeDiffOperation
@@ -415,4 +417,13 @@ export type AlterIndexDiffOperation = {
   indexId: string;
   oldName: string;
   newName: string;
+};
+
+export type AlterTableSchemaDiffOperation = {
+  kind: "ALTER_TABLE_SCHEMA";
+  risk: DiffOperationRisk;
+  tableId: string;
+  tableName: string;
+  oldSchemaName: string;
+  newSchemaName: string;
 };
