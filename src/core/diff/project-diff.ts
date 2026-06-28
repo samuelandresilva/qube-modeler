@@ -357,6 +357,21 @@ export function diffProjects(
             newName: `pk_${currTable.name}`,
             columnNames: currPkCols.map((c) => c.name),
           });
+        } else if (
+          prevPkCols.length > 0 &&
+          currPkCols.length > 0 &&
+          currTable.name !== prevTable.name
+        ) {
+          operations.push({
+            kind: "RENAME_PRIMARY_KEY",
+            risk: "warning",
+            schemaId: currSchema.id,
+            schemaName: currSchema.name,
+            tableId: currTable.id,
+            tableName: currTable.name,
+            oldName: `pk_${prevTable.name}`,
+            newName: `pk_${currTable.name}`,
+          });
         }
 
         // Foreign Keys additions, renames & drops

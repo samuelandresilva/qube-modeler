@@ -93,13 +93,14 @@ A release 1.0.0 deve ser bloqueada até corrigir os itens CRITICAL e os HIGH lig
 ### HIGH-005
 
 - Severity: HIGH
+- Status: CORRIGIDO
 - Area: Constraint naming / migration drift
 - File(s): `src/core/diff/project-diff.ts`, `src/core/migration/postgres-migration-generator.ts`
 - Problem: PK é sempre assumida como `pk_${table.name}`. Ao renomear tabela, PostgreSQL não renomeia automaticamente a constraint.
 - Why it matters: migrations futuras podem tentar dropar/alterar `pk_nome_novo`, mas o banco ainda tem `pk_nome_antigo`.
 - Scenario: initial cria `pk_users`; migration renomeia tabela para `accounts`; próxima alteração de PK gera `DROP CONSTRAINT pk_accounts`, que não existe.
 - Recommended fix: persistir nomes de constraints ou gerar rename explícito de PK quando tabela muda, se o padrão antigo for usado.
-- Release blocking: Yes
+- Release blocking: No, corrigido
 
 ### HIGH-006
 
@@ -295,4 +296,4 @@ Riscos:
 
 Não recomendo lançar a 1.0.0 neste estado.
 
-A release deve aguardar correção dos itens HIGH-005 a HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.
+A release deve aguardar correção do item HIGH-006. Os itens medium/low podem ir para 1.0.1, exceto testes do migration engine, que eu tentaria incluir ainda antes da 1.0.0 para proteger as correções críticas.
