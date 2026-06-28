@@ -5,85 +5,93 @@
 <h1 align="center">Qube Modeler</h1>
 
 <p align="center">
-  Local-first desktop application for visually modeling PostgreSQL databases and organizing Flyway migrations.
+  Visual database modeling for PostgreSQL and Flyway migrations.
 </p>
 
 ---
 
-Qube Modeler is a local-first desktop application for visually modeling PostgreSQL database structures and organizing Flyway migration history.
+## What is Qube Modeler?
 
-It allows you to design schemas, tables, columns, sequences, constraints, indexes and relationships visually, then generate SQL scripts and versioned Flyway migrations from the model.
+Qube Modeler is a desktop application for designing PostgreSQL database models visually and generating Flyway migration scripts from your changes.
 
-The official project file format is `.qbm`.
+Instead of writing every migration manually from scratch, you can model your database, review the generated SQL, and export versioned migration scripts for your project.
 
-## Features
+Qube Modeler is local-first: your work is saved in `.qbm` project files on your machine.
 
-- Visual PostgreSQL database modeling
-- Local-first `.qbm` project files
-- Save, Save As and Open project workflows
-- Recent projects
-- Full SQL export
-- Flyway migration history
-- Initial migration generation
-- Incremental migration generation by project diff
-- Manual before/after migration scripts
-- SQL preview and migration export
-- Destructive operation warnings
-- Window state persistence
-- `.qbm` file association
-- Windows installer with license agreement
+## What can you do with it?
 
-## Project Philosophy
+- Design PostgreSQL schemas visually
+- Create tables, columns, sequences, indexes and constraints
+- Define relationships between tables
+- Generate an initial Flyway migration
+- Generate new migrations from model changes
+- Add manual SQL scripts before or after generated migrations
+- Preview generated SQL before exporting
+- Export migration SQL files
+- Save and reopen projects using `.qbm` files
+- Keep your database model and migration history versioned with Git
 
-Qube Modeler does not execute migrations.
+## Who is it for?
 
-The application generates and organizes SQL migration files, but the responsibility for running them remains with the target application and Flyway.
+Qube Modeler is intended for developers and teams that use PostgreSQL and Flyway, especially when they want a visual way to design and evolve a database model.
 
-Recommended workflow:
+It is useful when you want to:
 
-1. Model the database visually in Qube Modeler.
-2. Generate or update Flyway migrations.
-3. Review the generated SQL.
-4. Export the migration SQL.
-5. Commit the `.qbm` file and migration scripts to Git.
-6. Let the application/Flyway execute the migration.
+- plan a database structure before writing SQL
+- keep a visual model close to your migration history
+- reduce repetitive migration writing
+- review database changes before applying them
+- keep project files under version control
 
-Always review generated SQL before applying it to any database environment.
+## How it works
 
-## `.qbm` Project Files
+A typical workflow looks like this:
 
-`.qbm` is the official Qube Modeler project format.
+1. Create or open a `.qbm` project.
+2. Model your database visually.
+3. Generate the initial migration.
+4. Make changes to the model over time.
+5. Generate new migrations from those changes.
+6. Review the SQL.
+7. Export the migration script.
+8. Commit the `.qbm` file and migration scripts to Git.
+9. Let your application run the migrations with Flyway.
 
-A `.qbm` file stores:
+Qube Modeler does not execute migrations directly.  
+It helps you design, organize and generate migration scripts.
 
-- project metadata
-- database model
-- schemas
-- tables
-- columns
-- sequences
-- constraints
-- indexes
-- Flyway migration history
-- migration snapshots
-- generated SQL
-- manual before/after migration scripts
+## Project files
 
-`.qbm` files are plain JSON and are designed to be versioned with Git.
+Qube Modeler uses `.qbm` files as its official project format.
 
-Do not store passwords, tokens, credentials or sensitive secrets inside `.qbm` files.
+A `.qbm` file stores your database model and Flyway migration history locally.
 
-## Tech Stack
+You can keep this file in your repository together with your application code and migration scripts.
 
-- Electron
-- React
-- TypeScript
-- Vite
-- React Flow
-- Vitest
-- electron-builder
+Do not store passwords, tokens or credentials inside `.qbm` files.
+
+## Safety notice
+
+Generated SQL should always be reviewed before being applied to any database.
+
+Before running migrations in production or critical environments, make sure you have:
+
+- reviewed the generated SQL
+- tested it in a safe environment
+- created backups when necessary
+- followed your team's approval process
+
+Qube Modeler helps generate migration scripts, but you are responsible for deciding when and where to apply them.
+
+## Download and install
+
+Download the latest Windows installer from the Releases page.
+
+After installation, `.qbm` files can be opened directly with Qube Modeler.
 
 ## Development
+
+This section is only needed if you want to run the project from source.
 
 Install dependencies:
 
@@ -97,27 +105,11 @@ Run in development mode:
 pnpm dev
 ```
 
-Run lint:
+Run checks:
 
 ```bash
 pnpm lint
-```
-
-Run unit tests:
-
-```bash
 pnpm test
-```
-
-Run tests with coverage:
-
-```bash
-pnpm test:coverage
-```
-
-Build the application:
-
-```bash
 pnpm build
 ```
 
@@ -127,162 +119,29 @@ Create the desktop package/installer:
 pnpm package
 ```
 
-## Validation Before Release
+## Tech stack
 
-Before creating a release build, run:
+Qube Modeler is built with:
 
-```bash
-pnpm lint
-pnpm test
-pnpm build
-pnpm package
-```
+* Electron
+* React
+* TypeScript
+* Vite
+* React Flow
+* Vitest
+* electron-builder
 
-Expected result:
+## Version
 
-* lint passes
-* all unit tests pass
-* production build succeeds
-* Electron installer is generated successfully
-
-## Project Structure
+Current version:
 
 ```text
-src/
-  app/
-    canvas/
-      components/   # visual editor components
-      dialogs/      # create/edit forms
-      hooks/        # React Flow integration and state
-      mappers/      # domain-to-diagram mapping
-      styles/       # component styles
-    shared/         # reusable UI components and utilities
-
-  core/
-    diff/           # project diff engine
-    diagram/        # diagram-independent types
-    migration/      # Flyway migration SQL generation
-    model/          # domain types, queries and commands
-    qbm/            # .qbm file creation and parsing
-    sql/            # PostgreSQL SQL generation
-    validation/     # structural validation by entity
-    test-utils/     # unit test fixtures
-
-  styles/
-    tokens.css      # global design tokens
-
-electron/
-  main.ts           # Electron main process
-  preload.ts        # safe bridge between renderer and main
-  window-state.ts   # window state persistence
-
-build/
-  icons/            # app and file icons
-  installer/        # installer license/notice
-
-release/
-  # generated desktop builds and installers
+1.0.0
 ```
 
-## Architecture Rules
+## License and usage notice
 
-* `core` must not depend on React or visual components.
-* `core` contains the domain model, validation, diff and SQL generation logic.
-* React components must use public domain types and commands.
-* Electron file-system operations must stay in the main process.
-* The renderer must access desktop capabilities only through the preload API.
-* `.qbm` parsing must be strict enough to avoid silent data loss.
-* Migration history must never be discarded silently.
-* Generated SQL must favor explicit and reviewable operations.
-* Destructive operations must be clearly marked and require user awareness.
-* Styles should follow the existing component naming conventions and design tokens.
-
-## Testing Strategy
-
-The current automated tests focus on the critical core modules:
-
-* `.qbm` creation and parsing
-* strict validation of migration history
-* project diff operations
-* PostgreSQL SQL generation
-* Flyway migration SQL generation
-* safe ordering of migration operations
-* sequence/default handling
-* rename and destructive-operation regressions
-
-Run:
-
-```bash
-pnpm test
-```
-
-Coverage:
-
-```bash
-pnpm test:coverage
-```
-
-Unit tests do not run Electron and do not require a PostgreSQL database.
-
-## Packaging
-
-The project uses `electron-builder`.
-
-The Windows package includes:
-
-* NSIS installer
-* license agreement step
-* application icon
-* `.qbm` file association
-* single-instance behavior
-* desktop app executable
-
-Generated artifacts are written to:
-
-```text
-release/
-```
-
-## Versioning
-
-The application version is defined in `package.json`.
-
-Electron reads the app version from the package metadata using `app.getVersion()`.
-
-For release candidates, use tags such as:
-
-```text
-v1.0.0-rc.1
-```
-
-For stable releases:
-
-```text
-v1.0.0
-```
-
-## Release Checklist
-
-Before publishing a release:
-
-* [ ] `pnpm lint` passes
-* [ ] `pnpm test` passes
-* [ ] `pnpm build` passes
-* [ ] `pnpm package` succeeds
-* [ ] installer opens correctly
-* [ ] license agreement is displayed
-* [ ] app opens after installation
-* [ ] `.qbm` file association works
-* [ ] double-clicking `.qbm` opens the project
-* [ ] Save/Open/Save As workflows work
-* [ ] initial migration generation works
-* [ ] incremental migration generation works
-* [ ] SQL export works
-* [ ] unsaved changes prompt works
-
-## Important Notice
-
-Qube Modeler is a modeling and SQL generation tool.
+Qube Modeler is provided as a modeling and SQL generation tool.
 
 It does not guarantee that generated SQL is safe for every database state or production environment.
 
