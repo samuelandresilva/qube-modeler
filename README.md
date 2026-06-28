@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="build/icon.png" alt="Qube Modeler" width="88" height="88" />
+  <img src="build/icon.png" alt="Qube Modeler" width="150" height="150" />
 </p>
 
 <h1 align="center">Qube Modeler</h1>
