@@ -53,7 +53,7 @@ export function CanvasToolbar({
           onClick={onNewProject}
           disabled={isFileOperationLoading}
         >
-          <FilePlus2 size={18} strokeWidth={2.4} />
+          <FilePlus2 size={18} strokeWidth={2.4} color="oklch(71.4% 0.203 305.504)" />
         </button>
 
         <button
@@ -64,7 +64,7 @@ export function CanvasToolbar({
           onClick={onOpenProject}
           disabled={isFileOperationLoading}
         >
-          <FolderOpen size={18} strokeWidth={2.4} />
+          <FolderOpen size={18} strokeWidth={2.4} color="oklch(75% 0.183 55.934)" />
         </button>
 
         <button
@@ -75,7 +75,7 @@ export function CanvasToolbar({
           onClick={onCloseProject}
           disabled={isFileOperationLoading}
         >
-          <FolderX size={18} strokeWidth={2.4} />
+          <FolderX size={18} strokeWidth={2.4} color="oklch(70.4% 0.191 22.216)" />
         </button>
 
         <div className="canvas-toolbar__separator" aria-hidden="true" />
@@ -88,7 +88,7 @@ export function CanvasToolbar({
           onClick={onSaveProject}
           disabled={isFileOperationLoading}
         >
-          <Save size={18} strokeWidth={2.4} />
+          <Save size={18} strokeWidth={2.4} color="oklch(62.3% 0.214 259.815)" />
         </button>
 
         <button
@@ -99,7 +99,7 @@ export function CanvasToolbar({
           onClick={onSaveProjectAs}
           disabled={isFileOperationLoading}
         >
-          <SaveAll size={18} strokeWidth={2.4} />
+          <SaveAll size={18} strokeWidth={2.4} color="oklch(58.8% 0.158 241.966)" />
         </button>
 
         <div className="canvas-toolbar__separator" aria-hidden="true" />
@@ -144,7 +144,7 @@ export function CanvasToolbar({
           onClick={onAddTable}
           disabled={!activeSchemaId}
         >
-          <Grid2X2Plus size={18} strokeWidth={2.4} />
+          <Grid2X2Plus size={18} strokeWidth={2.4} color="oklch(76.5% 0.177 163.223)" />
         </button>
 
         <button
@@ -155,7 +155,7 @@ export function CanvasToolbar({
           onClick={onGenerateSql}
           disabled={isFileOperationLoading}
         >
-          <FileCode2 size={18} strokeWidth={2.4} />
+          <FileCode2 size={18} strokeWidth={2.4} color="oklch(89.7% 0.196 126.665)" />
         </button>
       </div>
     </div>
