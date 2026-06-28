@@ -13,6 +13,10 @@ export interface WindowState {
 
 const DEFAULT_WIDTH = 1280;
 const DEFAULT_HEIGHT = 800;
+const MIN_WIDTH = 800;
+const MIN_HEIGHT = 600;
+const MAX_WIDTH = 10000;
+const MAX_HEIGHT = 10000;
 
 export function getWindowStatePath(): string {
   return path.join(app.getPath("userData"), "window-state.json");
@@ -31,32 +35,28 @@ export function loadWindowState(): WindowState {
     if (fs.existsSync(filePath)) {
       const data = fs.readFileSync(filePath, "utf-8");
       const parsed = JSON.parse(data) as WindowState;
+      const normalized = normalizeWindowState(parsed);
 
       // Validate structures and bounds
-      if (
-        typeof parsed.width === "number" &&
-        typeof parsed.height === "number" &&
-        typeof parsed.isMaximized === "boolean" &&
-        typeof parsed.isFullScreen === "boolean"
-      ) {
-        if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+      if (normalized) {
+        if (typeof normalized.x === "number" && typeof normalized.y === "number") {
           // Check if bounds are visible on any display
           const displays = screen.getAllDisplays();
           const isVisible = displays.some((display) => {
             const db = display.bounds;
             return (
-              parsed.x! < db.x + db.width &&
-              parsed.x! + parsed.width > db.x &&
-              parsed.y! < db.y + db.height &&
-              parsed.y! + parsed.height > db.y
+              normalized.x! < db.x + db.width &&
+              normalized.x! + normalized.width > db.x &&
+              normalized.y! < db.y + db.height &&
+              normalized.y! + normalized.height > db.y
             );
           });
 
           if (isVisible) {
-            return parsed;
+            return normalized;
           }
         } else {
-          return parsed;
+          return normalized;
         }
       }
     }
@@ -65,6 +65,42 @@ export function loadWindowState(): WindowState {
   }
 
   return defaultState;
+}
+
+function normalizeWindowState(state: Partial<WindowState>): WindowState | null {
+  if (
+    typeof state.width !== "number" ||
+    typeof state.height !== "number" ||
+    typeof state.isMaximized !== "boolean" ||
+    typeof state.isFullScreen !== "boolean" ||
+    !Number.isFinite(state.width) ||
+    !Number.isFinite(state.height)
+  ) {
+    return null;
+  }
+
+  const normalized: WindowState = {
+    width: clamp(Math.round(state.width), MIN_WIDTH, MAX_WIDTH),
+    height: clamp(Math.round(state.height), MIN_HEIGHT, MAX_HEIGHT),
+    isMaximized: state.isMaximized,
+    isFullScreen: state.isFullScreen,
+  };
+
+  if (
+    typeof state.x === "number" &&
+    typeof state.y === "number" &&
+    Number.isFinite(state.x) &&
+    Number.isFinite(state.y)
+  ) {
+    normalized.x = Math.round(state.x);
+    normalized.y = Math.round(state.y);
+  }
+
+  return normalized;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 export function saveWindowState(window: BrowserWindow) {

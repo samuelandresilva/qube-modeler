@@ -96,6 +96,7 @@ process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
 
 let mainWindow: BrowserWindow | null = null;
 let isWindowCloseConfirmed = false;
+let closeRequestFallbackTimer: NodeJS.Timeout | null = null;
 
 const qbmFileFilter = [{ name: "Qube Modeler Project", extensions: ["qbm"] }];
 
@@ -207,6 +208,10 @@ function configureProjectIpc() {
 
   ipcMain.on("qbm:confirm-close", (event) => {
     if (!mainWindow || event.sender !== mainWindow.webContents) return;
+    if (closeRequestFallbackTimer) {
+      clearTimeout(closeRequestFallbackTimer);
+      closeRequestFallbackTimer = null;
+    }
     isWindowCloseConfirmed = true;
     mainWindow.close();
   });
@@ -447,6 +452,7 @@ function configureApplicationMenu() {
 function createWindow() {
   isWindowCloseConfirmed = false;
   rendererReadyForOpenFileRequests = false;
+  closeRequestFallbackTimer = null;
   const state = loadWindowState();
 
   mainWindow = new BrowserWindow({
@@ -489,6 +495,27 @@ function createWindow() {
     if (isWindowCloseConfirmed) return;
     event.preventDefault();
     mainWindow?.webContents.send("qbm:close-requested");
+    if (closeRequestFallbackTimer) return;
+    closeRequestFallbackTimer = setTimeout(async () => {
+      closeRequestFallbackTimer = null;
+      if (!mainWindow || isWindowCloseConfirmed) return;
+
+      const result = await dialog.showMessageBox(mainWindow, {
+        type: "warning",
+        buttons: ["Cancel", "Close anyway"],
+        defaultId: 0,
+        cancelId: 0,
+        title: "Close Qube Modeler?",
+        message: "Qube Modeler is not responding to the close request.",
+        detail:
+          "Closing anyway may discard unsaved changes in the current project.",
+      });
+
+      if (result.response === 1 && mainWindow) {
+        isWindowCloseConfirmed = true;
+        mainWindow.close();
+      }
+    }, 5000);
   });
 
   if (process.env.VITE_DEV_SERVER_URL) {
@@ -499,6 +526,10 @@ function createWindow() {
   }
 
   mainWindow.on("closed", () => {
+    if (closeRequestFallbackTimer) {
+      clearTimeout(closeRequestFallbackTimer);
+      closeRequestFallbackTimer = null;
+    }
     mainWindow = null;
   });
 }

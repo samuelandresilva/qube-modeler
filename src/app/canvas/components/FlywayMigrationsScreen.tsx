@@ -15,6 +15,7 @@ import "../styles/FlywayMigrationsScreen.css";
 import { CanvasModal } from "./CanvasModal";
 import { FlywayMigrationsDetails } from "./FlywayMigrationsDetails";
 import { FlywayMigrationsTable } from "./FlywayMigrationsTable";
+import { MessageDialog } from "./MessageDialog";
 
 type FlywayMigrationsScreenProps = {
   qbmFile: QbmFile;
@@ -101,6 +102,7 @@ export function FlywayMigrationsScreen({
   const [versionInput, setVersionInput] = useState("");
   const [descriptionInput, setDescriptionInput] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null);
 
   const versions = getFlywayVersions(qbmFile);
   const lastVersion = getLastFlywayVersion(qbmFile);
@@ -354,14 +356,14 @@ export function FlywayMigrationsScreen({
   const handleExportSql = async () => {
     if (!selectedVersion) return;
     if (!selectedVersion.generatedSql) {
-      alert("This migration does not contain any generated SQL.");
+      setExportErrorMessage("This migration does not contain any generated SQL.");
       return;
     }
 
     try {
       const api = window.qubeModeler;
       if (!api) {
-        alert("Electron API is not available.");
+        setExportErrorMessage("Electron API is not available.");
         return;
       }
 
@@ -371,10 +373,10 @@ export function FlywayMigrationsScreen({
       });
 
       if (result && !result.canceled && "error" in result && result.error) {
-        alert(result.error);
+        setExportErrorMessage(result.error);
       }
     } catch (error) {
-      alert(`Error exporting migration: ${error instanceof Error ? error.message : String(error)}`);
+      setExportErrorMessage(`Error exporting migration: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -774,6 +776,14 @@ export function FlywayMigrationsScreen({
         >
           <SqlEditorPreview sql={buildFlywayVersionSql(selectedVersion)} />
         </CanvasModal>
+      )}
+
+      {exportErrorMessage && (
+        <MessageDialog
+          title="Export error"
+          message={exportErrorMessage}
+          onClose={() => setExportErrorMessage(null)}
+        />
       )}
 
       {isScriptModalOpen && (

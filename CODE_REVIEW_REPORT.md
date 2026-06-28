@@ -175,38 +175,42 @@ A release 1.0.0 não tem mais bloqueadores CRITICAL/HIGH listados neste relatór
 ### LOW-001
 
 - Severity: LOW
+- Status: CORRIGIDO
 - Area: UX consistency
 - File(s): `FlywayMigrationsScreen.tsx`
 - Problem: export errors usam `alert()` nativo, diferente dos modais do app.
 - Recommended fix: usar `MessageDialog`.
-- Release blocking: No
+- Release blocking: No, corrigido
 
 ### LOW-002
 
 - Severity: LOW
+- Status: CORRIGIDO
 - Area: Window lifecycle
 - File(s): `electron/main.ts`
 - Problem: fechamento depende do renderer responder `qbm:confirm-close`; se renderer travar, janela não fecha normalmente.
 - Recommended fix: fallback ou dialog nativo em caso de timeout.
-- Release blocking: No
+- Release blocking: No, corrigido
 
 ### LOW-003
 
 - Severity: LOW
+- Status: CORRIGIDO
 - Area: Window state
 - File(s): `electron/window-state.ts`
 - Problem: bounds são checados contra displays, mas width/height corrompidos não são clampados.
 - Recommended fix: limitar min/max ao carregar estado.
-- Release blocking: No
+- Release blocking: No, corrigido
 
 ### LOW-004
 
 - Severity: LOW
+- Status: CORRIGIDO
 - Area: Accessibility
 - File(s): `WelcomeScreen.tsx`, `FlywayMigrationsTable.tsx`
 - Problem: itens clicáveis são `div`/`tr` sem semântica de botão/keyboard.
 - Recommended fix: adicionar `button`, `role`, `tabIndex` e handlers de teclado.
-- Release blocking: No
+- Release blocking: No, corrigido
 
 ## 7. Future Improvements
 

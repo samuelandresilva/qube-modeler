@@ -1,6 +1,7 @@
 import qubeIcon from "@/assets/qube-modeler-icon.png";
 import type { RecentProject } from "@/core/qbm/ipc-types";
 import { FolderOpen, Plus } from "lucide-react";
+import type { KeyboardEvent } from "react";
 import "../styles/WelcomeScreen.css";
 
 type WelcomeScreenProps = {
@@ -22,6 +23,15 @@ export function WelcomeScreen({
   appVersion,
   onOpenAbout,
 }: WelcomeScreenProps) {
+  const handleRecentProjectKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>,
+    filePath: string,
+  ) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onOpenRecentProject(filePath);
+  };
+
   const formatLastOpened = (dateStr: string): string => {
     try {
       const date = new Date(dateStr);
@@ -92,7 +102,12 @@ export function WelcomeScreen({
                 <div
                   key={project.filePath}
                   className="canvas-welcome__recent-item"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onOpenRecentProject(project.filePath)}
+                  onKeyDown={(event) =>
+                    handleRecentProjectKeyDown(event, project.filePath)
+                  }
                 >
                   <div className="canvas-welcome__recent-info">
                     <span className="canvas-welcome__recent-name">
@@ -107,6 +122,8 @@ export function WelcomeScreen({
                   </div>
                   <button
                     className="canvas-welcome__recent-remove"
+                    type="button"
+                    aria-label={`Remove ${project.name} from recent projects`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onRemoveRecentProject(project.filePath);

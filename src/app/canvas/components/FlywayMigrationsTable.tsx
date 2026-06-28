@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { KeyboardEvent } from "react";
 import type { QbmFlywayVersion } from "@/core/qbm/qbm-file";
 
 type FlywayMigrationsTableProps = {
@@ -22,6 +23,16 @@ export function FlywayMigrationsTable({
       v.fileName.toLowerCase().includes(query)
     );
   });
+
+  const handleRowKeyDown = (
+    event: KeyboardEvent<HTMLTableRowElement>,
+    version: QbmFlywayVersion,
+    isSelected: boolean,
+  ) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onSelectVersion(isSelected ? null : version);
+  };
 
   return (
     <div className="flyway-table-container">
@@ -61,7 +72,13 @@ export function FlywayMigrationsTable({
                   <tr
                     key={v.id}
                     className={`flyway-table-row ${isSelected ? "flyway-table-row--selected" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-selected={isSelected}
                     onClick={() => onSelectVersion(isSelected ? null : v)}
+                    onKeyDown={(event) =>
+                      handleRowKeyDown(event, v, isSelected)
+                    }
                   >
                     <td>
                       <span className="flyway-badge flyway-badge--versioned">Versioned</span>
