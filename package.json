@@ -1,6 +1,8 @@
 {
   "name": "qube-modeler",
   "productName": "Qube Modeler",
+  "description": "Visual database modeler for PostgreSQL and Flyway migrations.",
+  "author": "Beta Qube",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -10,7 +12,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "package": "pnpm build && electron-builder"
+    "package": "pnpm build && electron-builder",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "build": {
     "appId": "dev.betaqube.qubemodeler",
@@ -31,7 +36,9 @@
       "license": "build/installer/LICENSE.txt",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerLanguages": ["en_US"]
+      "installerLanguages": [
+        "en_US"
+      ]
     },
     "linux": {
       "icon": "build/icons/app/icon.png"
@@ -60,6 +67,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.9",
     "electron": "^42.4.1",
     "electron-builder": "^26.15.3",
     "eslint": "^10.3.0",
@@ -70,6 +78,7 @@
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12",
     "vite-plugin-electron": "^1.0.4",
-    "vite-plugin-electron-renderer": "^1.0.0"
+    "vite-plugin-electron-renderer": "^1.0.0",
+    "vitest": "^4.1.9"
   }
 }
