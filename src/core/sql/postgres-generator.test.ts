@@ -181,4 +181,37 @@ describe("postgres-generator", () => {
     const sql = generatePostgresSql(project);
     expect(sql).toContain("DEFAULT nextval('public.my_seq'::regclass)");
   });
+
+  it("emits all CREATE SCHEMA statements before any other object", () => {
+    const project = createProjectFixture({
+      schemas: [
+        createSchemaFixture({
+          id: "s1",
+          name: "public",
+          tables: [createTableFixture({ id: "t1", name: "users" })]
+        }),
+        createSchemaFixture({
+          id: "s2",
+          name: "auth",
+          tables: [createTableFixture({ id: "t2", name: "accounts" })]
+        })
+      ]
+    });
+
+    const sql = generatePostgresSql(project);
+    const createSchemaPublicPos = sql.indexOf("CREATE SCHEMA IF NOT EXISTS public;");
+    const createSchemaAuthPos = sql.indexOf("CREATE SCHEMA IF NOT EXISTS auth;");
+    const createTableUsersPos = sql.indexOf("CREATE TABLE IF NOT EXISTS public.users");
+    const createTableAccountsPos = sql.indexOf("CREATE TABLE IF NOT EXISTS auth.accounts");
+
+    expect(createSchemaPublicPos).toBeGreaterThan(-1);
+    expect(createSchemaAuthPos).toBeGreaterThan(-1);
+    expect(createTableUsersPos).toBeGreaterThan(-1);
+    expect(createTableAccountsPos).toBeGreaterThan(-1);
+
+    expect(createSchemaPublicPos).toBeLessThan(createTableUsersPos);
+    expect(createSchemaPublicPos).toBeLessThan(createTableAccountsPos);
+    expect(createSchemaAuthPos).toBeLessThan(createTableUsersPos);
+    expect(createSchemaAuthPos).toBeLessThan(createTableAccountsPos);
+  });
 });

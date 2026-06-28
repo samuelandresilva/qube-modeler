@@ -11,14 +11,19 @@ import type {
 import { supportsScale, supportsSize } from "./postgres-column-types";
 
 export function generatePostgresSql(project: DatabaseProject): string {
-  return project.schemas
-    .map((schema) => generateSchemaSql(schema))
+  const schemaDefinitions = project.schemas
+    .map((schema) => `CREATE SCHEMA IF NOT EXISTS ${schema.name};`)
+    .join("\n");
+
+  const schemaObjects = project.schemas
+    .map((schema) => generateSchemaObjectsSql(schema))
+    .filter(Boolean)
     .join("\n\n");
+
+  return [schemaDefinitions, schemaObjects].filter(Boolean).join("\n\n");
 }
 
-function generateSchemaSql(schema: DatabaseSchema): string {
-  const schemaSql = `CREATE SCHEMA IF NOT EXISTS ${schema.name};`;
-
+function generateSchemaObjectsSql(schema: DatabaseSchema): string {
   const sequenceSql = schema.sequences.map((sequence) =>
     generateSequenceSql(schema, sequence),
   );
@@ -36,7 +41,6 @@ function generateSchemaSql(schema: DatabaseSchema): string {
   );
 
   return [
-    schemaSql,
     ...sequenceSql,
     ...tableSql,
     ...tablePostCreateSql,
