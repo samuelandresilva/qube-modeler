@@ -45,7 +45,24 @@ export function ColumnDialog({
   const valid = normalizedName === "" || isValidSqlIdentifier(normalizedName);
   const reserved =
     normalizedName !== "" && isPostgresReservedWord(normalizedName);
-  const canSubmit = normalizedName !== "" && valid && !reserved && !duplicate;
+  const sizeValid =
+    !supportsSize(type) ||
+    (Number.isInteger(size) && typeof size === "number" && size > 0);
+  const scaleValid =
+    !supportsScale(type) ||
+    (Number.isInteger(scale) &&
+      typeof scale === "number" &&
+      scale >= 0 &&
+      (typeof size !== "number" || scale <= size));
+  const defaultValid = sequenceName !== "" || !/[;\n\r]/.test(defaultValue);
+  const canSubmit =
+    normalizedName !== "" &&
+    valid &&
+    !reserved &&
+    !duplicate &&
+    sizeValid &&
+    scaleValid &&
+    defaultValid;
 
   const submit = () =>
     onSubmit({
@@ -185,6 +202,21 @@ export function ColumnDialog({
         {reserved && (
           <p className="canvas-modal-error">
             Column name cannot be a PostgreSQL reserved word.
+          </p>
+        )}
+        {!sizeValid && (
+          <p className="canvas-modal-error">
+            Size must be a positive integer for this type.
+          </p>
+        )}
+        {!scaleValid && (
+          <p className="canvas-modal-error">
+            Scale must be zero or a positive integer and cannot be greater than size.
+          </p>
+        )}
+        {!defaultValid && (
+          <p className="canvas-modal-error">
+            Default value cannot contain semicolon or line breaks.
           </p>
         )}
         <div className="canvas-modal-actions">

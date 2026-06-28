@@ -27,14 +27,27 @@ app.commandLine.appendSwitch("log-level", "3");
 app.setName("Qube Modeler");
 
 let pendingQbmPath: string | null = null;
+let rendererReadyForOpenFileRequests = false;
 
 function getQbmFilePathFromArgs(args: string[]): string | null {
   for (const arg of args) {
-    if (arg.endsWith(".qbm")) {
+    if (hasQbmExtension(arg)) {
       return path.resolve(arg);
     }
   }
   return null;
+}
+
+function requestOpenQbmFile(filePath: string): void {
+  const resolvedPath = path.resolve(filePath);
+  if (!hasQbmExtension(resolvedPath)) return;
+
+  if (mainWindow && rendererReadyForOpenFileRequests) {
+    mainWindow.webContents.send("qbm:open-file-requested", resolvedPath);
+    return;
+  }
+
+  pendingQbmPath = resolvedPath;
 }
 
 // Request single instance lock
@@ -49,7 +62,7 @@ if (!gotTheLock) {
 
       const secondInstancePath = getQbmFilePathFromArgs(commandLine);
       if (secondInstancePath) {
-        mainWindow.webContents.send("qbm:open-file-requested", secondInstancePath);
+        requestOpenQbmFile(secondInstancePath);
       }
     }
   });
@@ -58,13 +71,8 @@ if (!gotTheLock) {
 // Listen to macOS file open
 app.on("open-file", (event, filePath) => {
   event.preventDefault();
-  if (filePath.endsWith(".qbm")) {
-    const resolvedPath = path.resolve(filePath);
-    if (mainWindow && mainWindow.webContents) {
-      mainWindow.webContents.send("qbm:open-file-requested", resolvedPath);
-    } else {
-      pendingQbmPath = resolvedPath;
-    }
+  if (hasQbmExtension(filePath)) {
+    requestOpenQbmFile(filePath);
   }
 });
 
@@ -80,7 +88,9 @@ if (startupPath) {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const appIconPath = path.join(process.cwd(), "build", "icon.png");
+const appIconPath = app.isPackaged
+  ? path.join(__dirname, "../build/icon.png")
+  : path.join(process.cwd(), "build", "icon.png");
 
 process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
 
@@ -185,6 +195,7 @@ function configureProjectIpc() {
   });
 
   ipcMain.handle("qbm:get-pending-file", async (): Promise<string | null> => {
+    rendererReadyForOpenFileRequests = true;
     const pathToSend = pendingQbmPath;
     pendingQbmPath = null;
     return pathToSend;
@@ -435,6 +446,7 @@ function configureApplicationMenu() {
 
 function createWindow() {
   isWindowCloseConfirmed = false;
+  rendererReadyForOpenFileRequests = false;
   const state = loadWindowState();
 
   mainWindow = new BrowserWindow({

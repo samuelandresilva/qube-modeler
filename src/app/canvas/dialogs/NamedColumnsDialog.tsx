@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { MultiColumnSelect } from "@/app/shared/components/MultiColumnSelect";
 import type { DatabaseTable } from "@/core/model";
-import { isValidSqlIdentifier } from "@/core/sql/postgres-identifiers";
+import {
+  isPostgresReservedWord,
+  isValidSqlIdentifier,
+} from "@/core/sql/postgres-identifiers";
 import { CanvasModal } from "@/app/canvas/components/CanvasModal";
 
 type Entity = "index" | "unique constraint";
@@ -32,8 +35,14 @@ export function NamedColumnsDialog({
     (item) => item.name !== current?.name && item.name === normalizedName,
   );
   const valid = normalizedName === "" || isValidSqlIdentifier(normalizedName);
+  const reserved =
+    normalizedName !== "" && isPostgresReservedWord(normalizedName);
   const canSubmit =
-    normalizedName !== "" && valid && !duplicate && columns.length > 0;
+    normalizedName !== "" &&
+    valid &&
+    !reserved &&
+    !duplicate &&
+    columns.length > 0;
   const label = entity === "index" ? "index" : "unique constraint";
 
   return (
@@ -66,6 +75,11 @@ export function NamedColumnsDialog({
         {!valid && (
           <p className="canvas-modal-error">
             Name must be a valid SQL identifier.
+          </p>
+        )}
+        {reserved && (
+          <p className="canvas-modal-error">
+            Name cannot be a PostgreSQL reserved word.
           </p>
         )}
         <div className="canvas-modal-actions">

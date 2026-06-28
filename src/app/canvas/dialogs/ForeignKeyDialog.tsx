@@ -7,7 +7,10 @@ import type {
   ForeignKeyAction,
 } from "@/core/model";
 import { FOREIGN_KEY_ACTIONS } from "@/core/model";
-import { isValidSqlIdentifier } from "@/core/sql/postgres-identifiers";
+import {
+  isPostgresReservedWord,
+  isValidSqlIdentifier,
+} from "@/core/sql/postgres-identifiers";
 import { CanvasModal } from "@/app/canvas/components/CanvasModal";
 
 type Props = {
@@ -61,9 +64,12 @@ export function ForeignKeyDialog({
     (item) => item.id !== foreignKey?.id && item.name === normalizedName,
   );
   const valid = normalizedName === "" || isValidSqlIdentifier(normalizedName);
+  const reserved =
+    normalizedName !== "" && isPostgresReservedWord(normalizedName);
   const canSubmit =
     normalizedName !== "" &&
     valid &&
+    !reserved &&
     !duplicate &&
     !!sourceColumn &&
     !!targetSchema &&
@@ -176,6 +182,11 @@ export function ForeignKeyDialog({
         {!valid && (
           <p className="canvas-modal-error">
             Foreign key name must be a valid SQL identifier.
+          </p>
+        )}
+        {reserved && (
+          <p className="canvas-modal-error">
+            Foreign key name cannot be a PostgreSQL reserved word.
           </p>
         )}
         <div className="canvas-modal-actions">

@@ -20,7 +20,8 @@
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*"
+      "dist-electron/**/*",
+      "build/icon.png"
     ],
     "win": {
       "target": "nsis",

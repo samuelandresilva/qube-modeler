@@ -119,42 +119,46 @@ A release 1.0.0 não tem mais bloqueadores CRITICAL/HIGH listados neste relatór
 ### MED-001
 
 - Severity: MEDIUM
+- Status: CORRIGIDO
 - Area: File association / pending open
 - File(s): `electron/main.ts`
 - Problem: `second-instance` e `open-file` enviam `qbm:open-file-requested` diretamente se `mainWindow` existe; se o renderer ainda não assinou, o evento pode se perder.
 - Scenario: app abrindo lentamente e usuário abre outro `.qbm` por associação.
 - Recommended fix: manter fila/pending path até renderer chamar `getPendingFile` ou sinalizar ready.
-- Release blocking: No
+- Release blocking: No, corrigido
 
 ### MED-002
 
 - Severity: MEDIUM
+- Status: CORRIGIDO
 - Area: File association
 - File(s): `electron/main.ts`
 - Problem: `getQbmFilePathFromArgs` usa `arg.endsWith(".qbm")` case-sensitive.
 - Scenario: arquivo `MODEL.QBM` não abre por argumento no Windows, embora o resto do app aceite extensão case-insensitive.
 - Recommended fix: usar `path.extname(arg).toLowerCase() === ".qbm"`.
-- Release blocking: No
+- Release blocking: No, corrigido
 
 ### MED-003
 
 - Severity: MEDIUM
+- Status: CORRIGIDO
 - Area: Packaging / runtime assets
 - File(s): `electron/main.ts`, `package.json`
 - Problem: `appIconPath` usa `process.cwd()/build/icon.png`, mas `build/**/*` não entra em `files` do app empacotado.
 - Scenario: no app instalado, `BrowserWindow.icon`/dock icon pode apontar para arquivo inexistente.
 - Recommended fix: usar asset incluído no pacote ou caminho condicionado por `app.isPackaged`.
-- Release blocking: No
+- Release blocking: No, corrigido
 
 ### MED-004
 
 - Severity: MEDIUM
+- Status: CORRIGIDO
 - Area: Validation / UX
 - File(s): `ForeignKeyDialog.tsx`, `NamedColumnsDialog.tsx`, `ColumnDialog.tsx`
 - Problem: alguns dialogs não bloqueiam reserved words ou defaults inválidos; a validação só falha no save.
 - Scenario: usuário cria FK/index chamado `user` ou default com `;`; projeto fica editável, mas Save falha depois.
 - Recommended fix: aplicar as mesmas validações do domínio nos forms antes de aceitar alterações.
-- Release blocking: No
+- Release blocking: No, corrigido
 
 ### MED-005
 
