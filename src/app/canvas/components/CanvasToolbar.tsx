@@ -1,3 +1,4 @@
+import type { DatabaseSchema } from "@/core/model";
 import {
   FileCode2,
   FilePlus2,
@@ -21,6 +22,9 @@ export type CanvasToolbarProps = {
   isAddingTable: boolean;
   onExportJson?: () => void;
   onGenerateSql: () => void;
+  schemas: DatabaseSchema[];
+  activeSchemaId: string | null;
+  onActiveSchemaChange: (schemaId: string | null) => void;
 };
 
 export function CanvasToolbar({
@@ -34,6 +38,9 @@ export function CanvasToolbar({
   onAddTable,
   isAddingTable,
   onGenerateSql,
+  schemas,
+  activeSchemaId,
+  onActiveSchemaChange,
 }: CanvasToolbarProps) {
   return (
     <div className="canvas-toolbar">
@@ -97,6 +104,28 @@ export function CanvasToolbar({
 
         <div className="canvas-toolbar__separator" aria-hidden="true" />
 
+        <div className="canvas-toolbar__schema-select-container">
+          <span className="canvas-toolbar__schema-select-label">Schema:</span>
+          <select
+            className="canvas-toolbar__schema-select"
+            value={activeSchemaId || ""}
+            onChange={(e) => onActiveSchemaChange(e.target.value || null)}
+            disabled={schemas.length === 0}
+          >
+            {schemas.length === 0 ? (
+              <option value="">No schemas</option>
+            ) : (
+              schemas.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+
+        <div className="canvas-toolbar__separator" aria-hidden="true" />
+
         <button
           className="canvas-toolbar__icon-button"
           type="button"
@@ -113,6 +142,7 @@ export function CanvasToolbar({
           title="Add table"
           aria-label="Add table"
           onClick={onAddTable}
+          disabled={!activeSchemaId}
         >
           <Grid2X2Plus size={18} strokeWidth={2.4} />
         </button>

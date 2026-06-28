@@ -119,3 +119,58 @@ export function removeTable(
     },
   };
 }
+
+export function moveTableSchema(
+  project: DatabaseProject,
+  tableId: string,
+  targetSchemaId: string,
+): DatabaseProject {
+  const context = findTableContext(project, tableId);
+  if (!context || context.schema.id === targetSchemaId) return project;
+
+  const targetSchema = project.schemas.find((s) => s.id === targetSchemaId);
+  if (!targetSchema) return project;
+
+  const oldSchemaName = context.schema.name;
+  const newSchemaName = targetSchema.name;
+
+  // Remove table from old schema
+  const schemasAfterRemoval = project.schemas.map((s) => {
+    if (s.id === context.schema.id) {
+      return {
+        ...s,
+        tables: s.tables.filter((t) => t.id !== tableId),
+      };
+    }
+    return s;
+  });
+
+  // Add table to new schema, and update any foreign keys referencing the moved table to point to the new schema
+  const schemasAfterMove = schemasAfterRemoval.map((s) => {
+    let updatedTables = s.tables;
+    if (s.id === targetSchemaId) {
+      updatedTables = [...updatedTables, context.table];
+    }
+
+    if (oldSchemaName !== newSchemaName) {
+      updatedTables = updatedTables.map((t) => ({
+        ...t,
+        foreignKeys: t.foreignKeys.map((fk) =>
+          fk.targetSchema === oldSchemaName && fk.targetTable === context.table.name
+            ? { ...fk, targetSchema: newSchemaName }
+            : fk
+        ),
+      }));
+    }
+
+    return {
+      ...s,
+      tables: updatedTables,
+    };
+  });
+
+  return {
+    ...project,
+    schemas: schemasAfterMove,
+  };
+}

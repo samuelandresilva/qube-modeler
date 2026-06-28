@@ -16,7 +16,7 @@ export function mapProjectToFlow(
     })),
   );
 
-  const nodes: Node[] = tables.map(({ table }, index) => {
+  const nodes: Node[] = tables.map(({ schema, table }, index) => {
     const tableNode = project.diagram.tableNodes.find(
       (currentTableNode) => currentTableNode.tableId === table.id,
     );
@@ -30,6 +30,7 @@ export function mapProjectToFlow(
       },
       data: {
         tableName: table.name,
+        schemaName: schema.name,
         onDoubleClickColumn: onDoubleClickColumn
           ? (columnId: string) => onDoubleClickColumn(table.id, columnId)
           : undefined,

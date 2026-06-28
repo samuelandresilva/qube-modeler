@@ -15,6 +15,7 @@ import {
   removeSequence,
   removeTable,
   updateTable,
+  moveTableSchema,
   type DatabaseProject,
 } from "@/core/model";
 import { generatePostgresSql } from "@/core/sql/postgres-generator";
@@ -81,8 +82,21 @@ function CanvasContent({
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<CanvasDialogState>(null);
   const [isAddingTable, setIsAddingTable] = useState(false);
+  const [activeSchemaId, setActiveSchemaId] = useState<string | null>(null);
   const { confirm, requestConfirm, dismissConfirm, acceptConfirm } =
     useConfirm();
+
+  const schemaIds = project.schemas.map((s) => s.id);
+  if (schemaIds.length === 0) {
+    if (activeSchemaId !== null) {
+      setActiveSchemaId(null);
+    }
+  } else {
+    if (activeSchemaId === null || !schemaIds.includes(activeSchemaId)) {
+      setActiveSchemaId(schemaIds[0]);
+    }
+  }
+
   const context = selectedTableId
     ? findTableContext(project, selectedTableId)
     : undefined;
@@ -111,20 +125,27 @@ function CanvasContent({
   }, [isAddingTable]);
 
   const toggleAddTableMode = () => {
+    if (!activeSchemaId) return;
     setIsAddingTable((prev) => !prev);
   };
   const handlePaneClick = (event: React.MouseEvent) => {
     if (isAddingTable) {
-      const schema = project.schemas[0];
-      if (!schema) {
+      if (!activeSchemaId) {
         setIsAddingTable(false);
+        return;
+      }
+      const schemaExists = project.schemas.some((s) => s.id === activeSchemaId);
+      if (!schemaExists) {
+        setIsAddingTable(false);
+        setActiveSchemaId(project.schemas.length > 0 ? project.schemas[0].id : null);
+        onFileOperationError("The selected schema no longer exists. Please select a valid schema.");
         return;
       }
       const position = screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       });
-      const result = createTable(project, schema.id, position);
+      const result = createTable(project, activeSchemaId, position);
       setProject(result.project);
       setSelectedTableId(result.id);
       setIsAddingTable(false);
@@ -228,11 +249,21 @@ function CanvasContent({
           onFitView={flow.fitView}
           onExportJson={() => void download("json")}
           onGenerateSql={() => void download("sql")}
+          schemas={project.schemas}
+          activeSchemaId={activeSchemaId}
+          onActiveSchemaChange={setActiveSchemaId}
         />
         {context && (
           <CanvasInspector
             table={context.table}
             onClose={() => setSelectedTableId(null)}
+            schemas={project.schemas}
+            currentSchemaId={context.schema.id}
+            onChangeSchema={(schemaId) =>
+              setProject((current) =>
+                moveTableSchema(current, context.table.id, schemaId),
+              )
+            }
             onRenameTable={(name) =>
               setProject((current) =>
                 updateTable(

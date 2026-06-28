@@ -1,7 +1,9 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { FolderTree } from "lucide-react";
 
 export type DatabaseTableNodeData = {
   tableName: string;
+  schemaName?: string;
   onDoubleClickColumn?: (columnId: string) => void;
   columns: {
     id: string;
@@ -14,12 +16,19 @@ export type DatabaseTableNodeData = {
 
 export function DatabaseTableNode({ data }: NodeProps) {
   const tableData = data as DatabaseTableNodeData;
+  const schemaName = tableData.schemaName || "unknown schema";
 
   return (
     <div className="database-table-card">
       <div className="database-table-card__header">
-        <span className="database-table-card__icon">▦</span>
-        <strong>{tableData.tableName}</strong>
+        <div className="database-table-card__schema">
+          <FolderTree className="database-table-card__schema-icon" size={11} />
+          <span className="database-table-card__schema-name">{schemaName}</span>
+        </div>
+        <div className="database-table-card__title-row">
+          <span className="database-table-card__icon">▦</span>
+          <strong>{tableData.tableName}</strong>
+        </div>
       </div>
 
       <div className="database-table-card__columns">

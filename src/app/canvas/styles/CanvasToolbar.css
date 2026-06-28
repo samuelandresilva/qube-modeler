@@ -1,13 +1,12 @@
 .canvas-toolbar {
   position: fixed;
   top: 50px;
-  left: 530px;
+  left: 300px;
   z-index: 100;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  transform: translateX(-50%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: rgba(15, 23, 42, 0.94);
@@ -65,3 +64,44 @@
   background: var(--color-accent);
   color: #020617;
 }
+
+.canvas-toolbar__schema-select-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-subtle);
+  font-weight: 500;
+}
+
+.canvas-toolbar__schema-select-label {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.canvas-toolbar__schema-select {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-strong);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 20px 4px 8px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+
+.canvas-toolbar__schema-select:hover {
+  border-color: var(--color-border-strong);
+}
+
+.canvas-toolbar__schema-select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
