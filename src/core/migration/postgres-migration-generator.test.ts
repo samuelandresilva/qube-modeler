@@ -432,4 +432,634 @@ describe("postgres-migration-generator", () => {
       expect(renamePos).toBeLessThan(addColumnPos);
     });
   });
+
+  describe("CHECK constraints migration generation", () => {
+    const emptyProj = createProjectFixture();
+
+    it("1. Gera ADD_CHECK_CONSTRAINT", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "ADD_CHECK_CONSTRAINT",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            constraintId: "chk1",
+            constraintName: "chk_tb_users_age",
+            expression: "age BETWEEN 0 AND 120",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      expect(sql).toContain("ALTER TABLE public.tb_users ADD CONSTRAINT chk_tb_users_age CHECK (age BETWEEN 0 AND 120);");
+    });
+
+    it("2. Gera DROP_CHECK_CONSTRAINT", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "DROP_CHECK_CONSTRAINT",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            constraintId: "chk1",
+            constraintName: "chk_tb_users_age",
+            expression: "age BETWEEN 0 AND 120",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      expect(sql).toContain("ALTER TABLE public.tb_users DROP CONSTRAINT chk_tb_users_age;");
+    });
+
+    it("3. Gera ALTER_CHECK_CONSTRAINT como DROP + ADD", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "ALTER_CHECK_CONSTRAINT",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            constraintId: "chk1",
+            oldConstraintName: "chk_tb_users_age",
+            newConstraintName: "chk_tb_users_age",
+            oldExpression: "age BETWEEN 0 AND 120",
+            newExpression: "age BETWEEN 18 AND 120",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      const dropPos = sql.indexOf("DROP CONSTRAINT chk_tb_users_age;");
+      const addPos = sql.indexOf("ADD CONSTRAINT chk_tb_users_age CHECK (age BETWEEN 18 AND 120);");
+      expect(dropPos).toBeGreaterThan(-1);
+      expect(addPos).toBeGreaterThan(-1);
+      expect(dropPos).toBeLessThan(addPos);
+    });
+
+    it("4. ADD_CHECK_CONSTRAINT vem depois de ADD_COLUMN", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "ADD_CHECK_CONSTRAINT",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            constraintId: "chk1",
+            constraintName: "chk_tb_users_age",
+            expression: "age BETWEEN 0 AND 120",
+            columnIds: ["col-age"],
+          },
+          {
+            kind: "ADD_COLUMN",
+            risk: "safe",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            columnId: "col-age",
+            columnName: "age",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      
+      const schema = createSchemaFixture({
+        id: "s1",
+        name: "public",
+        tables: [
+          createTableFixture({
+            id: "t1",
+            name: "tb_users",
+            columns: [createColumnFixture({ id: "col-age", name: "age", type: "integer" })],
+          })
+        ]
+      });
+      const project = createProjectFixture({ schemas: [schema] });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      const addColPos = sql.indexOf("ADD COLUMN age integer NOT NULL;");
+      const addCheckPos = sql.indexOf("ADD CONSTRAINT chk_tb_users_age CHECK (age BETWEEN 0 AND 120);");
+      expect(addColPos).toBeGreaterThan(-1);
+      expect(addCheckPos).toBeGreaterThan(-1);
+      expect(addColPos).toBeLessThan(addCheckPos);
+    });
+
+    it("5. DROP_CHECK_CONSTRAINT vem antes de DROP_COLUMN", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "DROP_COLUMN",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            columnId: "col-age",
+            columnName: "age",
+          },
+          {
+            kind: "DROP_CHECK_CONSTRAINT",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            constraintId: "chk1",
+            constraintName: "chk_tb_users_age",
+            expression: "age BETWEEN 0 AND 120",
+            columnIds: ["col-age"],
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      const dropCheckPos = sql.indexOf("DROP CONSTRAINT chk_tb_users_age;");
+      const dropColPos = sql.indexOf("DROP COLUMN age;");
+      expect(dropCheckPos).toBeGreaterThan(-1);
+      expect(dropColPos).toBeGreaterThan(-1);
+      expect(dropCheckPos).toBeLessThan(dropColPos);
+    });
+
+    it("6. ALTER_CHECK_CONSTRAINT + ALTER_COLUMN_TYPE gera drop, altera coluna, add", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "ALTER_CHECK_CONSTRAINT",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            constraintId: "chk1",
+            oldConstraintName: "chk_tb_users_age",
+            newConstraintName: "chk_tb_users_age",
+            oldExpression: "age BETWEEN 0 AND 120",
+            newExpression: "age BETWEEN 18 AND 120",
+            oldColumnIds: ["col-age"],
+            newColumnIds: ["col-age"],
+          },
+          {
+            kind: "ALTER_COLUMN_TYPE",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            columnId: "col-age",
+            columnName: "age",
+            oldType: "integer",
+            newType: "bigint",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+
+      const schema = createSchemaFixture({
+        id: "s1",
+        name: "public",
+        tables: [
+          createTableFixture({
+            id: "t1",
+            name: "tb_users",
+            columns: [createColumnFixture({ id: "col-age", name: "age", type: "bigint" })],
+          })
+        ]
+      });
+      const project = createProjectFixture({ schemas: [schema] });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      const dropCheckPos = sql.indexOf("DROP CONSTRAINT chk_tb_users_age;");
+      const alterColPos = sql.indexOf("ALTER COLUMN age TYPE bigint;");
+      const addCheckPos = sql.indexOf("ADD CONSTRAINT chk_tb_users_age CHECK (age BETWEEN 18 AND 120);");
+      expect(dropCheckPos).toBeGreaterThan(-1);
+      expect(alterColPos).toBeGreaterThan(-1);
+      expect(addCheckPos).toBeGreaterThan(-1);
+      expect(dropCheckPos).toBeLessThan(alterColPos);
+      expect(alterColPos).toBeLessThan(addCheckPos);
+    });
+
+    it("7. ALTER_TABLE_SCHEMA + ADD_CHECK_CONSTRAINT usa schema novo no ADD", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "ALTER_TABLE_SCHEMA",
+            risk: "warning",
+            tableId: "t1",
+            tableName: "tb_users",
+            oldSchemaName: "public",
+            newSchemaName: "auth",
+          },
+          {
+            kind: "ADD_CHECK_CONSTRAINT",
+            risk: "warning",
+            schemaId: "s2",
+            schemaName: "auth",
+            tableId: "t1",
+            tableName: "tb_users",
+            constraintId: "chk1",
+            constraintName: "chk_tb_users_age",
+            expression: "age BETWEEN 0 AND 120",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      const movePos = sql.indexOf("ALTER TABLE public.tb_users SET SCHEMA auth;");
+      const addCheckPos = sql.indexOf("ALTER TABLE auth.tb_users ADD CONSTRAINT chk_tb_users_age CHECK (age BETWEEN 0 AND 120);");
+      expect(movePos).toBeGreaterThan(-1);
+      expect(addCheckPos).toBeGreaterThan(-1);
+      expect(movePos).toBeLessThan(addCheckPos);
+    });
+
+    it("8. ALTER_TABLE_SCHEMA + DROP_CHECK_CONSTRAINT usa schema antigo no DROP", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "DROP_CHECK_CONSTRAINT",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            constraintId: "chk1",
+            constraintName: "chk_tb_users_age",
+            expression: "age BETWEEN 0 AND 120",
+          },
+          {
+            kind: "ALTER_TABLE_SCHEMA",
+            risk: "warning",
+            tableId: "t1",
+            tableName: "tb_users",
+            oldSchemaName: "public",
+            newSchemaName: "auth",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      const dropCheckPos = sql.indexOf("ALTER TABLE public.tb_users DROP CONSTRAINT chk_tb_users_age;");
+      const movePos = sql.indexOf("ALTER TABLE public.tb_users SET SCHEMA auth;");
+      expect(dropCheckPos).toBeGreaterThan(-1);
+      expect(movePos).toBeGreaterThan(-1);
+      expect(dropCheckPos).toBeLessThan(movePos);
+    });
+
+    it("9. ALTER_TABLE_SCHEMA + ALTER_CHECK_CONSTRAINT", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "ALTER_CHECK_CONSTRAINT",
+            risk: "warning",
+            schemaId: "s2",
+            schemaName: "auth",
+            tableId: "t1",
+            tableName: "tb_users",
+            oldSchemaName: "public",
+            oldTableName: "tb_users",
+            constraintId: "chk1",
+            oldConstraintName: "chk_tb_users_age",
+            newConstraintName: "chk_tb_users_age",
+            oldExpression: "age BETWEEN 0 AND 120",
+            newExpression: "age BETWEEN 18 AND 120",
+          },
+          {
+            kind: "ALTER_TABLE_SCHEMA",
+            risk: "warning",
+            tableId: "t1",
+            tableName: "tb_users",
+            oldSchemaName: "public",
+            newSchemaName: "auth",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      const dropCheckPos = sql.indexOf("ALTER TABLE public.tb_users DROP CONSTRAINT chk_tb_users_age;");
+      const movePos = sql.indexOf("ALTER TABLE public.tb_users SET SCHEMA auth;");
+      const addCheckPos = sql.indexOf("ALTER TABLE auth.tb_users ADD CONSTRAINT chk_tb_users_age CHECK (age BETWEEN 18 AND 120);");
+      expect(dropCheckPos).toBeGreaterThan(-1);
+      expect(movePos).toBeGreaterThan(-1);
+      expect(addCheckPos).toBeGreaterThan(-1);
+      expect(dropCheckPos).toBeLessThan(movePos);
+      expect(movePos).toBeLessThan(addCheckPos);
+    });
+
+    it("10. ALTER_TABLE_SCHEMA + RENAME_TABLE + ADD_CHECK_CONSTRAINT", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "ALTER_TABLE_SCHEMA",
+            risk: "warning",
+            tableId: "t1",
+            tableName: "tb_users",
+            oldSchemaName: "public",
+            newSchemaName: "auth",
+          },
+          {
+            kind: "RENAME_TABLE",
+            risk: "warning",
+            schemaId: "s2",
+            schemaName: "auth",
+            tableId: "t1",
+            oldName: "tb_users",
+            newName: "tb_app_users",
+          },
+          {
+            kind: "ADD_CHECK_CONSTRAINT",
+            risk: "warning",
+            schemaId: "s2",
+            schemaName: "auth",
+            tableId: "t1",
+            tableName: "tb_app_users",
+            constraintId: "chk1",
+            constraintName: "chk_tb_app_users_age",
+            expression: "age BETWEEN 0 AND 120",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      const movePos = sql.indexOf("ALTER TABLE public.tb_users SET SCHEMA auth;");
+      const renamePos = sql.indexOf("ALTER TABLE auth.tb_users RENAME TO tb_app_users;");
+      const addCheckPos = sql.indexOf("ALTER TABLE auth.tb_app_users ADD CONSTRAINT chk_tb_app_users_age CHECK (age BETWEEN 0 AND 120);");
+      expect(movePos).toBeGreaterThan(-1);
+      expect(renamePos).toBeGreaterThan(-1);
+      expect(addCheckPos).toBeGreaterThan(-1);
+      expect(movePos).toBeLessThan(renamePos);
+      expect(renamePos).toBeLessThan(addCheckPos);
+    });
+
+    it("11. Preservar regra drop default antes de drop sequence", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "DROP_SEQUENCE",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            sequenceId: "seq1",
+            sequenceName: "my_seq",
+          },
+          {
+            kind: "ALTER_COLUMN_DEFAULT",
+            risk: "safe",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            columnId: "col1",
+            columnName: "id",
+            oldDefault: "nextval('my_seq')",
+            newDefault: undefined,
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      const dropDefPos = sql.indexOf("DROP DEFAULT");
+      const dropSeqPos = sql.indexOf("DROP SEQUENCE");
+      expect(dropDefPos).toBeGreaterThan(-1);
+      expect(dropSeqPos).toBeGreaterThan(-1);
+      expect(dropDefPos).toBeLessThan(dropSeqPos);
+    });
+
+    it("12. Preservar regra constraints/index antes de drop column", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "DROP_COLUMN",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            columnId: "col1",
+            columnName: "email",
+          },
+          {
+            kind: "DROP_UNIQUE_CONSTRAINT",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            uniqueConstraintId: "uc1",
+            uniqueConstraintName: "uk_tb_users_email",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      const dropUCPos = sql.indexOf("DROP CONSTRAINT uk_tb_users_email;");
+      const dropColPos = sql.indexOf("DROP COLUMN email;");
+      expect(dropUCPos).toBeGreaterThan(-1);
+      expect(dropColPos).toBeGreaterThan(-1);
+      expect(dropUCPos).toBeLessThan(dropColPos);
+    });
+
+    it("13. RENAME_SCHEMA + DROP_CHECK_CONSTRAINT", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "RENAME_SCHEMA",
+            risk: "warning",
+            schemaId: "s1",
+            oldName: "public",
+            newName: "auth",
+          },
+          {
+            kind: "DROP_CHECK_CONSTRAINT",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            constraintId: "chk1",
+            constraintName: "chk_tb_users_age",
+            expression: "age BETWEEN 0 AND 120",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      const dropPos = sql.indexOf("ALTER TABLE public.tb_users DROP CONSTRAINT chk_tb_users_age;");
+      const renamePos = sql.indexOf("ALTER SCHEMA public RENAME TO auth;");
+      expect(dropPos).toBeGreaterThan(-1);
+      expect(renamePos).toBeGreaterThan(-1);
+      expect(dropPos).toBeLessThan(renamePos);
+    });
+
+    it("14. RENAME_SCHEMA + ALTER_CHECK_CONSTRAINT", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "RENAME_SCHEMA",
+            risk: "warning",
+            schemaId: "s1",
+            oldName: "public",
+            newName: "auth",
+          },
+          {
+            kind: "ALTER_CHECK_CONSTRAINT",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "auth",
+            tableId: "t1",
+            tableName: "tb_users",
+            oldSchemaName: "public",
+            oldTableName: "tb_users",
+            constraintId: "chk1",
+            oldConstraintName: "chk_tb_users_age",
+            newConstraintName: "chk_tb_users_age",
+            oldExpression: "age BETWEEN 0 AND 120",
+            newExpression: "age BETWEEN 18 AND 120",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      const dropPos = sql.indexOf("ALTER TABLE public.tb_users DROP CONSTRAINT chk_tb_users_age;");
+      const renamePos = sql.indexOf("ALTER SCHEMA public RENAME TO auth;");
+      const addPos = sql.indexOf("ALTER TABLE auth.tb_users ADD CONSTRAINT chk_tb_users_age CHECK (age BETWEEN 18 AND 120);");
+      expect(dropPos).toBeGreaterThan(-1);
+      expect(renamePos).toBeGreaterThan(-1);
+      expect(addPos).toBeGreaterThan(-1);
+      expect(dropPos).toBeLessThan(renamePos);
+      expect(renamePos).toBeLessThan(addPos);
+    });
+
+    it("15. Garantir que ADD_CHECK_CONSTRAINT continua depois de RENAME_SCHEMA", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "RENAME_SCHEMA",
+            risk: "warning",
+            schemaId: "s1",
+            oldName: "public",
+            newName: "auth",
+          },
+          {
+            kind: "ADD_CHECK_CONSTRAINT",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "auth",
+            tableId: "t1",
+            tableName: "tb_users",
+            constraintId: "chk1",
+            constraintName: "chk_tb_users_age",
+            expression: "age BETWEEN 0 AND 120",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      const renamePos = sql.indexOf("ALTER SCHEMA public RENAME TO auth;");
+      const addPos = sql.indexOf("ALTER TABLE auth.tb_users ADD CONSTRAINT chk_tb_users_age CHECK (age BETWEEN 0 AND 120);");
+      expect(renamePos).toBeGreaterThan(-1);
+      expect(addPos).toBeGreaterThan(-1);
+      expect(renamePos).toBeLessThan(addPos);
+    });
+
+    it("16. Regressão ALTER_TABLE_SCHEMA + DROP_CHECK_CONSTRAINT", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "DROP_CHECK_CONSTRAINT",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            constraintId: "chk1",
+            constraintName: "chk_tb_users_age",
+            expression: "age BETWEEN 0 AND 120",
+          },
+          {
+            kind: "ALTER_TABLE_SCHEMA",
+            risk: "warning",
+            tableId: "t1",
+            tableName: "tb_users",
+            oldSchemaName: "public",
+            newSchemaName: "auth",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+      const sql = generatePostgresMigrationSql(diff, emptyProj);
+      const dropPos = sql.indexOf("ALTER TABLE public.tb_users DROP CONSTRAINT chk_tb_users_age;");
+      const movePos = sql.indexOf("ALTER TABLE public.tb_users SET SCHEMA auth;");
+      expect(dropPos).toBeGreaterThan(-1);
+      expect(movePos).toBeGreaterThan(-1);
+      expect(dropPos).toBeLessThan(movePos);
+    });
+
+    it("17. Regressão ALTER_CHECK_CONSTRAINT + ALTER_COLUMN_TYPE", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "ALTER_CHECK_CONSTRAINT",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            constraintId: "chk1",
+            oldConstraintName: "chk_tb_users_age",
+            newConstraintName: "chk_tb_users_age",
+            oldExpression: "age BETWEEN 0 AND 120",
+            newExpression: "age BETWEEN 18 AND 120",
+            oldColumnIds: ["col-age"],
+            newColumnIds: ["col-age"],
+          },
+          {
+            kind: "ALTER_COLUMN_TYPE",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            columnId: "col-age",
+            columnName: "age",
+            oldType: "integer",
+            newType: "bigint",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+
+      const schema = createSchemaFixture({
+        id: "s1",
+        name: "public",
+        tables: [
+          createTableFixture({
+            id: "t1",
+            name: "tb_users",
+            columns: [createColumnFixture({ id: "col-age", name: "age", type: "bigint" })],
+          })
+        ]
+      });
+      const project = createProjectFixture({ schemas: [schema] });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      const dropCheckPos = sql.indexOf("DROP CONSTRAINT chk_tb_users_age;");
+      const alterColPos = sql.indexOf("ALTER COLUMN age TYPE bigint;");
+      const addCheckPos = sql.indexOf("ADD CONSTRAINT chk_tb_users_age CHECK (age BETWEEN 18 AND 120);");
+      expect(dropCheckPos).toBeGreaterThan(-1);
+      expect(alterColPos).toBeGreaterThan(-1);
+      expect(addCheckPos).toBeGreaterThan(-1);
+      expect(dropCheckPos).toBeLessThan(alterColPos);
+      expect(alterColPos).toBeLessThan(addCheckPos);
+    });
+  });
 });

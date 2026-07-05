@@ -57,6 +57,14 @@ function didIndexChange(prevIdx: DatabaseIndex, currIdx: DatabaseIndex): boolean
   return false;
 }
 
+function areColumnIdsEqual(a?: string[], b?: string[]): boolean {
+  const arrA = a ?? [];
+  const arrB = b ?? [];
+  if (arrA.length !== arrB.length) return false;
+  const setA = new Set(arrA);
+  return arrB.every((id) => setA.has(id));
+}
+
 export function diffProjects(
   previousProject: DatabaseProject,
   currentProject: DatabaseProject,
@@ -604,6 +612,69 @@ export function diffProjects(
               tableName: currTable.name,
               indexId: prevIdx.id,
               indexName: prevIdx.name,
+            });
+          }
+        }
+
+        // CHECK constraints additions, renames, alterations & drops
+        const prevChecks = new Map((prevTable.checkConstraints ?? []).map((chk) => [chk.id, chk]));
+        const currChecks = new Map((currTable.checkConstraints ?? []).map((chk) => [chk.id, chk]));
+
+        for (const currChk of (currTable.checkConstraints ?? [])) {
+          const prevChk = prevChecks.get(currChk.id);
+          if (!prevChk) {
+            operations.push({
+              kind: "ADD_CHECK_CONSTRAINT",
+              risk: "warning",
+              schemaId: currSchema.id,
+              schemaName: currSchema.name,
+              tableId: currTable.id,
+              tableName: currTable.name,
+              constraintId: currChk.id,
+              constraintName: currChk.name,
+              expression: currChk.expression,
+              columnIds: currChk.columnIds,
+            });
+          } else {
+            const nameChanged = currChk.name !== prevChk.name;
+            const expressionChanged = (currChk.expression ?? "").trim() !== (prevChk.expression ?? "").trim();
+            const columnIdsChanged = !areColumnIdsEqual(currChk.columnIds, prevChk.columnIds);
+
+            if (nameChanged || expressionChanged || columnIdsChanged) {
+              operations.push({
+                kind: "ALTER_CHECK_CONSTRAINT",
+                risk: "warning",
+                schemaId: currSchema.id,
+                schemaName: currSchema.name,
+                tableId: currTable.id,
+                tableName: currTable.name,
+                oldSchemaName: prevSchema.name,
+                oldTableName: prevTable.name,
+                constraintId: currChk.id,
+                oldConstraintName: prevChk.name,
+                newConstraintName: currChk.name,
+                oldExpression: prevChk.expression,
+                newExpression: currChk.expression,
+                oldColumnIds: prevChk.columnIds,
+                newColumnIds: currChk.columnIds,
+              });
+            }
+          }
+        }
+
+        for (const prevChk of (prevTable.checkConstraints ?? [])) {
+          if (!currChecks.has(prevChk.id)) {
+            operations.push({
+              kind: "DROP_CHECK_CONSTRAINT",
+              risk: "destructive",
+              schemaId: prevSchema.id,
+              schemaName: prevSchema.name,
+              tableId: prevTable.id,
+              tableName: prevTable.name,
+              constraintId: prevChk.id,
+              constraintName: prevChk.name,
+              expression: prevChk.expression,
+              columnIds: prevChk.columnIds,
             });
           }
         }

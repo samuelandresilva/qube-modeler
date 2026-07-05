@@ -2,6 +2,7 @@ import { validateColumn } from "./column";
 import {
   validateNamedColumnList,
   validateNoDuplicateColumnLists,
+  validateCheckConstraint,
 } from "./constraints";
 import { validateForeignKey } from "./foreign-key";
 import {
@@ -22,6 +23,11 @@ export function validateTable(
     throw new Error(`Invalid table in schema "${schemaName}".`);
   validateRequiredString(table.id, `Table id in schema "${schemaName}"`);
   validateSqlIdentifier(table.name, `Table name in schema "${schemaName}"`);
+
+  if (!Array.isArray(table.checkConstraints)) {
+    table.checkConstraints = [];
+  }
+
   const columns = requireArray(
     table.columns,
     `Table "${table.name}" columns are required.`,
@@ -37,6 +43,10 @@ export function validateTable(
   const indexes = requireArray(
     table.indexes,
     `Table "${table.name}" indexes are required.`,
+  );
+  const checkConstraints = requireArray(
+    table.checkConstraints,
+    `Table "${table.name}" checkConstraints are required.`,
   );
 
   validateUniqueNames(
@@ -57,6 +67,11 @@ export function validateTable(
   validateUniqueNames(
     indexes,
     `Table "${table.name}" indexes`,
+    (item) => item.name,
+  );
+  validateUniqueNames(
+    checkConstraints,
+    `Table "${table.name}" check constraints`,
     (item) => item.name,
   );
   validateNoDuplicateDefinitions(
@@ -90,6 +105,7 @@ export function validateTable(
     validateNamedColumnList(item, table, "Unique constraint"),
   );
   indexes.forEach((item) => validateNamedColumnList(item, table, "Index"));
+  checkConstraints.forEach((item) => validateCheckConstraint(item, table));
 }
 
 function requireArray(value: unknown, message: string): unknown[] {

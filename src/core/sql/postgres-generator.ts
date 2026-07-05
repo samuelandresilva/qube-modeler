@@ -7,6 +7,7 @@ import type {
   DatabaseTable,
   DatabaseUniqueConstraint,
   DatabaseIndex,
+  CheckConstraint,
 } from "@/core/model";
 import { supportsScale, supportsSize } from "./postgres-column-types";
 
@@ -69,12 +70,18 @@ export function generateTableSql(
     generateColumnSql(schema, column),
   );
 
+  const checkConstraints = table.checkConstraints ?? [];
+  const checkLines = checkConstraints.map(generateCheckConstraintSql);
+
   const lines = includeConstraints
     ? [
         ...columnLines,
         ...generateInlineTableConstraintSql(table),
       ]
-    : columnLines;
+    : [
+        ...columnLines,
+        ...checkLines,
+      ];
 
   return [
     `CREATE TABLE IF NOT EXISTS ${schema.name}.${table.name}`,
@@ -119,16 +126,21 @@ function generateInlineTableConstraintSql(table: DatabaseTable): string[] {
         ]
       : [];
 
-  const foreignKeyConstraintLines = table.foreignKeys.map(
-    generateForeignKeySql,
-  );
   const uniqueConstraintLines = table.uniqueConstraints.map(
     generateUniqueConstraintSql,
+  );
+
+  const checkConstraints = table.checkConstraints ?? [];
+  const checkConstraintLines = checkConstraints.map(generateCheckConstraintSql);
+
+  const foreignKeyConstraintLines = table.foreignKeys.map(
+    generateForeignKeySql,
   );
 
   return [
     ...primaryKeyConstraintLines,
     ...uniqueConstraintLines,
+    ...checkConstraintLines,
     ...foreignKeyConstraintLines,
   ];
 }
@@ -240,4 +252,10 @@ export function generateIndexSql(
   const columns = index.columns.join(", ");
 
   return `CREATE INDEX IF NOT EXISTS ${index.name} ON ${schema.name}.${table.name} (${columns});`;
+}
+
+export function generateCheckConstraintSql(
+  checkConstraint: CheckConstraint,
+): string {
+  return `    CONSTRAINT ${checkConstraint.name} CHECK (${checkConstraint.expression})`;
 }

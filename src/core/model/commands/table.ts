@@ -23,6 +23,7 @@ export function createTable(
     foreignKeys: [],
     uniqueConstraints: [],
     indexes: [],
+    checkConstraints: [],
   };
 
   const finalPosition = position ?? {

@@ -853,4 +853,594 @@ describe("project-diff", () => {
       );
     });
   });
+
+  describe("CHECK constraints diff detection", () => {
+    it("1. Detecta ADD_CHECK_CONSTRAINT", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                columns: [createColumnFixture({ id: "col-age", name: "age" })],
+                checkConstraints: [],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                columns: [createColumnFixture({ id: "col-age", name: "age" })],
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                    columnIds: ["col-age"],
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual({
+        kind: "ADD_CHECK_CONSTRAINT",
+        risk: "warning",
+        schemaId: expect.any(String),
+        schemaName: "public",
+        tableId: "table-1",
+        tableName: "tb_users",
+        constraintId: "chk-1",
+        constraintName: "chk_tb_users_age",
+        expression: "age BETWEEN 0 AND 120",
+        columnIds: ["col-age"],
+      });
+    });
+
+    it("2. Detecta DROP_CHECK_CONSTRAINT", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                    columnIds: ["col-age"],
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                checkConstraints: [],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual({
+        kind: "DROP_CHECK_CONSTRAINT",
+        risk: "destructive",
+        schemaId: expect.any(String),
+        schemaName: "public",
+        tableId: "table-1",
+        tableName: "tb_users",
+        constraintId: "chk-1",
+        constraintName: "chk_tb_users_age",
+        expression: "age BETWEEN 0 AND 120",
+        columnIds: ["col-age"],
+      });
+    });
+
+    it("3. Detecta ALTER_CHECK_CONSTRAINT quando expression muda", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 18 AND 120",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual({
+        kind: "ALTER_CHECK_CONSTRAINT",
+        risk: "warning",
+        schemaId: expect.any(String),
+        schemaName: "public",
+        tableId: "table-1",
+        tableName: "tb_users",
+        oldSchemaName: "public",
+        oldTableName: "tb_users",
+        constraintId: "chk-1",
+        oldConstraintName: "chk_tb_users_age",
+        newConstraintName: "chk_tb_users_age",
+        oldExpression: "age BETWEEN 0 AND 120",
+        newExpression: "age BETWEEN 18 AND 120",
+        oldColumnIds: undefined,
+        newColumnIds: undefined,
+      });
+    });
+
+    it("4. Detecta ALTER_CHECK_CONSTRAINT quando name muda", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age_range",
+                    expression: "age BETWEEN 0 AND 120",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual({
+        kind: "ALTER_CHECK_CONSTRAINT",
+        risk: "warning",
+        schemaId: expect.any(String),
+        schemaName: "public",
+        tableId: "table-1",
+        tableName: "tb_users",
+        oldSchemaName: "public",
+        oldTableName: "tb_users",
+        constraintId: "chk-1",
+        oldConstraintName: "chk_tb_users_age",
+        newConstraintName: "chk_tb_users_age_range",
+        oldExpression: "age BETWEEN 0 AND 120",
+        newExpression: "age BETWEEN 0 AND 120",
+        oldColumnIds: undefined,
+        newColumnIds: undefined,
+      });
+    });
+
+    it("5. Detecta ALTER_CHECK_CONSTRAINT quando columnIds muda", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                    columnIds: ["col-age"],
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                    columnIds: ["col-age", "col-status"],
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual({
+        kind: "ALTER_CHECK_CONSTRAINT",
+        risk: "warning",
+        schemaId: expect.any(String),
+        schemaName: "public",
+        tableId: "table-1",
+        tableName: "tb_users",
+        oldSchemaName: "public",
+        oldTableName: "tb_users",
+        constraintId: "chk-1",
+        oldConstraintName: "chk_tb_users_age",
+        newConstraintName: "chk_tb_users_age",
+        oldExpression: "age BETWEEN 0 AND 120",
+        newExpression: "age BETWEEN 0 AND 120",
+        oldColumnIds: ["col-age"],
+        newColumnIds: ["col-age", "col-status"],
+      });
+    });
+
+    it("6. Não gera alteração de CHECK quando tabela muda de schema", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                  },
+                ],
+              }),
+            ],
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [],
+          }),
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [],
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0].kind).toBe("ALTER_TABLE_SCHEMA");
+    });
+
+    it("7. Não gera alteração de CHECK quando tabela muda de schema e nome, mas CHECK permanece igual", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                  },
+                ],
+              }),
+            ],
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [],
+          }),
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [],
+          }),
+          createSchemaFixture({
+            id: "s2",
+            name: "auth",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_app_users",
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(2);
+      const kinds = diff.operations.map(op => op.kind).sort();
+      expect(kinds).toEqual(["ALTER_TABLE_SCHEMA", "RENAME_TABLE"]);
+    });
+
+    it("8. ADD_COLUMN + ADD_CHECK_CONSTRAINT no mesmo diff", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                columns: [],
+                checkConstraints: [],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                columns: [createColumnFixture({ id: "col-age", name: "age" })],
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                    columnIds: ["col-age"],
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(2);
+      
+      const addColumn = diff.operations.find(op => op.kind === "ADD_COLUMN");
+      const addCheck = diff.operations.find(op => op.kind === "ADD_CHECK_CONSTRAINT");
+
+      expect(addColumn).toBeDefined();
+      expect(addCheck).toBeDefined();
+      expect(addCheck).toEqual(expect.objectContaining({
+        tableId: "table-1",
+        columnIds: ["col-age"],
+      }));
+    });
+
+    it("9. DROP_CHECK_CONSTRAINT + DROP_COLUMN no mesmo diff", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                columns: [createColumnFixture({ id: "col-age", name: "age" })],
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                    columnIds: ["col-age"],
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                columns: [],
+                checkConstraints: [],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(2);
+
+      const dropColumn = diff.operations.find(op => op.kind === "DROP_COLUMN");
+      const dropCheck = diff.operations.find(op => op.kind === "DROP_CHECK_CONSTRAINT");
+
+      expect(dropColumn).toBeDefined();
+      expect(dropCheck).toBeDefined();
+      expect(dropCheck).toEqual(expect.objectContaining({
+        tableId: "table-1",
+        columnIds: ["col-age"],
+      }));
+    });
+
+    it("10. ALTER_CHECK_CONSTRAINT + ALTER_COLUMN_TYPE no mesmo diff", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                columns: [createColumnFixture({ id: "col-age", name: "age", type: "integer" })],
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                columns: [createColumnFixture({ id: "col-age", name: "age", type: "bigint" })],
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 18 AND 120",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(2);
+
+      const alterCol = diff.operations.find(op => op.kind === "ALTER_COLUMN_TYPE");
+      const alterCheck = diff.operations.find(op => op.kind === "ALTER_CHECK_CONSTRAINT");
+
+      expect(alterCol).toBeDefined();
+      expect(alterCheck).toBeDefined();
+    });
+  });
 });

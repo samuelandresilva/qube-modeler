@@ -34,6 +34,7 @@ export function createTableFixture(overrides: Partial<DatabaseTable> = {}): Data
     foreignKeys: [],
     indexes: [],
     uniqueConstraints: [],
+    checkConstraints: [],
     ...overrides,
   };
 }

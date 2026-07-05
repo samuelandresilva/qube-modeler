@@ -32,6 +32,13 @@ export interface DatabaseSequence {
   incrementBy: number;
 }
 
+export interface CheckConstraint {
+  id: string;
+  name: string;
+  expression: string;
+  columnIds?: string[];
+}
+
 export interface DatabaseTable {
   id: string;
   name: string;
@@ -39,6 +46,7 @@ export interface DatabaseTable {
   foreignKeys: DatabaseForeignKey[];
   uniqueConstraints: DatabaseUniqueConstraint[];
   indexes: DatabaseIndex[];
+  checkConstraints: CheckConstraint[];
 }
 
 export interface DatabaseColumn {
@@ -84,6 +92,7 @@ export type DatabaseUniqueConstraintInput = Omit<
   "id"
 >;
 export type DatabaseSequenceInput = Omit<DatabaseSequence, "id">;
+export type CheckConstraintInput = Omit<CheckConstraint, "id">;
 
 export type CreateResult = {
   project: DatabaseProject;

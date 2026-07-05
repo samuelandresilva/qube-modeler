@@ -19,16 +19,17 @@ function formatStatement(sql: string, risk: string): string {
 }
 
 const OPERATION_ORDER: Record<string, number> = {
+  DROP_CHECK_CONSTRAINT: 0,
   RENAME_SCHEMA: 1,
-  ALTER_TABLE_SCHEMA: 2,
-  RENAME_SEQUENCE: 3,
-  RENAME_TABLE: 4,
-  RENAME_COLUMN: 5,
-  RENAME_PRIMARY_KEY: 6,
-  RENAME_FOREIGN_KEY: 6,
-  RENAME_UNIQUE_CONSTRAINT: 6,
-  RENAME_INDEX: 6,
-  ALTER_SEQUENCE: 7,
+  ALTER_TABLE_SCHEMA: 3,
+  RENAME_SEQUENCE: 4,
+  RENAME_TABLE: 5,
+  RENAME_COLUMN: 6,
+  RENAME_PRIMARY_KEY: 7,
+  RENAME_FOREIGN_KEY: 7,
+  RENAME_UNIQUE_CONSTRAINT: 7,
+  RENAME_INDEX: 7,
+  ALTER_SEQUENCE: 8,
   CREATE_SCHEMA: 10,
   CREATE_SEQUENCE: 11,
   CREATE_TABLE: 12,
@@ -36,14 +37,23 @@ const OPERATION_ORDER: Record<string, number> = {
   DROP_UNIQUE_CONSTRAINT: 21,
   DROP_PRIMARY_KEY: 22,
   DROP_INDEX: 23,
-  ALTER_FOREIGN_KEY: 24,
-  ALTER_UNIQUE_CONSTRAINT: 25,
-  ALTER_PRIMARY_KEY: 26,
-  ALTER_INDEX: 27,
-  ALTER_COLUMN_DEFAULT: 28,
-  DROP_COLUMN: 29,
-  DROP_SEQUENCE: 30,
-  DROP_TABLE: 31,
+  ALTER_FOREIGN_KEY: 25,
+  ALTER_UNIQUE_CONSTRAINT: 26,
+  ALTER_PRIMARY_KEY: 27,
+  ALTER_INDEX: 28,
+  ALTER_COLUMN_DEFAULT: 29,
+  DROP_COLUMN: 30,
+  DROP_SEQUENCE: 31,
+  DROP_TABLE: 32,
+  ADD_COLUMN: 50,
+  ALTER_COLUMN_TYPE: 51,
+  ALTER_COLUMN_SIZE: 52,
+  ALTER_COLUMN_NULLABILITY: 53,
+  ADD_CHECK_CONSTRAINT: 80,
+  ADD_PRIMARY_KEY: 81,
+  ADD_UNIQUE_CONSTRAINT: 82,
+  ADD_FOREIGN_KEY: 83,
+  ADD_INDEX: 84,
 };
 
 function getOperationOrder(operation: ProjectDiffOperation): number {
@@ -117,7 +127,39 @@ export function generatePostgresMigrationSql(
     return "";
   }
 
-  const sortedOperations = [...diff.operations]
+  const expandedOperations: ProjectDiffOperation[] = [];
+  for (const op of diff.operations) {
+    if (op.kind === "ALTER_CHECK_CONSTRAINT") {
+      expandedOperations.push({
+        kind: "DROP_CHECK_CONSTRAINT",
+        risk: op.risk,
+        schemaId: op.schemaId,
+        schemaName: op.oldSchemaName ?? op.schemaName,
+        tableId: op.tableId,
+        tableName: op.oldTableName ?? op.tableName,
+        constraintId: op.constraintId,
+        constraintName: op.oldConstraintName,
+        expression: op.oldExpression,
+        columnIds: op.oldColumnIds,
+      } as ProjectDiffOperation);
+      expandedOperations.push({
+        kind: "ADD_CHECK_CONSTRAINT",
+        risk: op.risk,
+        schemaId: op.schemaId,
+        schemaName: op.schemaName,
+        tableId: op.tableId,
+        tableName: op.tableName,
+        constraintId: op.constraintId,
+        constraintName: op.newConstraintName,
+        expression: op.newExpression,
+        columnIds: op.newColumnIds,
+      } as ProjectDiffOperation);
+    } else {
+      expandedOperations.push(op);
+    }
+  }
+
+  const sortedOperations = [...expandedOperations]
     .map((op, index) => ({ op, index }))
     .sort(compareMigrationOperations)
     .map((item) => item.op);
@@ -557,6 +599,22 @@ export function generatePostgresMigrationSql(
       case "DROP_INDEX": {
         sqlStatements.push(formatStatement(
           `DROP INDEX ${op.schemaName}.${op.indexName};`,
+          op.risk
+        ));
+        break;
+      }
+
+      case "ADD_CHECK_CONSTRAINT": {
+        sqlStatements.push(formatStatement(
+          `ALTER TABLE ${op.schemaName}.${op.tableName} ADD CONSTRAINT ${op.constraintName} CHECK (${op.expression});`,
+          op.risk
+        ));
+        break;
+      }
+
+      case "DROP_CHECK_CONSTRAINT": {
+        sqlStatements.push(formatStatement(
+          `ALTER TABLE ${op.schemaName}.${op.tableName} DROP CONSTRAINT ${op.constraintName};`,
           op.risk
         ));
         break;

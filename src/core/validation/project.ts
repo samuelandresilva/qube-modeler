@@ -15,6 +15,18 @@ export function validateProject(project: unknown): DatabaseProject {
   validateRequiredString(project.name, "Project name");
   if (!Array.isArray(project.schemas) || project.schemas.length === 0)
     throw new Error("Project must have at least one schema.");
+
+  // Normalize checkConstraints on tables for backward compatibility
+  project.schemas.forEach((schema) => {
+    if (isObject(schema) && Array.isArray(schema.tables)) {
+      schema.tables.forEach((table) => {
+        if (isObject(table) && !Array.isArray(table.checkConstraints)) {
+          table.checkConstraints = [];
+        }
+      });
+    }
+  });
+
   validateUniqueNames(
     project.schemas,
     "Project schemas",

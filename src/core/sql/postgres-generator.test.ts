@@ -214,4 +214,172 @@ describe("postgres-generator", () => {
     expect(createSchemaAuthPos).toBeLessThan(createTableUsersPos);
     expect(createSchemaAuthPos).toBeLessThan(createTableAccountsPos);
   });
+
+  describe("CHECK constraints", () => {
+    it("1. Gera CHECK constraint no CREATE TABLE", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_users",
+                columns: [createColumnFixture({ id: "col-age", name: "age", type: "integer", nullable: false })],
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                    columnIds: ["col-age"],
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain("CONSTRAINT chk_tb_users_age CHECK (age BETWEEN 0 AND 120)");
+    });
+
+    it("2. CHECK deve ser constraint nomeada de tabela, não inline", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_users",
+                columns: [createColumnFixture({ id: "col-age", name: "age", type: "integer", nullable: false })],
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                    columnIds: ["col-age"],
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      // Coluna não deve ter CHECK inline
+      expect(sql).toContain("    age integer NOT NULL");
+      expect(sql).not.toContain("    age integer NOT NULL CHECK");
+      // Deve aparecer em linha separada como constraint
+      expect(sql).toContain("\n    CONSTRAINT chk_tb_users_age CHECK (age BETWEEN 0 AND 120)");
+    });
+
+    it("3. Múltiplas CHECK constraints", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_users",
+                columns: [
+                  createColumnFixture({ id: "col-age", name: "age", type: "integer" }),
+                  createColumnFixture({ id: "col-status", name: "status", type: "varchar" }),
+                ],
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_age",
+                    expression: "age BETWEEN 0 AND 120",
+                  },
+                  {
+                    id: "chk-2",
+                    name: "chk_tb_users_status",
+                    expression: "status IN ('ACTIVE', 'INACTIVE')",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain("CONSTRAINT chk_tb_users_age CHECK (age BETWEEN 0 AND 120)");
+      expect(sql).toContain("CONSTRAINT chk_tb_users_status CHECK (status IN ('ACTIVE', 'INACTIVE'))");
+    });
+
+    it("4. CHECK com regex PostgreSQL", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_users",
+                columns: [createColumnFixture({ id: "col-email", name: "email", type: "varchar" })],
+                checkConstraints: [
+                  {
+                    id: "chk-1",
+                    name: "chk_tb_users_email",
+                    expression: "email ~ '^[^@]+@[^@]+\\.[^@]+$'",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain("CONSTRAINT chk_tb_users_email CHECK (email ~ '^[^@]+@[^@]+\\.[^@]+$')");
+    });
+
+    it("5. Tabela sem checkConstraints mantém SQL anterior", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_users",
+                columns: [createColumnFixture({ name: "id", type: "integer" })],
+                checkConstraints: [],
+              }),
+            ],
+          }),
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      // Não deve conter CONSTRAINT ... CHECK
+      expect(sql).not.toContain("CHECK");
+      // Não deve ter vírgulas sobrando ou linhas extras
+      const expectedSql = [
+        "CREATE TABLE IF NOT EXISTS public.tb_users",
+        "(",
+        "    id integer NOT NULL",
+        ");"
+      ].join("\n");
+      expect(sql).toContain(expectedSql);
+    });
+
+    it("6. checkConstraints undefined não quebra generator", () => {
+      const legacyTable = createTableFixture({
+        name: "tb_users",
+        columns: [createColumnFixture({ name: "id", type: "integer" })],
+      });
+      // Deletar explicitamente checkConstraints para simular tabela legada
+      // @ts-expect-error forcing delete for testing legacy payload
+      delete legacyTable.checkConstraints;
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [legacyTable],
+          }),
+        ],
+      });
+
+      expect(() => generatePostgresSql(project)).not.toThrow();
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain("CREATE TABLE IF NOT EXISTS public.tb_users");
+    });
+  });
 });

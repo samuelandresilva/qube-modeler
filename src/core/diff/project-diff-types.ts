@@ -45,7 +45,10 @@ export type ProjectDiffOperation =
   | DropPrimaryKeyDiffOperation
   | DropForeignKeyDiffOperation
   | DropUniqueConstraintDiffOperation
-  | DropIndexDiffOperation;
+  | DropIndexDiffOperation
+  | AddCheckConstraintDiffOperation
+  | DropCheckConstraintDiffOperation
+  | AlterCheckConstraintDiffOperation;
 
 // Existing operations
 export type CreateSchemaDiffOperation = {
@@ -426,4 +429,48 @@ export type AlterTableSchemaDiffOperation = {
   tableName: string;
   oldSchemaName: string;
   newSchemaName: string;
+};
+
+export type AddCheckConstraintDiffOperation = {
+  kind: "ADD_CHECK_CONSTRAINT";
+  risk: DiffOperationRisk;
+  schemaId: string;
+  schemaName: string;
+  tableId: string;
+  tableName: string;
+  constraintId: string;
+  constraintName: string;
+  expression: string;
+  columnIds?: string[];
+};
+
+export type DropCheckConstraintDiffOperation = {
+  kind: "DROP_CHECK_CONSTRAINT";
+  risk: DiffOperationRisk;
+  schemaId: string;
+  schemaName: string;
+  tableId: string;
+  tableName: string;
+  constraintId: string;
+  constraintName: string;
+  expression: string;
+  columnIds?: string[];
+};
+
+export type AlterCheckConstraintDiffOperation = {
+  kind: "ALTER_CHECK_CONSTRAINT";
+  risk: DiffOperationRisk;
+  schemaId: string;
+  schemaName: string;
+  tableId: string;
+  tableName: string;
+  oldSchemaName?: string;
+  oldTableName?: string;
+  constraintId: string;
+  oldConstraintName: string;
+  newConstraintName: string;
+  oldExpression: string;
+  newExpression: string;
+  oldColumnIds?: string[];
+  newColumnIds?: string[];
 };
