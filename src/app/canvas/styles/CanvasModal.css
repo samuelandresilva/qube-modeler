@@ -96,7 +96,8 @@
   text-transform: uppercase;
 }
 .canvas-modal-form input,
-.canvas-modal-form select {
+.canvas-modal-form select,
+.canvas-modal-form textarea {
   width: 100%;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
@@ -105,13 +106,20 @@
   color: var(--color-text);
   outline: none;
 }
+.canvas-modal-form textarea {
+  font-family: inherit;
+  min-height: 80px;
+  resize: vertical;
+}
 .canvas-modal-form input:focus,
-.canvas-modal-form select:focus {
+.canvas-modal-form select:focus,
+.canvas-modal-form textarea:focus {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 1px var(--color-accent);
 }
 .canvas-modal-form input:disabled,
-.canvas-modal-form select:disabled {
+.canvas-modal-form select:disabled,
+.canvas-modal-form textarea:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }

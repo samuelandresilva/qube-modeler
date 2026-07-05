@@ -291,6 +291,10 @@ function CanvasContent({
             }
             onAddIndex={() => setDialog({ kind: "index" })}
             onEditIndex={(indexId) => setDialog({ kind: "index", indexId })}
+            onAddCheckConstraint={() => setDialog({ kind: "check-constraint" })}
+            onEditCheckConstraint={(constraintId) =>
+              setDialog({ kind: "check-constraint", constraintId })
+            }
           />
         )}
         <CanvasDialogs

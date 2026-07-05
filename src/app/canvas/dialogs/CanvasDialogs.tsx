@@ -6,17 +6,20 @@ import {
   createSchema,
   createSequence,
   createUniqueConstraint,
+  createCheckConstraint,
   findTableContext,
   removeColumn,
   removeForeignKey,
   removeIndex,
   removeUniqueConstraint,
+  removeCheckConstraint,
   updateColumn,
   updateForeignKey,
   updateIndex,
   updateSchema,
   updateSequence,
   updateUniqueConstraint,
+  updateCheckConstraint,
   type DatabaseProject,
 } from "@/core/model";
 import { ColumnDialog } from "./ColumnDialog";
@@ -25,6 +28,7 @@ import { ForeignKeyDialog } from "./ForeignKeyDialog";
 import { NamedColumnsDialog } from "./NamedColumnsDialog";
 import { SchemaDialog } from "./SchemaDialog";
 import { SequenceDialog } from "./SequenceDialog";
+import { CheckConstraintDialog } from "./CheckConstraintDialog";
 
 type Props = {
   dialog: CanvasDialogState;
@@ -236,6 +240,56 @@ export function CanvasDialogs({
                   () =>
                     setProject((current) =>
                       removeUniqueConstraint(
+                        current,
+                        context.schema.id,
+                        context.table.id,
+                        constraint.id,
+                      ),
+                    ),
+                  close,
+                )
+            : undefined
+        }
+      />
+    );
+  }
+  if (dialog.kind === "check-constraint") {
+    const constraint = (context.table.checkConstraints ?? []).find(
+      (item) => item.id === dialog.constraintId,
+    );
+    return (
+      <CheckConstraintDialog
+        table={context.table}
+        current={constraint}
+        onClose={close}
+        onSubmit={(input) => {
+          setProject((current) =>
+            constraint
+              ? updateCheckConstraint(
+                  current,
+                  context.schema.id,
+                  context.table.id,
+                  constraint.id,
+                  (item) => ({ ...item, ...input }),
+                )
+              : createCheckConstraint(
+                  current,
+                  context.schema.id,
+                  context.table.id,
+                  input,
+                ).project,
+          );
+          close();
+        }}
+        onDelete={
+          constraint
+            ? () =>
+                requestConfirmDelete(
+                  requestConfirm,
+                  `CHECK constraint "${constraint.name}"`,
+                  () =>
+                    setProject((current) =>
+                      removeCheckConstraint(
                         current,
                         context.schema.id,
                         context.table.id,

@@ -16,6 +16,8 @@ type Props = {
   onEditUniqueConstraint: (id: string) => void;
   onAddIndex: () => void;
   onEditIndex: (id: string) => void;
+  onAddCheckConstraint: () => void;
+  onEditCheckConstraint: (id: string) => void;
   schemas: DatabaseSchema[];
   currentSchemaId: string;
   onChangeSchema: (schemaId: string) => void;
@@ -34,6 +36,8 @@ export function CanvasInspector({
   onEditUniqueConstraint,
   onAddIndex,
   onEditIndex,
+  onAddCheckConstraint,
+  onEditCheckConstraint,
   schemas,
   currentSchemaId,
   onChangeSchema,
@@ -65,7 +69,7 @@ export function CanvasInspector({
           disabled={schemas.length === 0}
         >
           {schemas.length === 0 ? (
-            <option value="">No schemas</option>
+             <option value="">No schemas</option>
           ) : (
             schemas.map((s) => (
               <option key={s.id} value={s.id}>
@@ -119,6 +123,18 @@ export function CanvasInspector({
         }))}
         onAdd={onAddUniqueConstraint}
         onEdit={onEditUniqueConstraint}
+      />
+      <InspectorSection
+        title="CHECK constraints"
+        addLabel="Add check constraint"
+        emptyLabel="No CHECK constraints."
+        items={(table.checkConstraints ?? []).map((item) => ({
+          id: item.id,
+          label: item.name,
+          detail: item.expression,
+        }))}
+        onAdd={onAddCheckConstraint}
+        onEdit={onEditCheckConstraint}
       />
       <InspectorSection
         title="Indexes"
