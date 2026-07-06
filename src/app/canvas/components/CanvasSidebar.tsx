@@ -16,6 +16,9 @@ type Props = {
   onDeleteSequence: (schemaId: string, sequenceId: string) => void;
   onSeeTableOnDiagram: (schemaId: string, tableId: string) => void;
   onDeleteTable: (schemaId: string, tableId: string) => void;
+  onAddFunction: (schemaId: string) => void;
+  onEditFunction: (schemaId: string, functionId: string) => void;
+  onDeleteFunction: (schemaId: string, functionId: string) => void;
   onViewFlyway?: () => void;
 };
 
@@ -83,7 +86,12 @@ export function CanvasSidebar({
             {schemasExpanded && (
               <div className="canvas-sidebar__tree-group">
                 {project.schemas.map((schema) => (
-                  <SchemaTreeItem key={schema.id} schema={schema} {...actions} />
+                  <SchemaTreeItem
+                    key={schema.id}
+                    schema={schema}
+                    projectFunctions={project.functions ?? []}
+                    {...actions}
+                  />
                 ))}
               </div>
             )}

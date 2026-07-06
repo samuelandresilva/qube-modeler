@@ -10,12 +10,30 @@ export const FOREIGN_KEY_ACTIONS = [
 export type ForeignKeyAction = (typeof FOREIGN_KEY_ACTIONS)[number];
 export type DatabaseEngine = "postgresql";
 
+export interface DatabaseFunctionArgument {
+  id: string;
+  name: string;
+  dataType: string;
+  mode?: "IN" | "OUT" | "INOUT";
+}
+
+export interface DatabaseFunction {
+  id: string;
+  schemaId: string;
+  name: string;
+  language: "plpgsql" | "sql";
+  returnType: string;
+  arguments: DatabaseFunctionArgument[];
+  body: string;
+}
+
 export interface DatabaseProject {
   id: string;
   name: string;
   engine: DatabaseEngine;
   schemas: DatabaseSchema[];
   diagram: DatabaseDiagram;
+  functions: DatabaseFunction[];
 }
 
 export interface DatabaseSchema {

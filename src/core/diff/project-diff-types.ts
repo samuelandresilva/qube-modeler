@@ -1,3 +1,5 @@
+import type { DatabaseFunctionArgument } from "@/core/model";
+
 export type DiffOperationRisk = "safe" | "warning" | "destructive" | "unsupported";
 
 export type ProjectDiff = {
@@ -6,6 +8,10 @@ export type ProjectDiff = {
 };
 
 export type ProjectDiffOperation =
+  // New operations
+  | AddFunctionDiffOperation
+  | DropFunctionDiffOperation
+  | AlterFunctionDiffOperation
   // Existing operations
   | CreateSchemaDiffOperation
   | CreateSequenceDiffOperation
@@ -473,4 +479,55 @@ export type AlterCheckConstraintDiffOperation = {
   newExpression: string;
   oldColumnIds?: string[];
   newColumnIds?: string[];
+};
+
+export type AddFunctionDiffOperation = {
+  kind: "ADD_FUNCTION";
+  risk: "warning";
+  functionId: string;
+  schemaId: string;
+  schemaName: string;
+  functionName: string;
+  language: "plpgsql" | "sql";
+  returnType: string;
+  arguments: DatabaseFunctionArgument[];
+  body: string;
+};
+
+export type DropFunctionDiffOperation = {
+  kind: "DROP_FUNCTION";
+  risk: "destructive";
+  functionId: string;
+  schemaId: string;
+  schemaName: string;
+  functionName: string;
+  arguments: DatabaseFunctionArgument[];
+};
+
+export type AlterFunctionDiffOperation = {
+  kind: "ALTER_FUNCTION";
+  risk: "warning";
+  functionId: string;
+
+  oldSchemaId: string;
+  newSchemaId: string;
+  oldSchemaName: string;
+  newSchemaName: string;
+
+  oldFunctionName: string;
+  newFunctionName: string;
+
+  oldLanguage: "plpgsql" | "sql";
+  newLanguage: "plpgsql" | "sql";
+
+  oldReturnType: string;
+  newReturnType: string;
+
+  oldArguments: DatabaseFunctionArgument[];
+  newArguments: DatabaseFunctionArgument[];
+
+  oldBody: string;
+  newBody: string;
+
+  requiresDropAndRecreate: boolean;
 };

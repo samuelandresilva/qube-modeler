@@ -8,13 +8,15 @@ import {
   Search,
   Table2,
   Trash2,
+  Cpu,
 } from "lucide-react";
 import { useState } from "react";
-import type { DatabaseSchema } from "@/core/model";
+import type { DatabaseSchema, DatabaseFunction } from "@/core/model";
 import { SidebarContextMenu } from "./SidebarContextMenu";
 
 type Props = {
   schema: DatabaseSchema;
+  projectFunctions: DatabaseFunction[];
   onEditSchema: (schemaId: string) => void;
   onDeleteSchema: (schemaId: string) => void;
   onAddSequence: (schemaId: string) => void;
@@ -22,10 +24,14 @@ type Props = {
   onDeleteSequence: (schemaId: string, sequenceId: string) => void;
   onSeeTableOnDiagram: (schemaId: string, tableId: string) => void;
   onDeleteTable: (schemaId: string, tableId: string) => void;
+  onAddFunction: (schemaId: string) => void;
+  onEditFunction: (schemaId: string, functionId: string) => void;
+  onDeleteFunction: (schemaId: string, functionId: string) => void;
 };
 
 export function SchemaTreeItem({
   schema,
+  projectFunctions,
   onEditSchema,
   onDeleteSchema,
   onAddSequence,
@@ -33,10 +39,17 @@ export function SchemaTreeItem({
   onDeleteSequence,
   onSeeTableOnDiagram,
   onDeleteTable,
+  onAddFunction,
+  onEditFunction,
+  onDeleteFunction,
 }: Props) {
   const [expanded, setExpanded] = useState(true);
   const [sequencesExpanded, setSequencesExpanded] = useState(true);
+  const [functionsExpanded, setFunctionsExpanded] = useState(true);
   const [tablesExpanded, setTablesExpanded] = useState(true);
+  const schemaFunctions = (projectFunctions ?? []).filter(
+    (fn) => fn.schemaId === schema.id
+  );
   return (
     <div className="canvas-sidebar__schema">
       <SidebarContextMenu
@@ -120,6 +133,66 @@ export function SchemaTreeItem({
                         className="canvas-sidebar__item-icon canvas-sidebar__item-icon--muted"
                       />
                       <span>{sequence.name}</span>
+                    </div>
+                  </SidebarContextMenu>
+                ))
+              )}
+            </div>
+          )}
+          <SidebarContextMenu
+            actions={[
+              {
+                label: "Add function",
+                icon: <Plus size={14} />,
+                onSelect: () => onAddFunction(schema.id),
+              },
+            ]}
+          >
+            <div
+              className="canvas-sidebar__tree-item canvas-sidebar__tree-item--folder"
+              onClick={() => setFunctionsExpanded((value) => !value)}
+            >
+              <ChevronDown
+                size={13}
+                className="canvas-sidebar__chevron"
+                data-expanded={functionsExpanded}
+              />
+              <Cpu size={15} className="canvas-sidebar__item-icon" />
+              <span>functions</span>
+            </div>
+          </SidebarContextMenu>
+          {functionsExpanded && (
+            <div className="canvas-sidebar__tree-group">
+              {schemaFunctions.length === 0 ? (
+                <div className="canvas-sidebar__empty">No functions</div>
+              ) : (
+                schemaFunctions.map((fn) => (
+                  <SidebarContextMenu
+                    key={fn.id}
+                    actions={[
+                      {
+                        label: "Edit function",
+                        icon: <Pen size={14} />,
+                        onSelect: () => onEditFunction(schema.id, fn.id),
+                      },
+                      {
+                        label: "Delete function",
+                        icon: <Trash2 size={14} />,
+                        danger: true,
+                        onSelect: () => onDeleteFunction(schema.id, fn.id),
+                      },
+                    ]}
+                  >
+                    <div
+                      className="canvas-sidebar__tree-item canvas-sidebar__tree-item--leaf"
+                      onClick={() => onEditFunction(schema.id, fn.id)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <Cpu
+                        size={14}
+                        className="canvas-sidebar__item-icon canvas-sidebar__item-icon--muted"
+                      />
+                      <span>{fn.name}</span>
                     </div>
                   </SidebarContextMenu>
                 ))

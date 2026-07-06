@@ -8,6 +8,8 @@ import type {
   DatabaseUniqueConstraint,
   DatabaseIndex,
   CheckConstraint,
+  DatabaseFunction,
+  DatabaseFunctionArgument,
 } from "@/core/model";
 import { supportsScale, supportsSize } from "./postgres-column-types";
 
@@ -17,16 +19,25 @@ export function generatePostgresSql(project: DatabaseProject): string {
     .join("\n");
 
   const schemaObjects = project.schemas
-    .map((schema) => generateSchemaObjectsSql(schema))
+    .map((schema) => generateSchemaObjectsSql(schema, project))
     .filter(Boolean)
     .join("\n\n");
 
   return [schemaDefinitions, schemaObjects].filter(Boolean).join("\n\n");
 }
 
-function generateSchemaObjectsSql(schema: DatabaseSchema): string {
+function generateSchemaObjectsSql(
+  schema: DatabaseSchema,
+  project: DatabaseProject,
+): string {
   const sequenceSql = schema.sequences.map((sequence) =>
     generateSequenceSql(schema, sequence),
+  );
+
+  const functions = project.functions ?? [];
+  const schemaFunctions = functions.filter((fn) => fn.schemaId === schema.id);
+  const functionSql = schemaFunctions.map((fn) =>
+    generateFunctionSql(schema, fn),
   );
 
   const tableSql = schema.tables.map((table) =>
@@ -43,10 +54,36 @@ function generateSchemaObjectsSql(schema: DatabaseSchema): string {
 
   return [
     ...sequenceSql,
+    ...functionSql,
     ...tableSql,
     ...tablePostCreateSql,
     ...indexSql,
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export function generateFunctionSql(
+  schema: DatabaseSchema,
+  fn: DatabaseFunction,
+): string {
+  const argsSql = generateFunctionArgsSql(fn.arguments ?? []);
+  return [
+    `CREATE OR REPLACE FUNCTION ${schema.name}.${fn.name}(${argsSql})`,
+    `RETURNS ${fn.returnType} AS $$`,
+    fn.body,
+    `$$ LANGUAGE ${fn.language};`,
+  ].join("\n");
+}
+
+export function generateFunctionArgsSql(args: DatabaseFunctionArgument[]): string {
+  return args
+    .map((arg) => {
+      const modePrefix = arg.mode ? `${arg.mode} ` : "";
+      const namePart = arg.name ? `${arg.name} ` : "";
+      return `${modePrefix}${namePart}${arg.dataType}`;
+    })
+    .join(", ");
 }
 
 export function generateSequenceSql(

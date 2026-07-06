@@ -20,6 +20,9 @@ import {
   updateSequence,
   updateUniqueConstraint,
   updateCheckConstraint,
+  createDatabaseFunction,
+  updateDatabaseFunction,
+  removeDatabaseFunction,
   type DatabaseProject,
 } from "@/core/model";
 import { ColumnDialog } from "./ColumnDialog";
@@ -29,6 +32,7 @@ import { NamedColumnsDialog } from "./NamedColumnsDialog";
 import { SchemaDialog } from "./SchemaDialog";
 import { SequenceDialog } from "./SequenceDialog";
 import { CheckConstraintDialog } from "./CheckConstraintDialog";
+import { FunctionDialog } from "./FunctionDialog";
 
 type Props = {
   dialog: CanvasDialogState;
@@ -94,6 +98,43 @@ export function CanvasDialogs({
           );
           close();
         }}
+      />
+    );
+  }
+  if (dialog.kind === "function") {
+    const schema = project.schemas.find((item) => item.id === dialog.schemaId);
+    const databaseFunction = (project.functions ?? []).find(
+      (item) => item.id === dialog.functionId,
+    );
+    if (!schema) return null;
+    return (
+      <FunctionDialog
+        project={project}
+        editingFunction={databaseFunction}
+        initialSchemaId={schema.id}
+        onClose={close}
+        onSubmit={(input) => {
+          setProject((current) =>
+            databaseFunction
+              ? updateDatabaseFunction(current, databaseFunction.id, input)
+              : createDatabaseFunction(current, input).project
+          );
+          close();
+        }}
+        onDelete={
+          databaseFunction
+            ? () =>
+                requestConfirmDelete(
+                  requestConfirm,
+                  `function "${databaseFunction.name}"`,
+                  () =>
+                    setProject((current) =>
+                      removeDatabaseFunction(current, databaseFunction.id)
+                    ),
+                  close,
+                )
+            : undefined
+        }
       />
     );
   }

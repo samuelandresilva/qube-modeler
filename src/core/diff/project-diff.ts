@@ -1,4 +1,4 @@
-import type { DatabaseProject, DatabaseSchema, DatabaseTable, DatabaseForeignKey, DatabaseUniqueConstraint, DatabaseIndex } from "../model/types";
+import type { DatabaseProject, DatabaseSchema, DatabaseTable, DatabaseForeignKey, DatabaseUniqueConstraint, DatabaseIndex, DatabaseFunctionArgument } from "../model/types";
 import type { ProjectDiff, ProjectDiffOperation, UnsupportedDiffOperation } from "./project-diff-types";
 
 function findTableIdByName(
@@ -697,8 +697,118 @@ export function diffProjects(
     }
   }
 
+  // Detect database function changes
+  const prevFunctions = previousProject.functions ?? [];
+  const currFunctions = currentProject.functions ?? [];
+
+  const prevFnsMap = new Map(prevFunctions.map((fn) => [fn.id, fn]));
+  const currFnsMap = new Map(currFunctions.map((fn) => [fn.id, fn]));
+
+  const prevSchemaNames = new Map(previousProject.schemas.map((s) => [s.id, s.name]));
+  const currSchemaNames = new Map(currentProject.schemas.map((s) => [s.id, s.name]));
+
+  // Detect ADD_FUNCTION and ALTER_FUNCTION
+  for (const currFn of currFunctions) {
+    const prevFn = prevFnsMap.get(currFn.id);
+    const currSchemaName = currSchemaNames.get(currFn.schemaId) ?? "public";
+
+    if (!prevFn) {
+      operations.push({
+        kind: "ADD_FUNCTION",
+        risk: "warning",
+        functionId: currFn.id,
+        schemaId: currFn.schemaId,
+        schemaName: currSchemaName,
+        functionName: currFn.name,
+        language: currFn.language,
+        returnType: currFn.returnType,
+        arguments: currFn.arguments ?? [],
+        body: currFn.body,
+      });
+    } else {
+      const schemaIdChanged = prevFn.schemaId !== currFn.schemaId;
+      const nameChanged = (prevFn.name ?? "").trim() !== (currFn.name ?? "").trim();
+      const languageChanged = prevFn.language !== currFn.language;
+      const returnTypeChanged = (prevFn.returnType ?? "").trim() !== (currFn.returnType ?? "").trim();
+      const bodyChanged = (prevFn.body ?? "").trim() !== (currFn.body ?? "").trim();
+      const argumentsChanged = didArgumentsChange(prevFn.arguments ?? [], currFn.arguments ?? []);
+
+      if (
+        schemaIdChanged ||
+        nameChanged ||
+        languageChanged ||
+        returnTypeChanged ||
+        bodyChanged ||
+        argumentsChanged
+      ) {
+        const prevSchemaName = prevSchemaNames.get(prevFn.schemaId) ?? "public";
+        const requiresDropAndRecreate = schemaIdChanged || nameChanged || argumentsChanged;
+
+        operations.push({
+          kind: "ALTER_FUNCTION",
+          risk: "warning",
+          functionId: currFn.id,
+
+          oldSchemaId: prevFn.schemaId,
+          newSchemaId: currFn.schemaId,
+          oldSchemaName: prevSchemaName,
+          newSchemaName: currSchemaName,
+
+          oldFunctionName: prevFn.name,
+          newFunctionName: currFn.name,
+
+          oldLanguage: prevFn.language,
+          newLanguage: currFn.language,
+
+          oldReturnType: prevFn.returnType,
+          newReturnType: currFn.returnType,
+
+          oldArguments: prevFn.arguments ?? [],
+          newArguments: currFn.arguments ?? [],
+
+          oldBody: prevFn.body,
+          newBody: currFn.body,
+
+          requiresDropAndRecreate,
+        });
+      }
+    }
+  }
+
+  // Detect DROP_FUNCTION
+  for (const prevFn of prevFunctions) {
+    if (!currFnsMap.has(prevFn.id)) {
+      const prevSchemaName = prevSchemaNames.get(prevFn.schemaId) ?? "public";
+      operations.push({
+        kind: "DROP_FUNCTION",
+        risk: "destructive",
+        functionId: prevFn.id,
+        schemaId: prevFn.schemaId,
+        schemaName: prevSchemaName,
+        functionName: prevFn.name,
+        arguments: prevFn.arguments ?? [],
+      });
+    }
+  }
+
   return {
     operations,
     unsupportedOperations,
   };
+}
+
+function didArgumentsChange(
+  prevArgs: DatabaseFunctionArgument[],
+  currArgs: DatabaseFunctionArgument[],
+): boolean {
+  if (prevArgs.length !== currArgs.length) return true;
+  for (let i = 0; i < prevArgs.length; i++) {
+    const prevArg = prevArgs[i];
+    const currArg = currArgs[i];
+    if (prevArg.id !== currArg.id) return true;
+    if (prevArg.name !== currArg.name) return true;
+    if (prevArg.dataType !== currArg.dataType) return true;
+    if (prevArg.mode !== currArg.mode) return true;
+  }
+  return false;
 }

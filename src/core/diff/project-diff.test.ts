@@ -1443,4 +1443,483 @@ describe("project-diff", () => {
       expect(alterCheck).toBeDefined();
     });
   });
+
+  describe("Database Functions diffing", () => {
+    it("1. Detecta ADD_FUNCTION", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_update_timestamp",
+            language: "plpgsql" as const,
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual({
+        kind: "ADD_FUNCTION",
+        risk: "warning",
+        functionId: "fn-1",
+        schemaId: "schema-1",
+        schemaName: "public",
+        functionName: "fn_update_timestamp",
+        language: "plpgsql",
+        returnType: "trigger",
+        arguments: [],
+        body: "BEGIN RETURN NEW; END;",
+      });
+    });
+
+    it("2. Detecta DROP_FUNCTION", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_update_timestamp",
+            language: "plpgsql" as const,
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual({
+        kind: "DROP_FUNCTION",
+        risk: "destructive",
+        functionId: "fn-1",
+        schemaId: "schema-1",
+        schemaName: "public",
+        functionName: "fn_update_timestamp",
+        arguments: [],
+      });
+    });
+
+    it("3. Detecta ALTER_FUNCTION por mudança de body", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_update_timestamp",
+            language: "plpgsql" as const,
+            returnType: "trigger",
+            arguments: [],
+            body: "RETURN NEW;",
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_update_timestamp",
+            language: "plpgsql" as const,
+            returnType: "trigger",
+            arguments: [],
+            body: "NEW.updated_at = now(); RETURN NEW;",
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "ALTER_FUNCTION",
+          risk: "warning",
+          functionId: "fn-1",
+          oldBody: "RETURN NEW;",
+          newBody: "NEW.updated_at = now(); RETURN NEW;",
+          requiresDropAndRecreate: false,
+        })
+      );
+    });
+
+    it("4. Detecta ALTER_FUNCTION por mudança de language", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "test_fn",
+            language: "plpgsql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "RETURN 1;",
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "test_fn",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "RETURN 1;",
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "ALTER_FUNCTION",
+          oldLanguage: "plpgsql",
+          newLanguage: "sql",
+          requiresDropAndRecreate: false,
+        })
+      );
+    });
+
+    it("5. Detecta ALTER_FUNCTION por mudança de returnType", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "test_fn",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "SELECT 1;",
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "test_fn",
+            language: "sql" as const,
+            returnType: "bigint",
+            arguments: [],
+            body: "SELECT 1;",
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "ALTER_FUNCTION",
+          oldReturnType: "integer",
+          newReturnType: "bigint",
+          requiresDropAndRecreate: false,
+        })
+      );
+    });
+
+    it("6. Detecta ALTER_FUNCTION por mudança de name", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_old",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "SELECT 1;",
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_new",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "SELECT 1;",
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "ALTER_FUNCTION",
+          oldFunctionName: "fn_old",
+          newFunctionName: "fn_new",
+          requiresDropAndRecreate: true,
+        })
+      );
+    });
+
+    it("7. Detecta ALTER_FUNCTION por mudança de schemaId real", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({ id: "schema-public", name: "public" }),
+          createSchemaFixture({ id: "schema-auth", name: "auth" }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-public",
+            name: "test_fn",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "SELECT 1;",
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({ id: "schema-public", name: "public" }),
+          createSchemaFixture({ id: "schema-auth", name: "auth" }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-auth",
+            name: "test_fn",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "SELECT 1;",
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "ALTER_FUNCTION",
+          oldSchemaName: "public",
+          newSchemaName: "auth",
+          requiresDropAndRecreate: true,
+        })
+      );
+    });
+
+    it("8. Detecta ALTER_FUNCTION por mudança de arguments", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_sum",
+            language: "sql" as const,
+            returnType: "numeric",
+            arguments: [
+              { id: "a1", name: "a", dataType: "numeric" },
+              { id: "a2", name: "b", dataType: "numeric" },
+            ],
+            body: "SELECT a + b;",
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_sum",
+            language: "sql" as const,
+            returnType: "numeric",
+            arguments: [
+              { id: "a1", name: "a", dataType: "numeric" },
+              { id: "a2", name: "b", dataType: "numeric" },
+              { id: "a3", name: "c", dataType: "numeric" },
+            ],
+            body: "SELECT a + b + c;",
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "ALTER_FUNCTION",
+          requiresDropAndRecreate: true,
+        })
+      );
+    });
+
+    it("9. Não gera ALTER_FUNCTION quando apenas o schema foi renomeado", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_x",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "SELECT 1;",
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "auth" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_x",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "SELECT 1;",
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      // Deve conter RENAME_SCHEMA
+      const renameSchemaOp = diff.operations.find(op => op.kind === "RENAME_SCHEMA");
+      expect(renameSchemaOp).toBeDefined();
+
+      // Não deve conter ALTER_FUNCTION
+      const alterFuncOp = diff.operations.find(op => op.kind === "ALTER_FUNCTION");
+      expect(alterFuncOp).toBeUndefined();
+    });
+
+    it("10. Preserva oldArguments para futuro DROP", () => {
+      const argsList = [
+        { id: "a1", name: "a", dataType: "numeric" },
+        { id: "a2", name: "b", dataType: "numeric" },
+      ];
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_sum",
+            language: "sql" as const,
+            returnType: "numeric",
+            arguments: argsList,
+            body: "SELECT a + b;",
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "DROP_FUNCTION",
+          arguments: argsList,
+        })
+      );
+    });
+
+    it("11. ADD_FUNCTION com argumentos mode IN/OUT/INOUT", () => {
+      const argsList = [
+        { id: "a1", name: "amount", dataType: "numeric", mode: "IN" as const },
+        { id: "a2", name: "result", dataType: "numeric", mode: "OUT" as const },
+      ];
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test",
+            language: "sql" as const,
+            returnType: "numeric",
+            arguments: argsList,
+            body: "--",
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "ADD_FUNCTION",
+          arguments: argsList,
+        })
+      );
+    });
+
+    it("12. Alteração apenas de espaços nas extremidades do body", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "test_fn",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "SELECT 1;",
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "test_fn",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "   SELECT 1;   \n",
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      // Não deve gerar ALTER_FUNCTION pois usamos trim()
+      expect(diff.operations).toHaveLength(0);
+    });
+  });
 });

@@ -382,4 +382,259 @@ describe("postgres-generator", () => {
       expect(sql).toContain("CREATE TABLE IF NOT EXISTS public.tb_users");
     });
   });
+
+  describe("PostgreSQL function SQL generation", () => {
+    it("1. Gera function plpgsql sem argumentos", () => {
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_update_timestamp",
+            language: "plpgsql" as const,
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN\n    NEW.updated_at = now();\n    RETURN NEW;\nEND;",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain(
+        "CREATE OR REPLACE FUNCTION public.fn_update_timestamp()\n" +
+        "RETURNS trigger AS $$\n" +
+        "BEGIN\n" +
+        "    NEW.updated_at = now();\n" +
+        "    RETURN NEW;\n" +
+        "END;\n" +
+        "$$ LANGUAGE plpgsql;"
+      );
+    });
+
+    it("2. Gera function sql com argumentos", () => {
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_sum",
+            language: "sql" as const,
+            returnType: "numeric",
+            arguments: [
+              { id: "a1", name: "a", dataType: "numeric" },
+              { id: "a2", name: "b", dataType: "numeric" },
+            ],
+            body: "SELECT a + b;",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain(
+        "CREATE OR REPLACE FUNCTION public.fn_sum(a numeric, b numeric)\n" +
+        "RETURNS numeric AS $$\n" +
+        "SELECT a + b;\n" +
+        "$$ LANGUAGE sql;"
+      );
+    });
+
+    it("3. Preserva ordem dos argumentos", () => {
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test_order",
+            language: "sql" as const,
+            returnType: "void",
+            arguments: [
+              { id: "a1", name: "first", dataType: "integer" },
+              { id: "a2", name: "second", dataType: "text" },
+              { id: "a3", name: "third", dataType: "boolean" },
+            ],
+            body: "--",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain("public.fn_test_order(first integer, second text, third boolean)");
+    });
+
+    it("4. Gera argumento com mode", () => {
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test_mode",
+            language: "sql" as const,
+            returnType: "record",
+            arguments: [
+              { id: "a1", name: "amount", dataType: "numeric", mode: "IN" as const },
+              { id: "a2", name: "result", dataType: "numeric", mode: "OUT" as const },
+            ],
+            body: "--",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain("public.fn_test_mode(IN amount numeric, OUT result numeric)");
+    });
+
+    it("5. Preserva body como SQL livre", () => {
+      const bodyStr = "BEGIN\n    RAISE NOTICE 'User % updated', NEW.id;\n    RETURN NEW;\nEND;";
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test_body",
+            language: "plpgsql" as const,
+            returnType: "trigger",
+            arguments: [],
+            body: bodyStr,
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain(`RETURNS trigger AS $$\n${bodyStr}\n$$ LANGUAGE plpgsql;`);
+    });
+
+    it("6. Functions são geradas antes de CREATE TABLE", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "users",
+                columns: [createColumnFixture({ name: "id", type: "integer" })],
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test_order",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "SELECT 1;",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      const funcIndex = sql.indexOf("CREATE OR REPLACE FUNCTION");
+      const tableIndex = sql.indexOf("CREATE TABLE");
+      expect(funcIndex).toBeGreaterThan(-1);
+      expect(tableIndex).toBeGreaterThan(-1);
+      expect(funcIndex).toBeLessThan(tableIndex);
+    });
+
+    it("7. CREATE SCHEMA continua antes de function", () => {
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "SELECT 1;",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      const schemaIndex = sql.indexOf("CREATE SCHEMA IF NOT EXISTS public;");
+      const funcIndex = sql.indexOf("CREATE OR REPLACE FUNCTION");
+      expect(schemaIndex).toBeGreaterThan(-1);
+      expect(funcIndex).toBeGreaterThan(-1);
+      expect(schemaIndex).toBeLessThan(funcIndex);
+    });
+
+    it("8. CREATE SEQUENCE continua antes de function", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            sequences: [
+              { id: "seq-1", name: "users_seq", startWith: 1, incrementBy: 1 },
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test",
+            language: "sql" as const,
+            returnType: "integer",
+            arguments: [],
+            body: "SELECT 1;",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      const seqIndex = sql.indexOf("CREATE SEQUENCE");
+      const funcIndex = sql.indexOf("CREATE OR REPLACE FUNCTION");
+      expect(seqIndex).toBeGreaterThan(-1);
+      expect(funcIndex).toBeGreaterThan(-1);
+      expect(seqIndex).toBeLessThan(funcIndex);
+    });
+
+    it("9. Projeto sem functions mantém SQL válido", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "users",
+                columns: [createColumnFixture({ name: "id", type: "integer" })],
+              }),
+            ],
+          }),
+        ],
+        functions: [],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).not.toContain("CREATE OR REPLACE FUNCTION");
+      expect(sql).toContain("CREATE TABLE IF NOT EXISTS public.users");
+    });
+
+    it("10. project.functions undefined não quebra generator", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "users",
+                columns: [createColumnFixture({ name: "id", type: "integer" })],
+              }),
+            ],
+          }),
+        ],
+      });
+      // Simula projeto legado sem a propriedade functions
+      // @ts-expect-error forcing delete for testing
+      delete project.functions;
+
+      expect(() => generatePostgresSql(project)).not.toThrow();
+      const sql = generatePostgresSql(project);
+      expect(sql).not.toContain("CREATE OR REPLACE FUNCTION");
+      expect(sql).toContain("CREATE TABLE IF NOT EXISTS public.users");
+    });
+  });
 });

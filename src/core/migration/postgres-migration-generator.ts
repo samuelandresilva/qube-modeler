@@ -1,4 +1,4 @@
-import type { DatabaseProject } from "../model/types";
+import type { DatabaseProject, DatabaseFunctionArgument } from "../model/types";
 import type { ProjectDiff, ProjectDiffOperation } from "../diff/project-diff-types";
 import {
   generateSequenceSql,
@@ -9,6 +9,7 @@ import {
   generateIndexSql,
   generateColumnTypeSql,
   generateTablePostCreateSql,
+  generateFunctionSql,
 } from "../sql/postgres-generator";
 
 function formatStatement(sql: string, risk: string): string {
@@ -20,6 +21,7 @@ function formatStatement(sql: string, risk: string): string {
 
 const OPERATION_ORDER: Record<string, number> = {
   DROP_CHECK_CONSTRAINT: 0,
+  DROP_FUNCTION: 0.5,
   RENAME_SCHEMA: 1,
   ALTER_TABLE_SCHEMA: 3,
   RENAME_SEQUENCE: 4,
@@ -32,6 +34,7 @@ const OPERATION_ORDER: Record<string, number> = {
   ALTER_SEQUENCE: 8,
   CREATE_SCHEMA: 10,
   CREATE_SEQUENCE: 11,
+  ADD_FUNCTION: 11.5,
   CREATE_TABLE: 12,
   DROP_FOREIGN_KEY: 20,
   DROP_UNIQUE_CONSTRAINT: 21,
@@ -154,6 +157,44 @@ export function generatePostgresMigrationSql(
         expression: op.newExpression,
         columnIds: op.newColumnIds,
       } as ProjectDiffOperation);
+    } else if (op.kind === "ALTER_FUNCTION") {
+      if (op.requiresDropAndRecreate) {
+        expandedOperations.push({
+          kind: "DROP_FUNCTION",
+          risk: "destructive",
+          functionId: op.functionId,
+          schemaId: op.oldSchemaId,
+          schemaName: op.oldSchemaName,
+          functionName: op.oldFunctionName,
+          arguments: op.oldArguments,
+        } as ProjectDiffOperation);
+
+        expandedOperations.push({
+          kind: "ADD_FUNCTION",
+          risk: op.risk,
+          functionId: op.functionId,
+          schemaId: op.newSchemaId,
+          schemaName: op.newSchemaName,
+          functionName: op.newFunctionName,
+          language: op.newLanguage,
+          returnType: op.newReturnType,
+          arguments: op.newArguments,
+          body: op.newBody,
+        } as ProjectDiffOperation);
+      } else {
+        expandedOperations.push({
+          kind: "ADD_FUNCTION",
+          risk: op.risk,
+          functionId: op.functionId,
+          schemaId: op.newSchemaId,
+          schemaName: op.newSchemaName,
+          functionName: op.newFunctionName,
+          language: op.newLanguage,
+          returnType: op.newReturnType,
+          arguments: op.newArguments,
+          body: op.newBody,
+        } as ProjectDiffOperation);
+      }
     } else {
       expandedOperations.push(op);
     }
@@ -620,6 +661,37 @@ export function generatePostgresMigrationSql(
         break;
       }
 
+      case "ADD_FUNCTION": {
+        const schema = currentProject.schemas.find((s) => s.id === op.schemaId);
+        if (!schema) {
+          throw new Error(`Schema ${op.schemaName} (ID: ${op.schemaId}) not found in current project.`);
+        }
+        const fn = {
+          id: op.functionId,
+          schemaId: op.schemaId,
+          name: op.functionName,
+          language: op.language,
+          returnType: op.returnType,
+          arguments: op.arguments,
+          body: op.body,
+        };
+        sqlStatements.push(formatStatement(
+          generateFunctionSql(schema, fn),
+          op.risk
+        ));
+        break;
+      }
+
+      case "DROP_FUNCTION": {
+        const sql = generateDropFunctionSql(
+          op.schemaName,
+          op.functionName,
+          op.arguments ?? []
+        );
+        sqlStatements.push(formatStatement(sql, op.risk));
+        break;
+      }
+
       default:
         break;
     }
@@ -628,4 +700,13 @@ export function generatePostgresMigrationSql(
   flushCreatedTablePostCreateStatements();
 
   return sqlStatements.join("\n\n");
+}
+
+function generateDropFunctionSql(
+  schemaName: string,
+  name: string,
+  args: DatabaseFunctionArgument[],
+): string {
+  const argTypesStr = args.map((arg) => arg.dataType.trim()).join(", ");
+  return `DROP FUNCTION ${schemaName}.${name}(${argTypesStr});`;
 }

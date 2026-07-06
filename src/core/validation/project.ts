@@ -6,18 +6,22 @@ import {
   validateUniqueNames,
 } from "./primitives";
 import { validateSchema } from "./schema";
+import { validateDatabaseFunction } from "./function";
 
 export function validateProject(project: unknown): DatabaseProject {
   if (!isObject(project)) throw new Error("Invalid project file.");
-  validateRequiredString(project.id, "Project id");
-  if (project.engine !== "postgresql")
+  const rawProject = project as Record<string, unknown>;
+  validateRequiredString(rawProject.id, "Project id");
+  if (rawProject.engine !== "postgresql")
     throw new Error("Only PostgreSQL projects are supported.");
-  validateRequiredString(project.name, "Project name");
-  if (!Array.isArray(project.schemas) || project.schemas.length === 0)
+  validateRequiredString(rawProject.name, "Project name");
+  if (!Array.isArray(rawProject.schemas) || rawProject.schemas.length === 0)
     throw new Error("Project must have at least one schema.");
 
+  const schemas = rawProject.schemas as unknown[];
+
   // Normalize checkConstraints on tables for backward compatibility
-  project.schemas.forEach((schema) => {
+  schemas.forEach((schema) => {
     if (isObject(schema) && Array.isArray(schema.tables)) {
       schema.tables.forEach((table) => {
         if (isObject(table) && !Array.isArray(table.checkConstraints)) {
@@ -27,14 +31,44 @@ export function validateProject(project: unknown): DatabaseProject {
     }
   });
 
+  // Normalize functions for backward compatibility
+  if (!Array.isArray(rawProject.functions)) {
+    rawProject.functions = [];
+  }
+  const functions = rawProject.functions as unknown[];
+
   validateUniqueNames(
-    project.schemas,
+    schemas,
     "Project schemas",
     (schema) => schema.name,
   );
-  project.schemas.forEach((schema) =>
-    validateSchema(schema, project.schemas as unknown[]),
+  schemas.forEach((schema) =>
+    validateSchema(schema, schemas),
   );
+
+  // Validate functions and check signature uniqueness
+  const signatures = new Set<string>();
+  functions.forEach((fn: unknown) => {
+    validateDatabaseFunction(fn, schemas);
+    if (isObject(fn)) {
+      const schemaId = String(fn.schemaId);
+      const name = String(fn.name);
+      const args = Array.isArray(fn.arguments) ? fn.arguments : [];
+      const argTypes = args
+        .map((arg) => {
+          return isObject(arg) && typeof arg.dataType === "string"
+            ? arg.dataType.trim().toLowerCase()
+            : "";
+        })
+        .join(",");
+      const signature = `${schemaId}:${name.trim().toLowerCase()}:${argTypes}`;
+      if (signatures.has(signature)) {
+        throw new Error(`Duplicate function signature found in the same schema: name="${name}" with args=[${argTypes}]`);
+      }
+      signatures.add(signature);
+    }
+  });
+
   validateDiagram(project);
   return project as unknown as DatabaseProject;
 }

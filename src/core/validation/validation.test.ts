@@ -2,13 +2,15 @@ import { describe, it, expect } from "vitest";
 import { validateProject } from "./project";
 import { validateTable } from "./table";
 import { createTable } from "../model/commands/table";
+import { createEmptyProject } from "../model/create-project";
+import { createQbmFile, parseQbmFile } from "../qbm/qbm-file";
 import {
   createProjectFixture,
   createSchemaFixture,
   createTableFixture,
   createColumnFixture,
 } from "../test-utils/project-fixtures";
-import type { DatabaseTable, CheckConstraint } from "../model/types";
+import type { DatabaseTable, CheckConstraint, DatabaseFunction } from "../model/types";
 
 describe("CHECK constraints validation and normalization", () => {
   it("1. Nova tabela inicializa checkConstraints como []", () => {
@@ -145,3 +147,236 @@ describe("CHECK constraints validation and normalization", () => {
     }).toThrow();
   });
 });
+
+describe("Database Functions validation and normalization", () => {
+  it("1. Projeto novo inicializa functions como []", () => {
+    const project = createEmptyProject();
+    expect(project.functions).toBeDefined();
+    expect(project.functions).toEqual([]);
+  });
+
+  it("2. Projeto antigo sem functions normaliza para []", () => {
+    const oldProject = {
+      id: "proj-1",
+      name: "Old Project",
+      engine: "postgresql",
+      schemas: [
+        {
+          id: "schema-1",
+          name: "public",
+          sequences: [],
+          tables: [],
+        },
+      ],
+      diagram: { tableNodes: [] },
+    };
+
+    const validated = validateProject(oldProject);
+    expect(validated.functions).toBeDefined();
+    expect(validated.functions).toEqual([]);
+  });
+
+  it("3. Save/load ou export/import preserva functions", () => {
+    const fn = {
+      id: "fn-1",
+      schemaId: "schema-1",
+      name: "calculate_total",
+      language: "plpgsql" as const,
+      returnType: "numeric",
+      arguments: [
+        {
+          id: "arg-1",
+          name: "price",
+          dataType: "numeric",
+          mode: "IN" as const,
+        },
+        {
+          id: "arg-2",
+          name: "tax",
+          dataType: "numeric",
+          mode: "IN" as const,
+        },
+      ],
+      body: "BEGIN return price + (price * tax); END;",
+    };
+
+    const project = createProjectFixture({
+      schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+      functions: [fn],
+    });
+
+    const qbm = createQbmFile(project, { versions: [] }, "1.0.0");
+    const json = JSON.stringify(qbm);
+    const parsed = parseQbmFile(json);
+
+    expect(parsed.project.functions).toHaveLength(1);
+    expect(parsed.project.functions[0]).toEqual(fn);
+  });
+
+  it("4. Validação rejeita function sem id", () => {
+    const invalidFn = {
+      id: "",
+      schemaId: "schema-1",
+      name: "test_func",
+      language: "sql" as const,
+      returnType: "integer",
+      arguments: [],
+      body: "SELECT 1;",
+    };
+
+    const project = createProjectFixture({
+      schemas: [createSchemaFixture({ id: "schema-1" })],
+      functions: [invalidFn as unknown as DatabaseFunction],
+    });
+
+    expect(() => validateProject(project)).toThrow();
+  });
+
+  it("5. Validação rejeita schemaId inexistente", () => {
+    const invalidFn = {
+      id: "fn-1",
+      schemaId: "non-existent-schema",
+      name: "test_func",
+      language: "sql" as const,
+      returnType: "integer",
+      arguments: [],
+      body: "SELECT 1;",
+    };
+
+    const project = createProjectFixture({
+      schemas: [createSchemaFixture({ id: "schema-1" })],
+      functions: [invalidFn as unknown as DatabaseFunction],
+    });
+
+    expect(() => validateProject(project)).toThrow();
+  });
+
+  it("6. Validação rejeita language inválida", () => {
+    const invalidFn = {
+      id: "fn-1",
+      schemaId: "schema-1",
+      name: "test_func",
+      language: "javascript" as unknown as "sql",
+      returnType: "integer",
+      arguments: [],
+      body: "return 1;",
+    };
+
+    const project = createProjectFixture({
+      schemas: [createSchemaFixture({ id: "schema-1" })],
+      functions: [invalidFn as unknown as DatabaseFunction],
+    });
+
+    expect(() => validateProject(project)).toThrow();
+  });
+
+  it("7. Validação rejeita returnType vazio", () => {
+    const invalidFn = {
+      id: "fn-1",
+      schemaId: "schema-1",
+      name: "test_func",
+      language: "sql" as const,
+      returnType: "",
+      arguments: [],
+      body: "SELECT 1;",
+    };
+
+    const project = createProjectFixture({
+      schemas: [createSchemaFixture({ id: "schema-1" })],
+      functions: [invalidFn],
+    });
+
+    expect(() => validateProject(project)).toThrow();
+  });
+
+  it("8. Validação rejeita body vazio", () => {
+    const invalidFn = {
+      id: "fn-1",
+      schemaId: "schema-1",
+      name: "test_func",
+      language: "sql" as const,
+      returnType: "integer",
+      arguments: [],
+      body: "",
+    };
+
+    const project = createProjectFixture({
+      schemas: [createSchemaFixture({ id: "schema-1" })],
+      functions: [invalidFn],
+    });
+
+    expect(() => validateProject(project)).toThrow();
+  });
+
+  it("9. Validação rejeita assinatura duplicada no mesmo schema", () => {
+    const fn1 = {
+      id: "fn-1",
+      schemaId: "schema-1",
+      name: "add",
+      language: "sql" as const,
+      returnType: "integer",
+      arguments: [
+        { id: "a1", name: "a", dataType: "integer" },
+        { id: "a2", name: "b", dataType: "integer" },
+      ],
+      body: "SELECT a + b;",
+    };
+
+    const fn2 = {
+      id: "fn-2",
+      schemaId: "schema-1",
+      name: "add",
+      language: "sql" as const,
+      returnType: "integer",
+      arguments: [
+        { id: "a3", name: "x", dataType: "integer" },
+        { id: "a4", name: "y", dataType: "integer" },
+      ],
+      body: "SELECT x + y;",
+    };
+
+    const project = createProjectFixture({
+      schemas: [createSchemaFixture({ id: "schema-1" })],
+      functions: [fn1, fn2],
+    });
+
+    expect(() => validateProject(project)).toThrow();
+  });
+
+  it("10. Permite mesmo nome com assinatura diferente no mesmo schema", () => {
+    const fn1 = {
+      id: "fn-1",
+      schemaId: "schema-1",
+      name: "add",
+      language: "sql" as const,
+      returnType: "integer",
+      arguments: [
+        { id: "a1", name: "a", dataType: "integer" },
+        { id: "a2", name: "b", dataType: "integer" },
+      ],
+      body: "SELECT a + b;",
+    };
+
+    const fn2 = {
+      id: "fn-2",
+      schemaId: "schema-1",
+      name: "add",
+      language: "sql" as const,
+      returnType: "text",
+      arguments: [
+        { id: "a3", name: "x", dataType: "text" },
+        { id: "a4", name: "y", dataType: "text" },
+      ],
+      body: "SELECT x || y;",
+    };
+
+    const project = createProjectFixture({
+      schemas: [createSchemaFixture({ id: "schema-1" })],
+      functions: [fn1, fn2],
+    });
+
+    const validated = validateProject(project);
+    expect(validated.functions).toHaveLength(2);
+  });
+});
+

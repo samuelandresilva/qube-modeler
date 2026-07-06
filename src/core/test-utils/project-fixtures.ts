@@ -12,6 +12,7 @@ export function createProjectFixture(overrides: Partial<DatabaseProject> = {}): 
     engine: "postgresql",
     schemas: [],
     diagram: { tableNodes: [] },
+    functions: [],
     ...overrides,
   };
 }

@@ -1062,4 +1062,445 @@ describe("postgres-migration-generator", () => {
       expect(alterColPos).toBeLessThan(addCheckPos);
     });
   });
+
+  describe("PostgreSQL database function migrations", () => {
+    it("1. Gera ADD_FUNCTION", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "ADD_FUNCTION",
+            risk: "warning",
+            functionId: "fn-1",
+            schemaId: "s1",
+            schemaName: "public",
+            functionName: "fn_sum",
+            language: "sql",
+            returnType: "numeric",
+            arguments: [
+              { id: "a1", name: "a", dataType: "numeric" },
+              { id: "a2", name: "b", dataType: "numeric" },
+            ],
+            body: "SELECT a + b;",
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+          }),
+        ],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain(
+        "CREATE OR REPLACE FUNCTION public.fn_sum(a numeric, b numeric)\n" +
+        "RETURNS numeric AS $$\n" +
+        "SELECT a + b;\n" +
+        "$$ LANGUAGE sql;"
+      );
+    });
+
+    it("2. Gera DROP_FUNCTION com assinatura", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "DROP_FUNCTION",
+            risk: "destructive",
+            functionId: "fn-1",
+            schemaId: "s1",
+            schemaName: "public",
+            functionName: "fn_sum",
+            arguments: [
+              { id: "a1", name: "a", dataType: "numeric" },
+              { id: "a2", name: "b", dataType: "numeric" },
+            ],
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "s1", name: "public" })],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain("DROP FUNCTION public.fn_sum(numeric, numeric);");
+    });
+
+    it("3. Gera DROP_FUNCTION sem argumentos", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "DROP_FUNCTION",
+            risk: "destructive",
+            functionId: "fn-1",
+            schemaId: "s1",
+            schemaName: "public",
+            functionName: "fn_update_timestamp",
+            arguments: [],
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "s1", name: "public" })],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain("DROP FUNCTION public.fn_update_timestamp();");
+    });
+
+    it("4. ALTER_FUNCTION sem rebuild gera apenas CREATE OR REPLACE", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "ALTER_FUNCTION",
+            risk: "warning",
+            functionId: "fn-1",
+            oldSchemaId: "s1",
+            newSchemaId: "s1",
+            oldSchemaName: "public",
+            newSchemaName: "public",
+            oldFunctionName: "fn_sum",
+            newFunctionName: "fn_sum",
+            oldLanguage: "sql",
+            newLanguage: "sql",
+            oldReturnType: "numeric",
+            newReturnType: "numeric",
+            oldArguments: [{ id: "a1", name: "a", dataType: "numeric" }],
+            newArguments: [{ id: "a1", name: "a", dataType: "numeric" }],
+            oldBody: "SELECT a;",
+            newBody: "SELECT a * 2;",
+            requiresDropAndRecreate: false,
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "s1", name: "public" })],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain("CREATE OR REPLACE FUNCTION public.fn_sum(a numeric)");
+      expect(sql).not.toContain("DROP FUNCTION");
+    });
+
+    it("5. ALTER_FUNCTION com rebuild gera DROP antigo + CREATE novo", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "ALTER_FUNCTION",
+            risk: "warning",
+            functionId: "fn-1",
+            oldSchemaId: "s1",
+            newSchemaId: "s1",
+            oldSchemaName: "public",
+            newSchemaName: "public",
+            oldFunctionName: "fn_sum",
+            newFunctionName: "fn_sum",
+            oldLanguage: "sql",
+            newLanguage: "sql",
+            oldReturnType: "numeric",
+            newReturnType: "numeric",
+            oldArguments: [
+              { id: "a1", name: "a", dataType: "numeric" },
+              { id: "a2", name: "b", dataType: "numeric" },
+            ],
+            newArguments: [
+              { id: "a1", name: "a", dataType: "numeric" },
+              { id: "a2", name: "b", dataType: "numeric" },
+              { id: "a3", name: "c", dataType: "numeric" },
+            ],
+            oldBody: "SELECT a + b;",
+            newBody: "SELECT a + b + c;",
+            requiresDropAndRecreate: true,
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "s1", name: "public" })],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      const dropIndex = sql.indexOf("DROP FUNCTION public.fn_sum(numeric, numeric);");
+      const createIndex = sql.indexOf("CREATE OR REPLACE FUNCTION public.fn_sum(a numeric, b numeric, c numeric)");
+      
+      expect(dropIndex).toBeGreaterThan(-1);
+      expect(createIndex).toBeGreaterThan(-1);
+      expect(dropIndex).toBeLessThan(createIndex);
+    });
+
+    it("6. DROP_FUNCTION não inclui nome dos argumentos nem mode", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "DROP_FUNCTION",
+            risk: "destructive",
+            functionId: "fn-1",
+            schemaId: "s1",
+            schemaName: "public",
+            functionName: "fn_x",
+            arguments: [
+              { id: "a1", name: "a", dataType: "numeric", mode: "IN" },
+              { id: "a2", name: "result", dataType: "numeric", mode: "OUT" },
+            ],
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "s1", name: "public" })],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain("DROP FUNCTION public.fn_x(numeric, numeric);");
+      expect(sql).not.toContain("IN ");
+      expect(sql).not.toContain("OUT");
+      expect(sql).not.toContain("result");
+    });
+
+    it("7. ADD_FUNCTION preserva mode nos argumentos", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "ADD_FUNCTION",
+            risk: "warning",
+            functionId: "fn-1",
+            schemaId: "s1",
+            schemaName: "public",
+            functionName: "fn_x",
+            language: "sql",
+            returnType: "numeric",
+            arguments: [
+              { id: "a1", name: "a", dataType: "numeric", mode: "IN" },
+              { id: "a2", name: "result", dataType: "numeric", mode: "OUT" },
+            ],
+            body: "--",
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "s1", name: "public" })],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain("CREATE OR REPLACE FUNCTION public.fn_x(IN a numeric, OUT result numeric)");
+    });
+
+    it("8. ALTER_FUNCTION com mudança de schemaId usa old schema no DROP e new schema no CREATE", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "ALTER_FUNCTION",
+            risk: "warning",
+            functionId: "fn-1",
+            oldSchemaId: "s1",
+            newSchemaId: "s2",
+            oldSchemaName: "public",
+            newSchemaName: "auth",
+            oldFunctionName: "fn_x",
+            newFunctionName: "fn_x",
+            oldLanguage: "sql",
+            newLanguage: "sql",
+            oldReturnType: "integer",
+            newReturnType: "integer",
+            oldArguments: [{ id: "a1", name: "a", dataType: "integer" }],
+            newArguments: [{ id: "a1", name: "value", dataType: "integer" }],
+            oldBody: "SELECT a;",
+            newBody: "SELECT value;",
+            requiresDropAndRecreate: true,
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({ id: "s1", name: "public" }),
+          createSchemaFixture({ id: "s2", name: "auth" }),
+        ],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain("DROP FUNCTION public.fn_x(integer);");
+      expect(sql).toContain("CREATE OR REPLACE FUNCTION auth.fn_x(value integer)");
+    });
+
+    it("9. RENAME_SCHEMA + ALTER_FUNCTION sem rebuild usa schema novo no CREATE", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "RENAME_SCHEMA",
+            risk: "warning",
+            schemaId: "s1",
+            oldName: "public",
+            newName: "auth",
+          },
+          {
+            kind: "ALTER_FUNCTION",
+            risk: "warning",
+            functionId: "fn-1",
+            oldSchemaId: "s1",
+            newSchemaId: "s1",
+            oldSchemaName: "public",
+            newSchemaName: "auth",
+            oldFunctionName: "fn_x",
+            newFunctionName: "fn_x",
+            oldLanguage: "sql",
+            newLanguage: "sql",
+            oldReturnType: "integer",
+            newReturnType: "integer",
+            oldArguments: [],
+            newArguments: [],
+            oldBody: "SELECT 1;",
+            newBody: "SELECT 2;",
+            requiresDropAndRecreate: false,
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "s1", name: "auth" })],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      const renameIndex = sql.indexOf("ALTER SCHEMA public RENAME TO auth;");
+      const createIndex = sql.indexOf("CREATE OR REPLACE FUNCTION auth.fn_x()");
+      
+      expect(renameIndex).toBeGreaterThan(-1);
+      expect(createIndex).toBeGreaterThan(-1);
+      expect(renameIndex).toBeLessThan(createIndex);
+    });
+
+    it("10. Preserva body multiline no CREATE incremental", () => {
+      const bodyStr = "BEGIN\n    RAISE NOTICE 'updated %', NEW.id;\n    RETURN NEW;\nEND;";
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "ADD_FUNCTION",
+            risk: "warning",
+            functionId: "fn-1",
+            schemaId: "s1",
+            schemaName: "public",
+            functionName: "fn_x",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: bodyStr,
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "s1", name: "public" })],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain(`RETURNS trigger AS $$\n${bodyStr}\n$$ LANGUAGE plpgsql;`);
+    });
+
+    it("11. Regressão: DROP_CHECK_CONSTRAINT continua antes de RENAME_SCHEMA", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "RENAME_SCHEMA",
+            risk: "warning",
+            schemaId: "s1",
+            oldName: "public",
+            newName: "auth",
+          },
+          {
+            kind: "DROP_CHECK_CONSTRAINT",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "users",
+            constraintId: "chk-1",
+            constraintName: "chk_age",
+            expression: "age > 0",
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "s1", name: "auth" })],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      const dropPos = sql.indexOf("ALTER TABLE public.users DROP CONSTRAINT chk_age;");
+      const renamePos = sql.indexOf("ALTER SCHEMA public RENAME TO auth;");
+      
+      expect(dropPos).toBeGreaterThan(-1);
+      expect(renamePos).toBeGreaterThan(-1);
+      expect(dropPos).toBeLessThan(renamePos);
+    });
+
+    it("12. Regressão: ADD_CHECK_CONSTRAINT continua depois de ADD_COLUMN", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "ADD_CHECK_CONSTRAINT",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "users",
+            constraintId: "chk-1",
+            constraintName: "chk_age",
+            expression: "age > 0",
+          },
+          {
+            kind: "ADD_COLUMN",
+            risk: "safe",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "users",
+            columnId: "c1",
+            columnName: "age",
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t1",
+                name: "users",
+                columns: [createColumnFixture({ id: "c1", name: "age", type: "integer" })],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      const addColumnPos = sql.indexOf("ALTER TABLE public.users ADD COLUMN age integer");
+      const addCheckPos = sql.indexOf("ALTER TABLE public.users ADD CONSTRAINT chk_age CHECK (age > 0);");
+      
+      expect(addColumnPos).toBeGreaterThan(-1);
+      expect(addCheckPos).toBeGreaterThan(-1);
+      expect(addColumnPos).toBeLessThan(addCheckPos);
+    });
+  });
 });

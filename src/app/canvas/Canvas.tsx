@@ -16,6 +16,7 @@ import {
   removeTable,
   updateTable,
   moveTableSchema,
+  removeDatabaseFunction,
   type DatabaseProject,
 } from "@/core/model";
 import { generatePostgresSql } from "@/core/sql/postgres-generator";
@@ -192,6 +193,14 @@ function CanvasContent({
       setDialog(null);
     });
   };
+  const deleteFunction = (_schemaId: string, functionId: string) => {
+    const fn = (project.functions ?? []).find((item) => item.id === functionId);
+    if (!fn) return;
+    requestConfirm(`Remove function "${fn.name}"?`, () => {
+      setProject((current) => removeDatabaseFunction(current, functionId));
+      setDialog(null);
+    });
+  };
   const download = async (kind: "json" | "sql") => {
     const message = kind === "json" ? "Exporting JSON..." : "Generating SQL...";
     if (!beginFileOperation(message)) return;
@@ -232,6 +241,11 @@ function CanvasContent({
           setDialog({ kind: "sequence", schemaId, sequenceId })
         }
         onDeleteSequence={deleteSequence}
+        onAddFunction={(schemaId) => setDialog({ kind: "function", schemaId })}
+        onEditFunction={(schemaId, functionId) =>
+          setDialog({ kind: "function", schemaId, functionId })
+        }
+        onDeleteFunction={deleteFunction}
         onSeeTableOnDiagram={(_schemaId, tableId) => flow.focusTable(tableId)}
         onDeleteTable={deleteTable}
         onViewFlyway={onViewFlyway}
