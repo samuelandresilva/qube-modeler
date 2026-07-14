@@ -19,6 +19,7 @@ type Props = {
   onAddFunction: (schemaId: string) => void;
   onEditFunction: (schemaId: string, functionId: string) => void;
   onDeleteFunction: (schemaId: string, functionId: string) => void;
+  onDeleteView?: (schemaId: string, viewId: string) => void;
   onViewFlyway?: () => void;
 };
 
@@ -90,6 +91,7 @@ export function CanvasSidebar({
                     key={schema.id}
                     schema={schema}
                     projectFunctions={project.functions ?? []}
+                    projectViews={project.views ?? []}
                     {...actions}
                   />
                 ))}

@@ -11,6 +11,10 @@ import { useState, useEffect, useCallback } from "react";
 import {
   createTable,
   findTableContext,
+  findViewContext,
+  createDatabaseView,
+  updateDatabaseView,
+  removeDatabaseView,
   removeSchema,
   removeSequence,
   removeTable,
@@ -26,6 +30,8 @@ import { CanvasSidebar } from "./components/CanvasSidebar";
 import { CanvasToolbar } from "./components/CanvasToolbar";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { DatabaseTableNode } from "./components/DatabaseTableNode";
+import { DatabaseViewNode } from "./components/DatabaseViewNode";
+import { SmartRelationEdge } from "./components/SmartRelationEdge";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 import { CanvasDialogs } from "./dialogs/CanvasDialogs";
 import type { CanvasDialogState } from "./dialogs/dialog-state";
@@ -48,7 +54,13 @@ type CanvasProps = {
   onFileOperationError: (message: string) => void;
   onViewFlyway?: () => void;
 };
-const nodeTypes = { databaseTable: DatabaseTableNode };
+const nodeTypes = {
+  databaseTable: DatabaseTableNode,
+  databaseView: DatabaseViewNode,
+};
+const edgeTypes = {
+  smart: SmartRelationEdge,
+};
 const defaultEdgeOptions: ReactFlowProps["defaultEdgeOptions"] = {
   type: "smoothstep",
   style: { stroke: "#38bdf8", strokeWidth: 2 },
@@ -83,6 +95,7 @@ function CanvasContent({
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<CanvasDialogState>(null);
   const [isAddingTable, setIsAddingTable] = useState(false);
+  const [isAddingView, setIsAddingView] = useState(false);
   const [activeSchemaId, setActiveSchemaId] = useState<string | null>(null);
   const { confirm, requestConfirm, dismissConfirm, acceptConfirm } =
     useConfirm();
@@ -101,6 +114,11 @@ function CanvasContent({
   const context = selectedTableId
     ? findTableContext(project, selectedTableId)
     : undefined;
+
+  const viewContext = selectedTableId
+    ? findViewContext(project, selectedTableId)
+    : undefined;
+
   const handleDoubleClickColumn = useCallback((tableId: string, columnId: string) => {
     setSelectedTableId(tableId);
     setDialog({ kind: "column", columnId });
@@ -115,20 +133,39 @@ function CanvasContent({
   });
 
   useEffect(() => {
-    if (!isAddingTable) return;
+    if (!isAddingTable && !isAddingView) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsAddingTable(false);
+        setIsAddingView(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isAddingTable]);
+  }, [isAddingTable, isAddingView]);
 
   const toggleAddTableMode = () => {
     if (!activeSchemaId) return;
-    setIsAddingTable((prev) => !prev);
+    setIsAddingTable((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsAddingView(false);
+      }
+      return next;
+    });
   };
+
+  const toggleAddViewMode = () => {
+    if (!activeSchemaId) return;
+    setIsAddingView((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsAddingTable(false);
+      }
+      return next;
+    });
+  };
+
   const handlePaneClick = (event: React.MouseEvent) => {
     if (isAddingTable) {
       if (!activeSchemaId) {
@@ -150,6 +187,26 @@ function CanvasContent({
       setProject(result.project);
       setSelectedTableId(result.id);
       setIsAddingTable(false);
+    } else if (isAddingView) {
+      if (!activeSchemaId) {
+        setIsAddingView(false);
+        return;
+      }
+      const schemaExists = project.schemas.some((s) => s.id === activeSchemaId);
+      if (!schemaExists) {
+        setIsAddingView(false);
+        setActiveSchemaId(project.schemas.length > 0 ? project.schemas[0].id : null);
+        onFileOperationError("The selected schema no longer exists. Please select a valid schema.");
+        return;
+      }
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      const result = createDatabaseView(project, activeSchemaId, position);
+      setProject(result.project);
+      setSelectedTableId(result.id);
+      setIsAddingView(false);
     } else {
       setSelectedTableId(null);
     }
@@ -163,6 +220,17 @@ function CanvasContent({
         removeTable(current, schema.id, table.id),
       );
       if (selectedTableId === table.id) {
+        setSelectedTableId(null);
+        setDialog(null);
+      }
+    });
+  };
+  const deleteView = (_schemaId: string, viewId: string) => {
+    const view = project.views?.find((v) => v.id === viewId);
+    if (!view) return;
+    requestConfirm(`Remove view "${view.name}"?`, () => {
+      setProject((current) => removeDatabaseView(current, viewId));
+      if (selectedTableId === viewId) {
         setSelectedTableId(null);
         setDialog(null);
       }
@@ -198,7 +266,6 @@ function CanvasContent({
     if (!fn) return;
     requestConfirm(`Remove function "${fn.name}"?`, () => {
       setProject((current) => removeDatabaseFunction(current, functionId));
-      setDialog(null);
     });
   };
   const download = async (kind: "json" | "sql") => {
@@ -248,6 +315,7 @@ function CanvasContent({
         onDeleteFunction={deleteFunction}
         onSeeTableOnDiagram={(_schemaId, tableId) => flow.focusTable(tableId)}
         onDeleteTable={deleteTable}
+        onDeleteView={deleteView}
         onViewFlyway={onViewFlyway}
       />
       <main className="canvas-main">
@@ -260,6 +328,8 @@ function CanvasContent({
           isFileOperationLoading={fileOperationMessage !== null}
           onAddTable={toggleAddTableMode}
           isAddingTable={isAddingTable}
+          onAddView={toggleAddViewMode}
+          isAddingView={isAddingView}
           onFitView={flow.fitView}
           onExportJson={() => void download("json")}
           onGenerateSql={() => void download("sql")}
@@ -309,6 +379,61 @@ function CanvasContent({
             onEditCheckConstraint={(constraintId) =>
               setDialog({ kind: "check-constraint", constraintId })
             }
+            onAddTrigger={() => setDialog({ kind: "trigger", parentId: context.table.id, parentType: "table" })}
+            onEditTrigger={(triggerId) => setDialog({ kind: "trigger", triggerId, parentId: context.table.id, parentType: "table" })}
+          />
+        )}
+        {viewContext && (
+          <CanvasInspector
+            view={viewContext.view}
+            onClose={() => setSelectedTableId(null)}
+            schemas={project.schemas}
+            currentSchemaId={viewContext.schema.id}
+            onChangeSchema={(schemaId) =>
+              setProject((current) =>
+                updateDatabaseView(current, viewContext.view.id, (view) => ({
+                  ...view,
+                  schemaId,
+                })),
+              )
+            }
+            onRenameView={(name) =>
+              setProject((current) =>
+                updateDatabaseView(current, viewContext.view.id, (view) => ({
+                  ...view,
+                  name,
+                })),
+              )
+            }
+            onEditViewDefinition={() =>
+              setDialog({ kind: "view-definition", viewId: viewContext.view.id })
+            }
+            onToggleMaterialized={(isMaterialized) =>
+              setProject((current) =>
+                updateDatabaseView(current, viewContext.view.id, (view) => ({
+                  ...view,
+                  isMaterialized,
+                  withNoData: isMaterialized ? view.withNoData : false,
+                })),
+              )
+            }
+            onToggleWithNoData={(withNoData) =>
+              setProject((current) =>
+                updateDatabaseView(current, viewContext.view.id, (view) => ({
+                  ...view,
+                  withNoData,
+                })),
+              )
+            }
+            onDeleteView={() => {
+              requestConfirm(`Remove view "${viewContext.view.name}"?`, () => {
+                setProject((current) => removeDatabaseView(current, viewContext.view.id));
+                setSelectedTableId(null);
+                setDialog(null);
+              });
+            }}
+            onAddTrigger={() => setDialog({ kind: "trigger", parentId: viewContext.view.id, parentType: "view" })}
+            onEditTrigger={(triggerId) => setDialog({ kind: "trigger", triggerId, parentId: viewContext.view.id, parentType: "view" })}
           />
         )}
         <CanvasDialogs
@@ -328,14 +453,18 @@ function CanvasContent({
           />
         )}
         <ReactFlow
-          className={`canvas-flow ${isAddingTable ? "canvas-flow--adding-table" : ""}`}
+          className={`canvas-flow ${isAddingTable ? "canvas-flow--adding-table" : ""} ${isAddingView ? "canvas-flow--adding-view" : ""}`}
           nodes={flow.nodes}
           edges={flow.edges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           onNodeDragStop={flow.onNodeDragStop}
           onNodeClick={(_, node) => {
             if (isAddingTable) {
               setIsAddingTable(false);
+            }
+            if (isAddingView) {
+              setIsAddingView(false);
             }
             setSelectedTableId(node.id);
           }}

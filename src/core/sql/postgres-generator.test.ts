@@ -637,4 +637,365 @@ describe("postgres-generator", () => {
       expect(sql).toContain("CREATE TABLE IF NOT EXISTS public.users");
     });
   });
+
+  describe("PostgreSQL trigger SQL generation", () => {
+    it("1. Gera trigger BEFORE INSERT sem WHEN/constraint", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "BEFORE",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain(
+        "CREATE TRIGGER trg_test\n" +
+        "    BEFORE INSERT\n" +
+        "    ON public.tb_users\n" +
+        "    FOR EACH ROW\n" +
+        "    EXECUTE FUNCTION public.fn_test();"
+      );
+    });
+
+    it("2. Gera trigger AFTER UPDATE OR DELETE com WHERE (WHEN condition)", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "AFTER",
+                    events: ["UPDATE", "DELETE"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                    condition: "NEW.age > 18",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain(
+        "CREATE TRIGGER trg_test\n" +
+        "    AFTER UPDATE OR DELETE\n" +
+        "    ON public.tb_users\n" +
+        "    FOR EACH ROW\n" +
+        "    WHEN (NEW.age > 18)\n" +
+        "    EXECUTE FUNCTION public.fn_test();"
+      );
+    });
+
+    it("3. Gera CONSTRAINT TRIGGER com DEFERRABLE INITIALLY DEFERRED", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "AFTER",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                    isConstraint: true,
+                    deferrable: true,
+                    initiallyDeferred: true,
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain(
+        "CREATE CONSTRAINT TRIGGER trg_test\n" +
+        "    AFTER INSERT\n" +
+        "    ON public.tb_users\n" +
+        "    DEFERRABLE INITIALLY DEFERRED\n" +
+        "    FOR EACH ROW\n" +
+        "    EXECUTE FUNCTION public.fn_test();"
+      );
+    });
+
+    it("4. Gera trigger referenciando função de outro schema", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "BEFORE",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                  },
+                ],
+              }),
+            ],
+          }),
+          createSchemaFixture({
+            id: "schema-2",
+            name: "auth",
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-2",
+            name: "fn_auth_log",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain("EXECUTE FUNCTION auth.fn_auth_log();");
+    });
+
+    it("5. Triggers são gerados após tabelas e funções", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "BEFORE",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      const funcIndex = sql.indexOf("CREATE OR REPLACE FUNCTION");
+      const tableIndex = sql.indexOf("CREATE TABLE");
+      const triggerIndex = sql.indexOf("CREATE TRIGGER");
+      expect(funcIndex).toBeGreaterThan(-1);
+      expect(tableIndex).toBeGreaterThan(-1);
+      expect(triggerIndex).toBeGreaterThan(-1);
+      expect(funcIndex).toBeLessThan(tableIndex);
+      expect(tableIndex).toBeLessThan(triggerIndex);
+    });
+  });
+
+  describe("PostgreSQL Views generation", () => {
+    it("1. Gera uma View padrao com CREATE OR REPLACE VIEW", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+          }),
+        ],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_users",
+            definition: "SELECT id, name FROM public.tb_users WHERE active = true;",
+            isMaterialized: false,
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain("CREATE OR REPLACE VIEW public.v_users AS\nSELECT id, name FROM public.tb_users WHERE active = true;");
+    });
+
+    it("2. Gera uma Materialized View com CREATE MATERIALIZED VIEW", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+          }),
+        ],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_mat_users",
+            definition: "SELECT id, name FROM public.tb_users",
+            isMaterialized: true,
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain("CREATE MATERIALIZED VIEW public.v_mat_users AS\nSELECT id, name FROM public.tb_users;");
+    });
+
+    it("3. Gera uma Materialized View contendo o sufixo WITH NO DATA", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+          }),
+        ],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_mat_users_nodata",
+            definition: "SELECT id, name FROM public.tb_users;",
+            isMaterialized: true,
+            withNoData: true,
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain("CREATE MATERIALIZED VIEW public.v_mat_users_nodata AS\nSELECT id, name FROM public.tb_users WITH NO DATA;");
+    });
+
+    it("4. Valida a ordem no script combinado: views apos tabelas e antes de triggers", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                columns: [createColumnFixture({ name: "id", type: "integer" })],
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "BEFORE",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_users",
+            definition: "SELECT * FROM public.tb_users",
+            isMaterialized: false,
+          },
+        ],
+      });
+
+      const sql = generatePostgresSql(project);
+      const tablePos = sql.indexOf("CREATE TABLE");
+      const viewPos = sql.indexOf("CREATE OR REPLACE VIEW");
+      const triggerPos = sql.indexOf("CREATE TRIGGER");
+
+      expect(tablePos).toBeGreaterThan(-1);
+      expect(viewPos).toBeGreaterThan(-1);
+      expect(triggerPos).toBeGreaterThan(-1);
+
+      expect(tablePos).toBeLessThan(viewPos);
+      expect(viewPos).toBeLessThan(triggerPos);
+    });
+  });
 });

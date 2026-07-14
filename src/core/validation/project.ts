@@ -7,6 +7,7 @@ import {
 } from "./primitives";
 import { validateSchema } from "./schema";
 import { validateDatabaseFunction } from "./function";
+import { validateDatabaseView } from "./view";
 
 export function validateProject(project: unknown): DatabaseProject {
   if (!isObject(project)) throw new Error("Invalid project file.");
@@ -20,12 +21,15 @@ export function validateProject(project: unknown): DatabaseProject {
 
   const schemas = rawProject.schemas as unknown[];
 
-  // Normalize checkConstraints on tables for backward compatibility
+  // Normalize checkConstraints and triggers on tables for backward compatibility
   schemas.forEach((schema) => {
     if (isObject(schema) && Array.isArray(schema.tables)) {
       schema.tables.forEach((table) => {
         if (isObject(table) && !Array.isArray(table.checkConstraints)) {
           table.checkConstraints = [];
+        }
+        if (isObject(table) && !Array.isArray(table.triggers)) {
+          table.triggers = [];
         }
       });
     }
@@ -67,6 +71,15 @@ export function validateProject(project: unknown): DatabaseProject {
       }
       signatures.add(signature);
     }
+  });
+
+  // Normalize views for backward compatibility
+  if (!Array.isArray(rawProject.views)) {
+    rawProject.views = [];
+  }
+  const views = rawProject.views as unknown[];
+  views.forEach((view: unknown) => {
+    validateDatabaseView(view, schemas);
   });
 
   validateDiagram(project);

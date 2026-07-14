@@ -10,7 +10,7 @@ import {
   createTableFixture,
   createColumnFixture,
 } from "../test-utils/project-fixtures";
-import type { DatabaseTable, CheckConstraint, DatabaseFunction } from "../model/types";
+import type { DatabaseTable, CheckConstraint, DatabaseFunction, DatabaseTrigger } from "../model/types";
 
 describe("CHECK constraints validation and normalization", () => {
   it("1. Nova tabela inicializa checkConstraints como []", () => {
@@ -377,6 +377,284 @@ describe("Database Functions validation and normalization", () => {
 
     const validated = validateProject(project);
     expect(validated.functions).toHaveLength(2);
+  });
+});
+
+describe("PostgreSQL Triggers validation and normalization", () => {
+  it("1. Nova tabela inicializa triggers como []", () => {
+    const project = createProjectFixture();
+    const schema = createSchemaFixture({ id: "schema-1", name: "public" });
+    const projectWithSchema = {
+      ...project,
+      schemas: [schema],
+    };
+    
+    const result = createTable(projectWithSchema, "schema-1");
+    const createdTable = result.project.schemas[0].tables[0];
+    
+    expect(createdTable.triggers).toBeDefined();
+    expect(createdTable.triggers).toEqual([]);
+  });
+
+  it("2. Projeto antigo sem triggers é normalizado", () => {
+    const oldTable = {
+      id: "table-1",
+      name: "users",
+      columns: [],
+      foreignKeys: [],
+      indexes: [],
+      uniqueConstraints: [],
+      checkConstraints: [],
+    } as unknown as DatabaseTable;
+    const oldSchema = createSchemaFixture({ tables: [oldTable] });
+    const oldProject = createProjectFixture({ schemas: [oldSchema] });
+
+    const normalizedProject = validateProject(oldProject);
+    const normalizedTable = normalizedProject.schemas[0].tables[0];
+
+    expect(normalizedTable.triggers).toBeDefined();
+    expect(normalizedTable.triggers).toEqual([]);
+  });
+
+  it("3. Projeto com trigger válido preserva dados", () => {
+    const tableWithTrigger = createTableFixture({
+      triggers: [
+        {
+          id: "trg-1",
+          name: "trg_log_users",
+          eventTiming: "BEFORE",
+          events: ["INSERT", "UPDATE"],
+          functionId: "fn-1",
+          forEach: "ROW",
+          condition: "NEW.age > 18",
+          isConstraint: true,
+          deferrable: true,
+          initiallyDeferred: false,
+        },
+      ],
+    });
+    const schema = createSchemaFixture({ tables: [tableWithTrigger] });
+    const project = createProjectFixture({ schemas: [schema] });
+
+    const validatedProject = validateProject(JSON.parse(JSON.stringify(project)));
+    const validatedTable = validatedProject.schemas[0].tables[0];
+
+    expect(validatedTable.triggers).toHaveLength(1);
+    expect(validatedTable.triggers[0]).toEqual({
+      id: "trg-1",
+      name: "trg_log_users",
+      eventTiming: "BEFORE",
+      events: ["INSERT", "UPDATE"],
+      functionId: "fn-1",
+      forEach: "ROW",
+      condition: "NEW.age > 18",
+      isConstraint: true,
+      deferrable: true,
+      initiallyDeferred: false,
+    });
+  });
+
+  it("4. Validação rejeita trigger com nome inválido", () => {
+    const tableWithInvalidTrigger = createTableFixture({
+      triggers: [
+        {
+          id: "trg-1",
+          name: "invalid name spaces",
+          eventTiming: "BEFORE",
+          events: ["INSERT"],
+          functionId: "fn-1",
+          forEach: "ROW",
+        } as unknown as DatabaseTrigger,
+      ],
+    });
+    const schema = createSchemaFixture({ tables: [tableWithInvalidTrigger] });
+    const project = createProjectFixture({ schemas: [schema] });
+
+    expect(() => validateProject(project)).toThrow();
+  });
+
+  it("5. Validação rejeita trigger com eventTiming inválido", () => {
+    const tableWithInvalidTrigger = createTableFixture({
+      triggers: [
+        {
+          id: "trg-1",
+          name: "trg_test",
+          eventTiming: "INVALID" as unknown as "BEFORE",
+          events: ["INSERT"],
+          functionId: "fn-1",
+          forEach: "ROW",
+        },
+      ],
+    });
+    const schema = createSchemaFixture({ tables: [tableWithInvalidTrigger] });
+    const project = createProjectFixture({ schemas: [schema] });
+
+    expect(() => validateProject(project)).toThrow();
+  });
+
+  it("6. Validação rejeita trigger com events vazio", () => {
+    const tableWithInvalidTrigger = createTableFixture({
+      triggers: [
+        {
+          id: "trg-1",
+          name: "trg_test",
+          eventTiming: "BEFORE",
+          events: [],
+          functionId: "fn-1",
+          forEach: "ROW",
+        },
+      ],
+    });
+    const schema = createSchemaFixture({ tables: [tableWithInvalidTrigger] });
+    const project = createProjectFixture({ schemas: [schema] });
+
+    expect(() => validateProject(project)).toThrow();
+  });
+
+  it("7. Validação rejeita trigger com forEach inválido", () => {
+    const tableWithInvalidTrigger = createTableFixture({
+      triggers: [
+        {
+          id: "trg-1",
+          name: "trg_test",
+          eventTiming: "BEFORE",
+          events: ["INSERT"],
+          functionId: "fn-1",
+          forEach: "INVALID" as unknown as "ROW",
+        },
+      ],
+    });
+    const schema = createSchemaFixture({ tables: [tableWithInvalidTrigger] });
+    const project = createProjectFixture({ schemas: [schema] });
+
+    expect(() => validateProject(project)).toThrow();
+  });
+});
+
+describe("Views validation and normalization", () => {
+  it("1. Projeto antigo sem views é normalizado com views como []", () => {
+    const oldProject = {
+      id: "proj-1",
+      name: "Test Project",
+      engine: "postgresql",
+      schemas: [
+        createSchemaFixture({ id: "schema-1", name: "public" }),
+      ],
+      diagram: { tableNodes: [] },
+      functions: [],
+    };
+
+    const normalizedProject = validateProject(oldProject);
+    expect(normalizedProject.views).toBeDefined();
+    expect(normalizedProject.views).toEqual([]);
+  });
+
+  it("2. Validador aceita view válida e preserva dados", () => {
+    const validProject = createProjectFixture({
+      schemas: [
+        createSchemaFixture({ id: "schema-1", name: "public" }),
+      ],
+      views: [
+        {
+          id: "view-1",
+          schemaId: "schema-1",
+          name: "v_active_users",
+          definition: "SELECT * FROM users WHERE active = true",
+          isMaterialized: false,
+        },
+      ],
+    });
+
+    const validated = validateProject(validProject);
+    expect(validated.views).toHaveLength(1);
+    expect(validated.views[0]).toEqual({
+      id: "view-1",
+      schemaId: "schema-1",
+      name: "v_active_users",
+      definition: "SELECT * FROM users WHERE active = true",
+      isMaterialized: false,
+      triggers: [],
+      x: 100,
+      y: 100,
+    });
+  });
+
+  it("3. Validador rejeita view com id inválido", () => {
+    const invalidProject = createProjectFixture({
+      schemas: [
+        createSchemaFixture({ id: "schema-1", name: "public" }),
+      ],
+      views: [
+        {
+          id: "",
+          schemaId: "schema-1",
+          name: "v_active_users",
+          definition: "SELECT * FROM users WHERE active = true",
+          isMaterialized: false,
+        },
+      ],
+    });
+
+    expect(() => validateProject(invalidProject)).toThrow();
+  });
+
+  it("4. Validador rejeita view com schemaId que não existe", () => {
+    const invalidProject = createProjectFixture({
+      schemas: [
+        createSchemaFixture({ id: "schema-1", name: "public" }),
+      ],
+      views: [
+        {
+          id: "view-1",
+          schemaId: "schema-invalid",
+          name: "v_active_users",
+          definition: "SELECT * FROM users WHERE active = true",
+          isMaterialized: false,
+        },
+      ],
+    });
+
+    expect(() => validateProject(invalidProject)).toThrow();
+  });
+
+  it("5. Validador rejeita view se isMaterialized não for boolean", () => {
+    const invalidProject = createProjectFixture({
+      schemas: [
+        createSchemaFixture({ id: "schema-1", name: "public" }),
+      ],
+      views: [
+        {
+          id: "view-1",
+          schemaId: "schema-1",
+          name: "v_active_users",
+          definition: "SELECT * FROM users WHERE active = true",
+          isMaterialized: "false" as unknown as boolean,
+        },
+      ],
+    });
+
+    expect(() => validateProject(invalidProject)).toThrow();
+  });
+
+  it("6. Validador rejeita view se coordenadas x ou y não forem números", () => {
+    const invalidProject = createProjectFixture({
+      schemas: [
+        createSchemaFixture({ id: "schema-1", name: "public" }),
+      ],
+      views: [
+        {
+          id: "view-1",
+          schemaId: "schema-1",
+          name: "v_active_users",
+          definition: "SELECT * FROM users WHERE active = true",
+          isMaterialized: false,
+          x: "100" as unknown as number,
+          y: 100,
+        },
+      ],
+    });
+
+    expect(() => validateProject(invalidProject)).toThrow();
   });
 });
 

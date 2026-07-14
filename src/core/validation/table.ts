@@ -5,6 +5,7 @@ import {
   validateCheckConstraint,
 } from "./constraints";
 import { validateForeignKey } from "./foreign-key";
+import { validateTrigger } from "./trigger";
 import {
   isObject,
   validateNoDuplicateDefinitions,
@@ -27,6 +28,9 @@ export function validateTable(
   if (!Array.isArray(table.checkConstraints)) {
     table.checkConstraints = [];
   }
+  if (!Array.isArray(table.triggers)) {
+    table.triggers = [];
+  }
 
   const columns = requireArray(
     table.columns,
@@ -47,6 +51,10 @@ export function validateTable(
   const checkConstraints = requireArray(
     table.checkConstraints,
     `Table "${table.name}" checkConstraints are required.`,
+  );
+  const triggers = requireArray(
+    table.triggers,
+    `Table "${table.name}" triggers are required.`,
   );
 
   validateUniqueNames(
@@ -72,6 +80,11 @@ export function validateTable(
   validateUniqueNames(
     checkConstraints,
     `Table "${table.name}" check constraints`,
+    (item) => item.name,
+  );
+  validateUniqueNames(
+    triggers,
+    `Table "${table.name}" triggers`,
     (item) => item.name,
   );
   validateNoDuplicateDefinitions(
@@ -106,6 +119,7 @@ export function validateTable(
   );
   indexes.forEach((item) => validateNamedColumnList(item, table, "Index"));
   checkConstraints.forEach((item) => validateCheckConstraint(item, table));
+  triggers.forEach((item) => validateTrigger(item, String(table.name)));
 }
 
 function requireArray(value: unknown, message: string): unknown[] {

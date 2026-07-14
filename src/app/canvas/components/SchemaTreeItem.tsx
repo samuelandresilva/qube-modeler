@@ -11,12 +11,13 @@ import {
   Cpu,
 } from "lucide-react";
 import { useState } from "react";
-import type { DatabaseSchema, DatabaseFunction } from "@/core/model";
+import type { DatabaseSchema, DatabaseFunction, DatabaseView } from "@/core/model";
 import { SidebarContextMenu } from "./SidebarContextMenu";
 
 type Props = {
   schema: DatabaseSchema;
   projectFunctions: DatabaseFunction[];
+  projectViews?: DatabaseView[];
   onEditSchema: (schemaId: string) => void;
   onDeleteSchema: (schemaId: string) => void;
   onAddSequence: (schemaId: string) => void;
@@ -27,11 +28,13 @@ type Props = {
   onAddFunction: (schemaId: string) => void;
   onEditFunction: (schemaId: string, functionId: string) => void;
   onDeleteFunction: (schemaId: string, functionId: string) => void;
+  onDeleteView?: (schemaId: string, viewId: string) => void;
 };
 
 export function SchemaTreeItem({
   schema,
   projectFunctions,
+  projectViews,
   onEditSchema,
   onDeleteSchema,
   onAddSequence,
@@ -42,13 +45,18 @@ export function SchemaTreeItem({
   onAddFunction,
   onEditFunction,
   onDeleteFunction,
+  onDeleteView,
 }: Props) {
-  const [expanded, setExpanded] = useState(true);
-  const [sequencesExpanded, setSequencesExpanded] = useState(true);
-  const [functionsExpanded, setFunctionsExpanded] = useState(true);
-  const [tablesExpanded, setTablesExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [sequencesExpanded, setSequencesExpanded] = useState(false);
+  const [functionsExpanded, setFunctionsExpanded] = useState(false);
+  const [viewsExpanded, setViewsExpanded] = useState(false);
+  const [tablesExpanded, setTablesExpanded] = useState(false);
   const schemaFunctions = (projectFunctions ?? []).filter(
     (fn) => fn.schemaId === schema.id
+  );
+  const schemaViews = (projectViews ?? []).filter(
+    (view) => view.schemaId === schema.id
   );
   return (
     <div className="canvas-sidebar__schema">
@@ -199,6 +207,63 @@ export function SchemaTreeItem({
               )}
             </div>
           )}
+
+          <div
+            className="canvas-sidebar__tree-item canvas-sidebar__tree-item--folder"
+            onClick={() => setViewsExpanded((value) => !value)}
+          >
+            <ChevronDown
+              size={13}
+              className="canvas-sidebar__chevron"
+              data-expanded={viewsExpanded}
+            />
+            <Table2 size={15} className="canvas-sidebar__item-icon" />
+            <span>views</span>
+          </div>
+          {viewsExpanded && (
+            <div className="canvas-sidebar__tree-group">
+              {schemaViews.length === 0 ? (
+                <div className="canvas-sidebar__empty">No views</div>
+              ) : (
+                schemaViews.map((view) => (
+                  <SidebarContextMenu
+                    key={view.id}
+                    actions={[
+                      {
+                        label: "Find in diagram",
+                        icon: <Search size={14} />,
+                        onSelect: () =>
+                          onSeeTableOnDiagram(schema.id, view.id),
+                      },
+                      ...(onDeleteView
+                        ? [
+                            {
+                              label: "Delete view",
+                              icon: <Trash2 size={14} />,
+                              danger: true,
+                              onSelect: () => onDeleteView(schema.id, view.id),
+                            },
+                          ]
+                        : []),
+                    ]}
+                  >
+                    <div
+                      className="canvas-sidebar__tree-item canvas-sidebar__tree-item--leaf"
+                      onClick={() => onSeeTableOnDiagram(schema.id, view.id)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <Table2
+                        size={14}
+                        className="canvas-sidebar__item-icon canvas-sidebar__item-icon--muted"
+                      />
+                      <span>{view.name}</span>
+                    </div>
+                  </SidebarContextMenu>
+                ))
+              )}
+            </div>
+          )}
+
           <div
             className="canvas-sidebar__tree-item canvas-sidebar__tree-item--folder"
             onClick={() => setTablesExpanded((value) => !value)}

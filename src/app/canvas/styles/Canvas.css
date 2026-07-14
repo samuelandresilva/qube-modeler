@@ -54,3 +54,6 @@
 .canvas-flow--adding-table .react-flow__pane {
   cursor: crosshair !important;
 }
+.canvas-flow--adding-view .react-flow__pane {
+  cursor: crosshair !important;
+}

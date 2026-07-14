@@ -10,6 +10,8 @@ import {
   generateColumnTypeSql,
   generateTablePostCreateSql,
   generateFunctionSql,
+  generateTriggerSql,
+  generateViewSql,
 } from "../sql/postgres-generator";
 
 function formatStatement(sql: string, risk: string): string {
@@ -21,6 +23,8 @@ function formatStatement(sql: string, risk: string): string {
 
 const OPERATION_ORDER: Record<string, number> = {
   DROP_CHECK_CONSTRAINT: 0,
+  DROP_TRIGGER: 0.1,
+  DROP_VIEW: 0.3,
   DROP_FUNCTION: 0.5,
   RENAME_SCHEMA: 1,
   ALTER_TABLE_SCHEMA: 3,
@@ -48,6 +52,7 @@ const OPERATION_ORDER: Record<string, number> = {
   DROP_COLUMN: 30,
   DROP_SEQUENCE: 31,
   DROP_TABLE: 32,
+  ADD_VIEW: 40,
   ADD_COLUMN: 50,
   ALTER_COLUMN_TYPE: 51,
   ALTER_COLUMN_SIZE: 52,
@@ -57,6 +62,7 @@ const OPERATION_ORDER: Record<string, number> = {
   ADD_UNIQUE_CONSTRAINT: 82,
   ADD_FOREIGN_KEY: 83,
   ADD_INDEX: 84,
+  ADD_TRIGGER: 85,
 };
 
 function getOperationOrder(operation: ProjectDiffOperation): number {
@@ -195,6 +201,56 @@ export function generatePostgresMigrationSql(
           body: op.newBody,
         } as ProjectDiffOperation);
       }
+    } else if (op.kind === "ALTER_TRIGGER") {
+      expandedOperations.push({
+        kind: "DROP_TRIGGER",
+        risk: "destructive",
+        schemaId: op.schemaId,
+        schemaName: op.oldSchemaName ?? op.schemaName,
+        tableId: op.tableId,
+        tableName: op.oldTableName ?? op.tableName,
+        triggerId: op.triggerId,
+        triggerName: op.oldTriggerName,
+      } as ProjectDiffOperation);
+      expandedOperations.push({
+        kind: "ADD_TRIGGER",
+        risk: op.risk,
+        schemaId: op.schemaId,
+        schemaName: op.schemaName,
+        tableId: op.tableId,
+        tableName: op.tableName,
+        triggerId: op.triggerId,
+        triggerName: op.newTriggerName,
+        eventTiming: op.eventTiming,
+        events: op.events,
+        functionId: op.functionId,
+        condition: op.condition,
+        isConstraint: op.isConstraint,
+        deferrable: op.deferrable,
+        initiallyDeferred: op.initiallyDeferred,
+        forEach: op.forEach,
+      } as ProjectDiffOperation);
+    } else if (op.kind === "ALTER_VIEW") {
+      expandedOperations.push({
+        kind: "DROP_VIEW",
+        risk: "destructive",
+        schemaId: op.oldView.schemaId,
+        schemaName: op.oldSchemaName,
+        viewId: op.viewId,
+        viewName: op.oldViewName,
+        isMaterialized: op.oldView.isMaterialized,
+      } as ProjectDiffOperation);
+      expandedOperations.push({
+        kind: "ADD_VIEW",
+        risk: "warning",
+        schemaId: op.newView.schemaId,
+        schemaName: op.schemaName,
+        viewId: op.viewId,
+        viewName: op.newViewName,
+        definition: op.newView.definition,
+        isMaterialized: op.newView.isMaterialized,
+        withNoData: op.newView.withNoData,
+      } as ProjectDiffOperation);
     } else {
       expandedOperations.push(op);
     }
@@ -689,6 +745,74 @@ export function generatePostgresMigrationSql(
           op.arguments ?? []
         );
         sqlStatements.push(formatStatement(sql, op.risk));
+        break;
+      }
+
+      case "ADD_TRIGGER": {
+        const schema = currentProject.schemas.find((s) => s.id === op.schemaId);
+        if (!schema) {
+          throw new Error(`Schema ${op.schemaName} (ID: ${op.schemaId}) not found in current project.`);
+        }
+        const table = schema.tables.find((t) => t.id === op.tableId);
+        if (!table) {
+          throw new Error(`Table ${op.tableName} (ID: ${op.tableId}) not found in schema ${schema.name}.`);
+        }
+        const trigger = {
+          id: op.triggerId,
+          name: op.triggerName,
+          eventTiming: op.eventTiming,
+          events: op.events,
+          functionId: op.functionId,
+          condition: op.condition,
+          isConstraint: op.isConstraint,
+          deferrable: op.deferrable,
+          initiallyDeferred: op.initiallyDeferred,
+          forEach: op.forEach,
+        };
+        sqlStatements.push(formatStatement(
+          generateTriggerSql(schema, table, trigger, currentProject),
+          op.risk
+        ));
+        break;
+      }
+
+      case "DROP_TRIGGER": {
+        sqlStatements.push(formatStatement(
+          `DROP TRIGGER IF EXISTS ${op.triggerName} ON ${op.schemaName}.${op.tableName};`,
+          op.risk
+        ));
+        break;
+      }
+
+      case "ADD_VIEW": {
+        const schema = currentProject.schemas.find((s) => s.id === op.schemaId);
+        if (!schema) {
+          throw new Error(`Schema ${op.schemaName} (ID: ${op.schemaId}) not found in current project.`);
+        }
+        const view = {
+          id: op.viewId,
+          schemaId: op.schemaId,
+          name: op.viewName,
+          definition: op.definition,
+          isMaterialized: op.isMaterialized,
+          withNoData: op.withNoData,
+          x: 0,
+          y: 0,
+        };
+        sqlStatements.push(formatStatement(
+          generateViewSql(schema, view),
+          op.risk
+        ));
+        break;
+      }
+
+      case "DROP_VIEW": {
+        const typeStr = op.isMaterialized ? "MATERIALIZED VIEW" : "VIEW";
+        const cascadeStr = op.cascade ? " CASCADE" : "";
+        sqlStatements.push(formatStatement(
+          `DROP ${typeStr} IF EXISTS ${op.schemaName}.${op.viewName}${cascadeStr};`,
+          op.risk
+        ));
         break;
       }
 

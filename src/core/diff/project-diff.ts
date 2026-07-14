@@ -678,6 +678,105 @@ export function diffProjects(
             });
           }
         }
+
+        // Trigger additions, alterations & drops
+        const prevTriggers = new Map((prevTable.triggers ?? []).map((t) => [t.id, t]));
+        const currTriggers = new Map((currTable.triggers ?? []).map((t) => [t.id, t]));
+
+        for (const currTrg of (currTable.triggers ?? [])) {
+          const prevTrg = prevTriggers.get(currTrg.id);
+          if (!prevTrg) {
+            operations.push({
+              kind: "ADD_TRIGGER",
+              risk: "warning",
+              schemaId: currSchema.id,
+              schemaName: currSchema.name,
+              tableId: currTable.id,
+              tableName: currTable.name,
+              triggerId: currTrg.id,
+              triggerName: currTrg.name,
+              eventTiming: currTrg.eventTiming,
+              events: currTrg.events,
+              functionId: currTrg.functionId,
+              condition: currTrg.condition,
+              isConstraint: currTrg.isConstraint,
+              deferrable: currTrg.deferrable,
+              initiallyDeferred: currTrg.initiallyDeferred,
+              forEach: currTrg.forEach,
+            });
+          } else {
+            const nameChanged = currTrg.name !== prevTrg.name;
+            const timingChanged = currTrg.eventTiming !== prevTrg.eventTiming;
+            const eventsChanged = !areEventsEqual(currTrg.events, prevTrg.events);
+            const fnChanged = currTrg.functionId !== prevTrg.functionId;
+            const conditionChanged = (currTrg.condition ?? "").trim() !== (prevTrg.condition ?? "").trim();
+            const constraintChanged = !!currTrg.isConstraint !== !!prevTrg.isConstraint;
+            const deferrableChanged = !!currTrg.deferrable !== !!prevTrg.deferrable;
+            const initDeferredChanged = !!currTrg.initiallyDeferred !== !!prevTrg.initiallyDeferred;
+            const forEachChanged = currTrg.forEach !== prevTrg.forEach;
+
+            if (
+              nameChanged ||
+              timingChanged ||
+              eventsChanged ||
+              fnChanged ||
+              conditionChanged ||
+              constraintChanged ||
+              deferrableChanged ||
+              initDeferredChanged ||
+              forEachChanged
+            ) {
+              operations.push({
+                kind: "ALTER_TRIGGER",
+                risk: "warning",
+                schemaId: currSchema.id,
+                schemaName: currSchema.name,
+                tableId: currTable.id,
+                tableName: currTable.name,
+                oldSchemaName: prevSchema.name,
+                oldTableName: prevTable.name,
+                triggerId: currTrg.id,
+                oldTriggerName: prevTrg.name,
+                newTriggerName: currTrg.name,
+
+                eventTiming: currTrg.eventTiming,
+                events: currTrg.events,
+                functionId: currTrg.functionId,
+                condition: currTrg.condition,
+                isConstraint: currTrg.isConstraint,
+                deferrable: currTrg.deferrable,
+                initiallyDeferred: currTrg.initiallyDeferred,
+                forEach: currTrg.forEach,
+
+                oldEventTiming: prevTrg.eventTiming,
+                oldEvents: prevTrg.events,
+                oldFunctionId: prevTrg.functionId,
+                oldCondition: prevTrg.condition,
+                oldIsConstraint: prevTrg.isConstraint,
+                oldDeferrable: prevTrg.deferrable,
+                oldInitiallyDeferred: prevTrg.initiallyDeferred,
+                oldForEach: prevTrg.forEach,
+
+                requiresDropAndRecreate: true,
+              });
+            }
+          }
+        }
+
+        for (const prevTrg of (prevTable.triggers ?? [])) {
+          if (!currTriggers.has(prevTrg.id)) {
+            operations.push({
+              kind: "DROP_TRIGGER",
+              risk: "destructive",
+              schemaId: prevSchema.id,
+              schemaName: prevSchema.name,
+              tableId: prevTable.id,
+              tableName: prevTable.name,
+              triggerId: prevTrg.id,
+              triggerName: prevTrg.name,
+            });
+          }
+        }
       }
     }
 
@@ -791,8 +890,325 @@ export function diffProjects(
     }
   }
 
+  // Detect database view changes
+  const prevViews = previousProject.views ?? [];
+  const currViews = currentProject.views ?? [];
+
+  const prevViewsMap = new Map(prevViews.map((v) => [v.id, v]));
+  const currViewsMap = new Map(currViews.map((v) => [v.id, v]));
+
+  // Detect ADD_VIEW and ALTER_VIEW
+  for (const currView of currViews) {
+    const prevView = prevViewsMap.get(currView.id);
+    const currSchemaName = currSchemaNames.get(currView.schemaId) ?? "public";
+
+    if (!prevView) {
+      operations.push({
+        kind: "ADD_VIEW",
+        risk: "warning",
+        schemaId: currView.schemaId,
+        schemaName: currSchemaName,
+        viewId: currView.id,
+        viewName: currView.name,
+        definition: currView.definition,
+        isMaterialized: currView.isMaterialized,
+        withNoData: currView.withNoData,
+      });
+    } else {
+      const schemaIdChanged = prevView.schemaId !== currView.schemaId;
+      const nameChanged = prevView.name.trim() !== currView.name.trim();
+      const definitionChanged = prevView.definition.trim() !== currView.definition.trim();
+      const isMaterializedChanged = prevView.isMaterialized !== currView.isMaterialized;
+      const withNoDataChanged = prevView.withNoData !== currView.withNoData;
+
+      if (
+        schemaIdChanged ||
+        nameChanged ||
+        definitionChanged ||
+        isMaterializedChanged ||
+        withNoDataChanged
+      ) {
+        const prevSchemaName = prevSchemaNames.get(prevView.schemaId) ?? "public";
+        operations.push({
+          kind: "ALTER_VIEW",
+          risk: "destructive",
+          schemaId: currView.schemaId,
+          schemaName: currSchemaName,
+          viewId: currView.id,
+          oldSchemaName: prevSchemaName,
+          oldViewName: prevView.name,
+          newViewName: currView.name,
+          oldView: {
+            schemaId: prevView.schemaId,
+            name: prevView.name,
+            definition: prevView.definition,
+            isMaterialized: prevView.isMaterialized,
+            withNoData: prevView.withNoData,
+          },
+          newView: {
+            schemaId: currView.schemaId,
+            name: currView.name,
+            definition: currView.definition,
+            isMaterialized: currView.isMaterialized,
+            withNoData: currView.withNoData,
+          },
+          requiresDropAndRecreate: true,
+        });
+      }
+    }
+  }
+
+  // Detect DROP_VIEW
+  for (const prevView of prevViews) {
+    if (!currViewsMap.has(prevView.id)) {
+      const prevSchemaName = prevSchemaNames.get(prevView.schemaId) ?? "public";
+      operations.push({
+        kind: "DROP_VIEW",
+        risk: "destructive",
+        schemaId: prevView.schemaId,
+        schemaName: prevSchemaName,
+        viewId: prevView.id,
+        viewName: prevView.name,
+        isMaterialized: prevView.isMaterialized,
+      });
+    }
+  }
+
+  // CASCADE RESOLUTION: Triggers pointing to dropped or rebuilt functions
+  const droppedFunctions = new Set<string>();
+  const rebuiltFunctions = new Set<string>();
+  for (const op of operations) {
+    if (op.kind === "DROP_FUNCTION") {
+      droppedFunctions.add(op.functionId);
+    } else if (op.kind === "ALTER_FUNCTION" && op.requiresDropAndRecreate) {
+      rebuiltFunctions.add(op.functionId);
+    }
+  }
+
+  const droppedTables = new Set<string>();
+  for (const op of operations) {
+    if (op.kind === "DROP_TABLE") {
+      droppedTables.add(op.tableId);
+    }
+  }
+
+  // Find triggers that are already being dropped or altered
+  const triggersHandled = new Set<string>();
+  for (const op of operations) {
+    if (op.kind === "DROP_TRIGGER" || op.kind === "ALTER_TRIGGER") {
+      triggersHandled.add(op.triggerId);
+    }
+  }
+
+  for (const schema of previousProject.schemas) {
+    for (const table of schema.tables) {
+      if (droppedTables.has(table.id)) continue;
+
+      for (const trigger of (table.triggers ?? [])) {
+        if (triggersHandled.has(trigger.id)) continue;
+
+        const isDroppedFn = droppedFunctions.has(trigger.functionId);
+        const isRebuiltFn = rebuiltFunctions.has(trigger.functionId);
+
+        if (isDroppedFn || isRebuiltFn) {
+          // Add DROP_TRIGGER
+          operations.push({
+            kind: "DROP_TRIGGER",
+            risk: "destructive",
+            schemaId: schema.id,
+            schemaName: schema.name,
+            tableId: table.id,
+            tableName: table.name,
+            triggerId: trigger.id,
+            triggerName: trigger.name,
+          });
+
+          if (isRebuiltFn) {
+            // We need to re-add the trigger after the function is recreated.
+            let currSchemaId = schema.id;
+            let currSchemaName = schema.name;
+            let currTableId = table.id;
+            let currTableName = table.name;
+            let currTrigger = trigger;
+            let foundCurrent = false;
+
+            for (const cSchema of currentProject.schemas) {
+              for (const cTable of cSchema.tables) {
+                const cTrg = (cTable.triggers ?? []).find((t) => t.id === trigger.id);
+                if (cTrg) {
+                  currSchemaId = cSchema.id;
+                  currSchemaName = cSchema.name;
+                  currTableId = cTable.id;
+                  currTableName = cTable.name;
+                  currTrigger = cTrg;
+                  foundCurrent = true;
+                  break;
+                }
+              }
+              if (foundCurrent) break;
+            }
+
+            if (foundCurrent) {
+              operations.push({
+                kind: "ADD_TRIGGER",
+                risk: "warning",
+                schemaId: currSchemaId,
+                schemaName: currSchemaName,
+                tableId: currTableId,
+                tableName: currTableName,
+                triggerId: currTrigger.id,
+                triggerName: currTrigger.name,
+                eventTiming: currTrigger.eventTiming,
+                events: currTrigger.events,
+                functionId: currTrigger.functionId,
+                condition: currTrigger.condition,
+                isConstraint: currTrigger.isConstraint,
+                deferrable: currTrigger.deferrable,
+                initiallyDeferred: currTrigger.initiallyDeferred,
+                forEach: currTrigger.forEach,
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const allPrevEntityIds: string[] = [];
+  const entityMap = new Map<string, { type: "table" | "view"; schemaName: string; name: string; id: string }>();
+
+  for (const schema of previousProject.schemas) {
+    for (const table of schema.tables) {
+      const qname = `${schema.name}.${table.name}`;
+      allPrevEntityIds.push(qname);
+      entityMap.set(qname, { type: "table", schemaName: schema.name, name: table.name, id: table.id });
+    }
+  }
+  for (const view of prevViews) {
+    const schema = previousProject.schemas.find((s) => s.id === view.schemaId);
+    const schemaName = schema?.name ?? "public";
+    const qname = `${schemaName}.${view.name}`;
+    allPrevEntityIds.push(qname);
+    entityMap.set(qname, { type: "view", schemaName, name: view.name, id: view.id });
+  }
+
+  const adjacencyList = new Map<string, Set<string>>();
+  for (const view of prevViews) {
+    const schema = previousProject.schemas.find((s) => s.id === view.schemaId);
+    const schemaName = schema?.name ?? "public";
+    const qname = `${schemaName}.${view.name}`;
+    adjacencyList.set(qname, new Set<string>());
+
+    if (view.definition) {
+      for (const candidate of allPrevEntityIds) {
+        if (candidate === qname) continue;
+        const parts = candidate.split(".");
+        const candidateName = parts[1];
+        const escapedCandidate = candidate.replace(/\./g, "\\.");
+        const escapedName = candidateName.replace(/\./g, "\\.");
+        const regexFull = new RegExp(`\\b${escapedCandidate}\\b`, "i");
+        const regexName = new RegExp(`\\b${escapedName}\\b`, "i");
+        if (regexFull.test(view.definition) || regexName.test(view.definition)) {
+          adjacencyList.get(qname)!.add(candidate);
+        }
+      }
+    }
+  }
+
+  const getDependents = (entityId: string): string[] => {
+    const dependents: string[] = [];
+    for (const [v, deps] of adjacencyList.entries()) {
+      if (deps.has(entityId)) {
+        dependents.push(v);
+      }
+    }
+    return dependents;
+  };
+
+  const getTransitiveDependents = (entityId: string, visited = new Set<string>()): Set<string> => {
+    const directDeps = getDependents(entityId);
+    for (const dep of directDeps) {
+      if (!visited.has(dep)) {
+        visited.add(dep);
+        getTransitiveDependents(dep, visited);
+      }
+    }
+    return visited;
+  };
+
+  // Find all dropped tables
+  const droppedTablesQNames = new Set<string>();
+  for (const op of operations) {
+    if (op.kind === "DROP_TABLE") {
+      const qname = `${op.schemaName}.${op.tableName}`;
+      droppedTablesQNames.add(qname);
+    }
+  }
+
+  // Find all affected views
+  const affectedViews = new Set<string>();
+  for (const tableQName of droppedTablesQNames) {
+    const deps = getTransitiveDependents(tableQName);
+    for (const dep of deps) {
+      const info = entityMap.get(dep);
+      if (info && info.type === "view") {
+        affectedViews.add(dep);
+      }
+    }
+  }
+
+  // Clean the plan from ADD_VIEW and ALTER_VIEW for affected views
+  let finalOps = operations.filter((op) => {
+    if (
+      (op.kind === "DROP_TRIGGER" || op.kind === "ALTER_TRIGGER") &&
+      droppedTables.has(op.tableId)
+    ) {
+      return false;
+    }
+    if (op.kind === "ADD_VIEW" || op.kind === "ALTER_VIEW") {
+      const viewName = op.kind === "ADD_VIEW" ? op.viewName : op.oldViewName;
+      const qname = `${op.schemaName}.${viewName}`;
+      if (affectedViews.has(qname)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Construct DROP_VIEW operations for all affected views in reverse topological order (outer dependents dropped first)
+  const sortedAffectedViews = Array.from(affectedViews).sort((a, b) => {
+    const aDeps = getTransitiveDependents(a);
+    if (aDeps.has(b)) return -1;
+    const bDeps = getTransitiveDependents(b);
+    if (bDeps.has(a)) return 1;
+    return 0;
+  });
+
+  const dropViewOps: ProjectDiffOperation[] = [];
+  for (const viewQName of sortedAffectedViews) {
+    const info = entityMap.get(viewQName);
+    if (info && info.type === "view") {
+      const viewObj = prevViews.find((v) => v.id === info.id);
+      if (viewObj) {
+        dropViewOps.push({
+          kind: "DROP_VIEW",
+          risk: "destructive",
+          schemaId: viewObj.schemaId,
+          schemaName: info.schemaName,
+          viewId: viewObj.id,
+          viewName: viewObj.name,
+          isMaterialized: viewObj.isMaterialized,
+          cascade: true,
+        });
+      }
+    }
+  }
+
+  // Prepend DROP_VIEW ops so they are executed before tables are dropped
+  finalOps = [...dropViewOps, ...finalOps];
+
   return {
-    operations,
+    operations: finalOps,
     unsupportedOperations,
   };
 }
@@ -811,4 +1227,11 @@ function didArgumentsChange(
     if (prevArg.mode !== currArg.mode) return true;
   }
   return false;
+}
+
+function areEventsEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((val, index) => val === sortedB[index]);
 }

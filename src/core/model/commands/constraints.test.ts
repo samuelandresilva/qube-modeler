@@ -3,6 +3,9 @@ import {
   createCheckConstraint,
   updateCheckConstraint,
   removeCheckConstraint,
+  createTrigger,
+  updateTrigger,
+  removeTrigger,
 } from "./constraints";
 import {
   createProjectFixture,
@@ -86,5 +89,92 @@ describe("CHECK constraints model commands", () => {
     const cleanedProject = removeCheckConstraint(projectWithCheck, "s1", "t1", id);
     const updatedTable = cleanedProject.schemas[0].tables[0];
     expect(updatedTable.checkConstraints).toHaveLength(0);
+  });
+});
+
+describe("PostgreSQL trigger model commands", () => {
+  const table = createTableFixture({
+    id: "t1",
+    name: "tb_users",
+    triggers: [],
+  });
+  const schema = createSchemaFixture({
+    id: "s1",
+    name: "public",
+    tables: [table],
+  });
+  const initialProject = createProjectFixture({
+    schemas: [schema],
+  });
+
+  it("adds a new trigger to the table", () => {
+    const { id, project } = createTrigger(initialProject, "s1", "t1", {
+      name: "trg_log",
+      eventTiming: "BEFORE",
+      events: ["INSERT"],
+      functionId: "fn-1",
+      forEach: "ROW",
+    });
+
+    expect(id).toBeDefined();
+    const updatedTable = project.schemas[0].tables[0];
+    expect(updatedTable.triggers).toHaveLength(1);
+    expect(updatedTable.triggers[0]).toEqual({
+      id,
+      name: "trg_log",
+      eventTiming: "BEFORE",
+      events: ["INSERT"],
+      functionId: "fn-1",
+      forEach: "ROW",
+    });
+  });
+
+  it("updates an existing trigger", () => {
+    const { id, project: projectWithTrigger } = createTrigger(
+      initialProject,
+      "s1",
+      "t1",
+      {
+        name: "trg_log",
+        eventTiming: "BEFORE",
+        events: ["INSERT"],
+        functionId: "fn-1",
+        forEach: "ROW",
+      },
+    );
+
+    const updatedProject = updateTrigger(
+      projectWithTrigger,
+      "s1",
+      "t1",
+      id,
+      (trg) => ({
+        ...trg,
+        eventTiming: "AFTER",
+      }),
+    );
+
+    const updatedTable = updatedProject.schemas[0].tables[0];
+    expect(updatedTable.triggers).toHaveLength(1);
+    expect(updatedTable.triggers[0].eventTiming).toBe("AFTER");
+  });
+
+  it("removes a trigger from the table", () => {
+    const { id, project: projectWithTrigger } = createTrigger(
+      initialProject,
+      "s1",
+      "t1",
+      {
+        name: "trg_log",
+        eventTiming: "BEFORE",
+        events: ["INSERT"],
+        functionId: "fn-1",
+        forEach: "ROW",
+      },
+    );
+
+    const cleanedProject = removeTrigger(projectWithTrigger, "s1", "t1", id);
+    const updatedTable = cleanedProject.schemas[0].tables[0];
+    expect(updatedTable.triggers).toHaveLength(0);
   });
 });

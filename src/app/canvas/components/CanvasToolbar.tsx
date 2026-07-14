@@ -8,6 +8,7 @@ import {
   Save,
   SaveAll,
   Scan,
+  Tv,
 } from "lucide-react";
 
 export type CanvasToolbarProps = {
@@ -20,6 +21,8 @@ export type CanvasToolbarProps = {
   onFitView: () => void;
   onAddTable: () => void;
   isAddingTable: boolean;
+  onAddView: () => void;
+  isAddingView: boolean;
   onExportJson?: () => void;
   onGenerateSql: () => void;
   schemas: DatabaseSchema[];
@@ -37,6 +40,8 @@ export function CanvasToolbar({
   onFitView,
   onAddTable,
   isAddingTable,
+  onAddView,
+  isAddingView,
   onGenerateSql,
   schemas,
   activeSchemaId,
@@ -146,6 +151,19 @@ export function CanvasToolbar({
         >
           <Grid2X2Plus size={18} strokeWidth={2.4} color="oklch(76.5% 0.177 163.223)" />
         </button>
+
+        <button
+          className={`canvas-toolbar__icon-button ${isAddingView ? "canvas-toolbar__button--active" : ""}`}
+          type="button"
+          title="Add view"
+          aria-label="Add view"
+          onClick={onAddView}
+          disabled={!activeSchemaId}
+        >
+          <Tv size={18} strokeWidth={2.4} color="oklch(75.5% 0.177 280)" />
+        </button>
+
+
 
         <button
           className="canvas-toolbar__icon-button"

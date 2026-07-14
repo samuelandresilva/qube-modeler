@@ -34,6 +34,7 @@ export interface DatabaseProject {
   schemas: DatabaseSchema[];
   diagram: DatabaseDiagram;
   functions: DatabaseFunction[];
+  views: DatabaseView[];
 }
 
 export interface DatabaseSchema {
@@ -57,6 +58,31 @@ export interface CheckConstraint {
   columnIds?: string[];
 }
 
+export interface DatabaseTrigger {
+  id: string;
+  name: string;
+  eventTiming: "BEFORE" | "AFTER" | "INSTEAD OF";
+  events: ("INSERT" | "UPDATE" | "DELETE" | "TRUNCATE")[];
+  functionId: string;
+  condition?: string;
+  isConstraint?: boolean;
+  deferrable?: boolean;
+  initiallyDeferred?: boolean;
+  forEach: "ROW" | "STATEMENT";
+}
+
+export interface DatabaseView {
+  id: string;
+  schemaId: string;
+  name: string;
+  definition: string;
+  isMaterialized: boolean;
+  withNoData?: boolean;
+  triggers?: DatabaseTrigger[];
+  x?: number;
+  y?: number;
+}
+
 export interface DatabaseTable {
   id: string;
   name: string;
@@ -65,6 +91,7 @@ export interface DatabaseTable {
   uniqueConstraints: DatabaseUniqueConstraint[];
   indexes: DatabaseIndex[];
   checkConstraints: CheckConstraint[];
+  triggers: DatabaseTrigger[];
 }
 
 export interface DatabaseColumn {
@@ -111,6 +138,8 @@ export type DatabaseUniqueConstraintInput = Omit<
 >;
 export type DatabaseSequenceInput = Omit<DatabaseSequence, "id">;
 export type CheckConstraintInput = Omit<CheckConstraint, "id">;
+export type DatabaseTriggerInput = Omit<DatabaseTrigger, "id">;
+export type DatabaseViewInput = Omit<DatabaseView, "id">;
 
 export type CreateResult = {
   project: DatabaseProject;

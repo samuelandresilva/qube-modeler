@@ -1922,4 +1922,531 @@ describe("project-diff", () => {
       expect(diff.operations).toHaveLength(0);
     });
   });
+
+  describe("PostgreSQL Triggers diffing", () => {
+    it("1. Detecta ADD_TRIGGER ao criar um gatilho em uma tabela existente", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                triggers: [],
+              }),
+            ],
+          }),
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "BEFORE",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "ADD_TRIGGER",
+          triggerId: "trg-1",
+          triggerName: "trg_test",
+          eventTiming: "BEFORE",
+          events: ["INSERT"],
+          functionId: "fn-1",
+          forEach: "ROW",
+        })
+      );
+    });
+
+    it("2. Detecta DROP_TRIGGER ao remover um gatilho", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "BEFORE",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                triggers: [],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "DROP_TRIGGER",
+          triggerId: "trg-1",
+          triggerName: "trg_test",
+        })
+      );
+    });
+
+    it("3. Detecta ALTER_TRIGGER com requiresDropAndRecreate = true se o timing ou evento mudar", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "BEFORE",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "AFTER",
+                    events: ["INSERT", "UPDATE"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "ALTER_TRIGGER",
+          triggerId: "trg-1",
+          oldTriggerName: "trg_test",
+          newTriggerName: "trg_test",
+          eventTiming: "AFTER",
+          events: ["INSERT", "UPDATE"],
+          requiresDropAndRecreate: true,
+        })
+      );
+    });
+
+    it("4. Cenário de Cascata: Se a função muda de assinatura (rebuild), emite DROP e ADD do trigger dependente", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "BEFORE",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_update_timestamp",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "BEFORE",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_update_timestamp",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [
+              { id: "a1", name: "dummy", dataType: "integer" }
+            ],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      // Deve conter ALTER_FUNCTION (que exige rebuild)
+      const alterFunc = diff.operations.find(op => op.kind === "ALTER_FUNCTION");
+      expect(alterFunc).toBeDefined();
+      if (alterFunc && alterFunc.kind === "ALTER_FUNCTION") {
+        expect(alterFunc.requiresDropAndRecreate).toBe(true);
+      }
+
+      // Deve forçar o DROP_TRIGGER e ADD_TRIGGER do trigger dependente "trg-1"
+      const dropTrg = diff.operations.find(op => op.kind === "DROP_TRIGGER" && op.triggerId === "trg-1");
+      const addTrg = diff.operations.find(op => op.kind === "ADD_TRIGGER" && op.triggerId === "trg-1");
+
+      expect(dropTrg).toBeDefined();
+      expect(addTrg).toBeDefined();
+    });
+
+    it("6. Nao gera DROP_TRIGGER ou ALTER_TRIGGER se a tabela correspondente for excluida (DROP_TABLE)", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "BEFORE",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      // Deve conter DROP_TABLE
+      const dropTable = diff.operations.find(op => op.kind === "DROP_TABLE" && op.tableId === "table-1");
+      expect(dropTable).toBeDefined();
+
+      // Nao deve conter DROP_TRIGGER ou ALTER_TRIGGER para a tabela table-1
+      const triggerOps = diff.operations.filter(
+        op => (op.kind === "DROP_TRIGGER" || op.kind === "ALTER_TRIGGER") && op.tableId === "table-1"
+      );
+      expect(triggerOps).toHaveLength(0);
+    });
+  });
+
+  describe("PostgreSQL Views diff", () => {
+    it("1. Detecta ADD_VIEW ao criar uma visao nova", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        views: [],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_active_users",
+            definition: "SELECT * FROM users",
+            isMaterialized: false,
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual({
+        kind: "ADD_VIEW",
+        risk: "warning",
+        schemaId: "schema-1",
+        schemaName: "public",
+        viewId: "view-1",
+        viewName: "v_active_users",
+        definition: "SELECT * FROM users",
+        isMaterialized: false,
+        withNoData: undefined,
+      });
+    });
+
+    it("2. Detecta DROP_VIEW ao remover uma visao existente", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_active_users",
+            definition: "SELECT * FROM users",
+            isMaterialized: false,
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        views: [],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual({
+        kind: "DROP_VIEW",
+        risk: "destructive",
+        schemaId: "schema-1",
+        schemaName: "public",
+        viewId: "view-1",
+        viewName: "v_active_users",
+        isMaterialized: false,
+      });
+    });
+
+    it("3. Detecta ALTER_VIEW com requiresDropAndRecreate = true ao alterar a definicao (definition)", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_active_users",
+            definition: "SELECT * FROM users",
+            isMaterialized: false,
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_active_users",
+            definition: "SELECT * FROM users WHERE active = true",
+            isMaterialized: false,
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "ALTER_VIEW",
+          risk: "destructive",
+          viewId: "view-1",
+          requiresDropAndRecreate: true,
+        })
+      );
+    });
+
+    it("4. Detecta ALTER_VIEW com requiresDropAndRecreate = true ao alternar isMaterialized", () => {
+      const before = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_active_users",
+            definition: "SELECT * FROM users",
+            isMaterialized: false,
+          },
+        ],
+      });
+      const after = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "schema-1", name: "public" })],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_active_users",
+            definition: "SELECT * FROM users",
+            isMaterialized: true,
+            withNoData: true,
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toHaveLength(1);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "ALTER_VIEW",
+          risk: "destructive",
+          viewId: "view-1",
+          requiresDropAndRecreate: true,
+        })
+      );
+    });
+
+    it("5. Resolve cascade dependencies ao deletar tabela física com view dependente", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-1",
+                name: "users",
+                columns: [
+                  createColumnFixture({
+                    id: "col-1",
+                    name: "id",
+                    type: "integer",
+                    nullable: false,
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_active_users",
+            definition: "SELECT * FROM public.users",
+            isMaterialized: false,
+          },
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [],
+          }),
+        ],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_active_users",
+            definition: "SELECT * FROM public.users WHERE active = true",
+            isMaterialized: false,
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+
+      expect(diff.operations).toHaveLength(2);
+      expect(diff.operations[0]).toEqual(
+        expect.objectContaining({
+          kind: "DROP_VIEW",
+          viewName: "v_active_users",
+          cascade: true,
+        })
+      );
+      expect(diff.operations[1]).toEqual(
+        expect.objectContaining({
+          kind: "DROP_TABLE",
+          tableName: "users",
+        })
+      );
+    });
+  });
 });

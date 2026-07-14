@@ -8,6 +8,7 @@ import {
   createUniqueConstraint,
   createCheckConstraint,
   findTableContext,
+  findViewContext,
   removeColumn,
   removeForeignKey,
   removeIndex,
@@ -23,7 +24,15 @@ import {
   createDatabaseFunction,
   updateDatabaseFunction,
   removeDatabaseFunction,
+  createTrigger,
+  updateTrigger,
+  removeTrigger,
+  createViewTrigger,
+  updateViewTrigger,
+  removeViewTrigger,
+  updateDatabaseView,
   type DatabaseProject,
+  type DatabaseTrigger,
 } from "@/core/model";
 import { ColumnDialog } from "./ColumnDialog";
 import type { CanvasDialogState } from "./dialog-state";
@@ -33,6 +42,8 @@ import { SchemaDialog } from "./SchemaDialog";
 import { SequenceDialog } from "./SequenceDialog";
 import { CheckConstraintDialog } from "./CheckConstraintDialog";
 import { FunctionDialog } from "./FunctionDialog";
+import { TriggerDialog } from "./TriggerDialog";
+import { ViewDefinitionDialog } from "./ViewDefinitionDialog";
 
 type Props = {
   dialog: CanvasDialogState;
@@ -133,6 +144,60 @@ export function CanvasDialogs({
                     ),
                   close,
                 )
+            : undefined
+        }
+      />
+    );
+  }
+  if (dialog.kind === "view-definition") {
+    const viewCtx = findViewContext(project, dialog.viewId);
+    if (!viewCtx) return null;
+    return (
+      <ViewDefinitionDialog
+        initialValue={viewCtx.view.definition}
+        viewName={viewCtx.view.name}
+        onClose={close}
+        onSubmit={(value) => {
+          setProject((current) =>
+            updateDatabaseView(current, viewCtx.view.id, (view) => ({
+              ...view,
+              definition: value,
+            })),
+          );
+          close();
+        }}
+      />
+    );
+  }
+  if (dialog && dialog.kind === "trigger" && dialog.parentType === "view") {
+    const parentId = dialog.parentId ?? selectedTableId;
+    const viewCtx = parentId ? findViewContext(project, parentId) : undefined;
+    if (!viewCtx) return null;
+
+    const trigger = (viewCtx.view.triggers ?? []).find(
+      (item: DatabaseTrigger) => item.id === dialog.triggerId,
+    );
+
+    return (
+      <TriggerDialog
+        project={project}
+        table={viewCtx.view}
+        entityType="view"
+        current={trigger}
+        onClose={close}
+        onSubmit={(input) => {
+          setProject((current) =>
+            trigger
+              ? updateViewTrigger(current, viewCtx.view.id, trigger.id, (item) => ({ ...item, ...input }))
+              : createViewTrigger(current, viewCtx.view.id, input).project
+          );
+          close();
+        }}
+        onDelete={
+          trigger
+            ? () => requestConfirmDelete(requestConfirm, `trigger "${trigger.name}"`, () =>
+                setProject((current) => removeViewTrigger(current, viewCtx.view.id, trigger.id)), close
+              )
             : undefined
         }
       />
@@ -344,6 +409,62 @@ export function CanvasDialogs({
       />
     );
   }
+  if (dialog.kind === "trigger") {
+    const parentId = dialog.parentId ?? selectedTableId;
+    const tableCtx = parentId ? findTableContext(project, parentId) : undefined;
+    if (!tableCtx) return null;
+    const trigger = (tableCtx.table.triggers ?? []).find(
+      (item: DatabaseTrigger) => item.id === dialog.triggerId,
+    );
+    return (
+      <TriggerDialog
+        project={project}
+        table={tableCtx.table}
+        entityType="table"
+        current={trigger}
+        onClose={close}
+        onSubmit={(input) => {
+          setProject((current) =>
+            trigger
+              ? updateTrigger(
+                  current,
+                  tableCtx.schema.id,
+                  tableCtx.table.id,
+                  trigger.id,
+                  (item: DatabaseTrigger) => ({ ...item, ...input }),
+                )
+              : createTrigger(
+                  current,
+                  tableCtx.schema.id,
+                  tableCtx.table.id,
+                  input,
+                ).project,
+          );
+          close();
+        }}
+        onDelete={
+          trigger
+            ? () =>
+                requestConfirmDelete(
+                  requestConfirm,
+                  `trigger "${trigger.name}"`,
+                  () =>
+                    setProject((current) =>
+                      removeTrigger(
+                        current,
+                        tableCtx.schema.id,
+                        tableCtx.table.id,
+                        trigger.id,
+                      ),
+                    ),
+                  close,
+                )
+            : undefined
+        }
+      />
+    );
+  }
+
   const index = context.table.indexes.find(
     (item) => item.id === dialog.indexId,
   );

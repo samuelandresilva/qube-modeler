@@ -7,4 +7,6 @@ export type CanvasDialogState =
   | { kind: "check-constraint"; constraintId?: string }
   | { kind: "index"; indexId?: string }
   | { kind: "function"; schemaId: string; functionId?: string }
+  | { kind: "trigger"; triggerId?: string; parentId?: string; parentType?: "table" | "view" }
+  | { kind: "view-definition"; viewId: string }
   | null;

@@ -24,6 +24,7 @@ export function createTable(
     uniqueConstraints: [],
     indexes: [],
     checkConstraints: [],
+    triggers: [],
   };
 
   const finalPosition = position ?? {

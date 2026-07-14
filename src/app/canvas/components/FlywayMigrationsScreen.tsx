@@ -10,12 +10,13 @@ import {
 } from "@/core/qbm/qbm-flyway";
 import { generatePostgresSql } from "@/core/sql/postgres-generator";
 import { ArrowLeft } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import "../styles/FlywayMigrationsScreen.css";
 import { CanvasModal } from "./CanvasModal";
 import { FlywayMigrationsDetails } from "./FlywayMigrationsDetails";
 import { FlywayMigrationsTable } from "./FlywayMigrationsTable";
 import { MessageDialog } from "./MessageDialog";
+import { SqlEditor } from "@/app/shared/components/SqlEditor";
 
 type FlywayMigrationsScreenProps = {
   qbmFile: QbmFile;
@@ -55,35 +56,7 @@ function cryptoUuid(): string {
 }
 
 function SqlEditorPreview({ sql }: { sql: string }) {
-  const gutterRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const lines = sql.split("\n");
-
-  const handleScroll = () => {
-    if (textareaRef.current && gutterRef.current) {
-      gutterRef.current.scrollTop = textareaRef.current.scrollTop;
-    }
-  };
-
-  return (
-    <div className="sql-editor-preview-container">
-      <div className="sql-editor-gutter" ref={gutterRef}>
-        {lines.map((_, i) => (
-          <div key={i} className="sql-editor-line-number">
-            {i + 1}
-          </div>
-        ))}
-      </div>
-      <textarea
-        className="sql-editor-textarea"
-        ref={textareaRef}
-        value={sql}
-        readOnly
-        spellCheck={false}
-        onScroll={handleScroll}
-      />
-    </div>
-  );
+  return <SqlEditor value={sql} readOnly height="550px" />;
 }
 
 export function FlywayMigrationsScreen({
@@ -773,6 +746,7 @@ export function FlywayMigrationsScreen({
           title={`SQL Preview - ${selectedVersion.fileName}`}
           onClose={() => setIsSqlModalOpen(false)}
           elevated
+          className="canvas-modal--large"
         >
           <SqlEditorPreview sql={buildFlywayVersionSql(selectedVersion)} />
         </CanvasModal>
@@ -831,22 +805,11 @@ export function FlywayMigrationsScreen({
 
             <label>
               <span>SQL script</span>
-              <textarea
-                className="sql-editor-textarea"
-                style={{
-                  height: "150px",
-                  width: "100%",
-                  background: "var(--color-bg)",
-                  border: "1px solid var(--color-border-strong)",
-                  borderRadius: "var(--radius-md)",
-                  color: "var(--color-text)",
-                  padding: "10px 12px",
-                  fontFamily: "monospace",
-                  resize: "vertical",
-                }}
-                placeholder="CREATE INDEX ..."
+              <SqlEditor
                 value={formScriptSql}
-                onChange={(e) => setFormScriptSql(e.target.value)}
+                onChange={(val) => setFormScriptSql(val)}
+                placeholder="CREATE INDEX ..."
+                height="150px"
               />
             </label>
 

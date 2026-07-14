@@ -199,6 +199,11 @@
   width: min(440px, 100%);
 }
 
+.canvas-modal--large {
+  width: min(1000px, 95vw);
+  max-height: min(850px, 92vh);
+}
+
 .about-modal {
   padding: 12px 6px;
 }

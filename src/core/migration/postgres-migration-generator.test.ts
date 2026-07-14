@@ -1503,4 +1503,407 @@ describe("postgres-migration-generator", () => {
       expect(addColumnPos).toBeLessThan(addCheckPos);
     });
   });
+
+  describe("PostgreSQL trigger migration generation", () => {
+    it("1. Gera DROP_TRIGGER com a sintaxe correta", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "DROP_TRIGGER",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            triggerId: "trg-1",
+            triggerName: "trg_test",
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "s1", name: "public" })],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain("DROP TRIGGER IF EXISTS trg_test ON public.tb_users;");
+    });
+
+    it("2. Gera ADD_TRIGGER com DDL completa", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "ADD_TRIGGER",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            triggerId: "trg-1",
+            triggerName: "trg_test",
+            eventTiming: "BEFORE",
+            events: ["INSERT"],
+            functionId: "fn-1",
+            forEach: "ROW",
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t1",
+                name: "tb_users",
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "s1",
+            name: "fn_test",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain(
+        "CREATE TRIGGER trg_test\n" +
+        "    BEFORE INSERT\n" +
+        "    ON public.tb_users\n" +
+        "    FOR EACH ROW\n" +
+        "    EXECUTE FUNCTION public.fn_test();"
+      );
+    });
+
+    it("3. Garante a ordenação: DROP_TRIGGER antes de DROP_FUNCTION, e ADD_TRIGGER depois de ADD_FUNCTION", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "ADD_TRIGGER",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            triggerId: "trg-1",
+            triggerName: "trg_test",
+            eventTiming: "BEFORE",
+            events: ["INSERT"],
+            functionId: "fn-1",
+            forEach: "ROW",
+          },
+          {
+            kind: "DROP_TRIGGER",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "tb_users",
+            triggerId: "trg-old",
+            triggerName: "trg_old_name",
+          },
+          {
+            kind: "ADD_FUNCTION",
+            risk: "warning",
+            functionId: "fn-1",
+            schemaId: "s1",
+            schemaName: "public",
+            functionName: "fn_test",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+          {
+            kind: "DROP_FUNCTION",
+            risk: "destructive",
+            functionId: "fn-old",
+            schemaId: "s1",
+            schemaName: "public",
+            functionName: "fn_old_func",
+            arguments: [],
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t1",
+                name: "tb_users",
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "s1",
+            name: "fn_test",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      const dropTriggerPos = sql.indexOf("DROP TRIGGER IF EXISTS trg_old_name ON public.tb_users;");
+      const dropFunctionPos = sql.indexOf("DROP FUNCTION public.fn_old_func();");
+      const createFunctionPos = sql.indexOf("CREATE OR REPLACE FUNCTION public.fn_test()");
+      const createTriggerPos = sql.indexOf("CREATE TRIGGER trg_test");
+
+      expect(dropTriggerPos).toBeGreaterThan(-1);
+      expect(dropFunctionPos).toBeGreaterThan(-1);
+      expect(createFunctionPos).toBeGreaterThan(-1);
+      expect(createTriggerPos).toBeGreaterThan(-1);
+
+      expect(dropTriggerPos).toBeLessThan(dropFunctionPos);
+      expect(dropFunctionPos).toBeLessThan(createFunctionPos);
+      expect(createFunctionPos).toBeLessThan(createTriggerPos);
+    });
+  });
+
+  describe("PostgreSQL Views incremental migrations", () => {
+    it("1. DROP_VIEW emite a sintaxe correta para views comuns e materializadas", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "DROP_VIEW",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            viewId: "view-1",
+            viewName: "v_users",
+            isMaterialized: false,
+          },
+          {
+            kind: "DROP_VIEW",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            viewId: "view-2",
+            viewName: "v_mat_users",
+            isMaterialized: true,
+          },
+        ],
+      };
+
+      const project = createProjectFixture();
+      const sql = generatePostgresMigrationSql(diff, project);
+
+      expect(sql).toContain("DROP VIEW IF EXISTS public.v_users;");
+      expect(sql).toContain("DROP MATERIALIZED VIEW IF EXISTS public.v_mat_users;");
+    });
+
+    it("2. ALTER_VIEW gera a dupla de comandos (DROP + CREATE) no script final", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "ALTER_VIEW",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            viewId: "view-1",
+            oldSchemaName: "public",
+            oldViewName: "v_users_old",
+            newViewName: "v_users_new",
+            oldView: {
+              schemaId: "s1",
+              name: "v_users_old",
+              definition: "SELECT * FROM public.tb_users_old",
+              isMaterialized: false,
+            },
+            newView: {
+              schemaId: "s1",
+              name: "v_users_new",
+              definition: "SELECT * FROM public.tb_users_new",
+              isMaterialized: true,
+              withNoData: true,
+            },
+            requiresDropAndRecreate: true,
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+          }),
+        ],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+
+      expect(sql).toContain("DROP VIEW IF EXISTS public.v_users_old;");
+      expect(sql).toContain("CREATE MATERIALIZED VIEW public.v_users_new AS\nSELECT * FROM public.tb_users_new WITH NO DATA;");
+    });
+
+    it("3. Valida a ordem em cenario misto: drop trigger -> drop view -> drop table -> create table -> add view -> add trigger", () => {
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "DROP_TRIGGER",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t-old",
+            tableName: "tb_old",
+            triggerId: "trg-old",
+            triggerName: "trg_old",
+          },
+          {
+            kind: "DROP_VIEW",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            viewId: "v-old",
+            viewName: "v_old",
+            isMaterialized: false,
+          },
+          {
+            kind: "DROP_TABLE",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t-old",
+            tableName: "tb_old",
+          },
+          {
+            kind: "CREATE_TABLE",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t-new",
+            tableName: "tb_new",
+          },
+          {
+            kind: "ADD_VIEW",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            viewId: "v-new",
+            viewName: "v_new",
+            definition: "SELECT * FROM public.tb_new",
+            isMaterialized: false,
+          },
+          {
+            kind: "ADD_TRIGGER",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t-new",
+            tableName: "tb_new",
+            triggerId: "trg-new",
+            triggerName: "trg_new",
+            eventTiming: "BEFORE",
+            events: ["INSERT"],
+            functionId: "fn-1",
+            forEach: "ROW",
+          },
+        ],
+      };
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t-new",
+                name: "tb_new",
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "s1",
+            name: "fn_test",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+
+      const dropTriggerPos = sql.indexOf("DROP TRIGGER IF EXISTS trg_old ON public.tb_old;");
+      const dropViewPos = sql.indexOf("DROP VIEW IF EXISTS public.v_old;");
+      const dropTablePos = sql.indexOf("DROP TABLE public.tb_old;");
+      const createTablePos = sql.indexOf("CREATE TABLE IF NOT EXISTS public.tb_new");
+      const addViewPos = sql.indexOf("CREATE OR REPLACE VIEW public.v_new");
+      const addTriggerPos = sql.indexOf("CREATE TRIGGER trg_new");
+
+      expect(dropTriggerPos).toBeGreaterThan(-1);
+      expect(dropViewPos).toBeGreaterThan(-1);
+      expect(dropTablePos).toBeGreaterThan(-1);
+      expect(createTablePos).toBeGreaterThan(-1);
+      expect(addViewPos).toBeGreaterThan(-1);
+      expect(addTriggerPos).toBeGreaterThan(-1);
+
+      expect(dropTriggerPos).toBeLessThan(dropViewPos);
+      expect(dropViewPos).toBeLessThan(createTablePos);
+      expect(createTablePos).toBeLessThan(dropTablePos);
+      expect(dropTablePos).toBeLessThan(addViewPos);
+      expect(addViewPos).toBeLessThan(addTriggerPos);
+    });
+
+    it("4. DROP_VIEW com cascade: true gera a cláusula CASCADE", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+          }),
+        ],
+      });
+
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "DROP_VIEW",
+            risk: "destructive",
+            schemaId: "schema-1",
+            schemaName: "public",
+            viewId: "view-1",
+            viewName: "v_users",
+            isMaterialized: false,
+            cascade: true,
+          },
+        ],
+      };
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain("DROP VIEW IF EXISTS public.v_users CASCADE;");
+    });
+  });
 });

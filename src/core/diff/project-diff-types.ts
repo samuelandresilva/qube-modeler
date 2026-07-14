@@ -54,7 +54,13 @@ export type ProjectDiffOperation =
   | DropIndexDiffOperation
   | AddCheckConstraintDiffOperation
   | DropCheckConstraintDiffOperation
-  | AlterCheckConstraintDiffOperation;
+  | AlterCheckConstraintDiffOperation
+  | AddTriggerDiffOperation
+  | DropTriggerDiffOperation
+  | AlterTriggerDiffOperation
+  | AddViewDiffOperation
+  | DropViewDiffOperation
+  | AlterViewDiffOperation;
 
 // Existing operations
 export type CreateSchemaDiffOperation = {
@@ -530,4 +536,119 @@ export type AlterFunctionDiffOperation = {
   newBody: string;
 
   requiresDropAndRecreate: boolean;
+};
+
+export type AddTriggerDiffOperation = {
+  kind: "ADD_TRIGGER";
+  risk: "warning";
+  schemaId: string;
+  schemaName: string;
+  tableId: string;
+  tableName: string;
+  triggerId: string;
+  triggerName: string;
+  eventTiming: "BEFORE" | "AFTER" | "INSTEAD OF";
+  events: ("INSERT" | "UPDATE" | "DELETE" | "TRUNCATE")[];
+  functionId: string;
+  condition?: string;
+  isConstraint?: boolean;
+  deferrable?: boolean;
+  initiallyDeferred?: boolean;
+  forEach: "ROW" | "STATEMENT";
+};
+
+export type DropTriggerDiffOperation = {
+  kind: "DROP_TRIGGER";
+  risk: "destructive";
+  schemaId: string;
+  schemaName: string;
+  tableId: string;
+  tableName: string;
+  triggerId: string;
+  triggerName: string;
+};
+
+export type AlterTriggerDiffOperation = {
+  kind: "ALTER_TRIGGER";
+  risk: "warning";
+  schemaId: string;
+  schemaName: string;
+  tableId: string;
+  tableName: string;
+  oldSchemaName?: string;
+  oldTableName?: string;
+  triggerId: string;
+  oldTriggerName: string;
+  newTriggerName: string;
+
+  // New trigger definition
+  eventTiming: "BEFORE" | "AFTER" | "INSTEAD OF";
+  events: ("INSERT" | "UPDATE" | "DELETE" | "TRUNCATE")[];
+  functionId: string;
+  condition?: string;
+  isConstraint?: boolean;
+  deferrable?: boolean;
+  initiallyDeferred?: boolean;
+  forEach: "ROW" | "STATEMENT";
+
+  // Previous trigger definition
+  oldEventTiming: "BEFORE" | "AFTER" | "INSTEAD OF";
+  oldEvents: ("INSERT" | "UPDATE" | "DELETE" | "TRUNCATE")[];
+  oldFunctionId: string;
+  oldCondition?: string;
+  oldIsConstraint?: boolean;
+  oldDeferrable?: boolean;
+  oldInitiallyDeferred?: boolean;
+  oldForEach: "ROW" | "STATEMENT";
+
+  requiresDropAndRecreate: boolean;
+};
+
+export type AddViewDiffOperation = {
+  kind: "ADD_VIEW";
+  risk: "warning";
+  schemaId: string;
+  schemaName: string;
+  viewId: string;
+  viewName: string;
+  definition: string;
+  isMaterialized: boolean;
+  withNoData?: boolean;
+};
+
+export type DropViewDiffOperation = {
+  kind: "DROP_VIEW";
+  risk: "destructive";
+  schemaId: string;
+  schemaName: string;
+  viewId: string;
+  viewName: string;
+  isMaterialized: boolean;
+  cascade?: boolean;
+};
+
+export type AlterViewDiffOperation = {
+  kind: "ALTER_VIEW";
+  risk: "destructive";
+  schemaId: string;
+  schemaName: string;
+  viewId: string;
+  oldSchemaName: string;
+  oldViewName: string;
+  newViewName: string;
+  oldView: {
+    schemaId: string;
+    name: string;
+    definition: string;
+    isMaterialized: boolean;
+    withNoData?: boolean;
+  };
+  newView: {
+    schemaId: string;
+    name: string;
+    definition: string;
+    isMaterialized: boolean;
+    withNoData?: boolean;
+  };
+  requiresDropAndRecreate: true;
 };

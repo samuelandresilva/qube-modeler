@@ -13,6 +13,7 @@ export function createProjectFixture(overrides: Partial<DatabaseProject> = {}): 
     schemas: [],
     diagram: { tableNodes: [] },
     functions: [],
+    views: [],
     ...overrides,
   };
 }
@@ -36,6 +37,7 @@ export function createTableFixture(overrides: Partial<DatabaseTable> = {}): Data
     indexes: [],
     uniqueConstraints: [],
     checkConstraints: [],
+    triggers: [],
     ...overrides,
   };
 }

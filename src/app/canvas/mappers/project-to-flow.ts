@@ -47,48 +47,54 @@ export function mapProjectToFlow(
 
   const edges: Edge[] = tables.flatMap(({ table }) =>
     table.foreignKeys.map((foreignKey) => {
-      const sourceTableNode = project.diagram.tableNodes.find(
-        (tableNode) => tableNode.tableId === table.id,
-      );
-
       const targetTableId = findTableIdByName(
         project,
         foreignKey.targetSchema,
         foreignKey.targetTable,
       );
 
-      const targetTableNode = project.diagram.tableNodes.find(
-        (tableNode) => tableNode.tableId === targetTableId,
-      );
-
-      const sourceIsLeftOfTarget =
-        (sourceTableNode?.position.x ?? 0) <=
-        (targetTableNode?.position.x ?? 0);
-
-      const sourceSide = sourceIsLeftOfTarget ? "right" : "left";
-      const targetSide = sourceIsLeftOfTarget ? "left" : "right";
-
       return {
         id: foreignKey.id,
         source: table.id,
-        sourceHandle: `${foreignKey.sourceColumns[0]}-source-${sourceSide}`,
+        sourceHandle: `${foreignKey.sourceColumns[0]}-source-right`,
         target: targetTableId,
-        targetHandle: `${foreignKey.targetColumns[0]}-target-${targetSide}`,
+        targetHandle: `${foreignKey.targetColumns[0]}-target-right`,
         label: `${foreignKey.sourceColumns[0]} → ${foreignKey.targetColumns[0]}`,
         animated: false,
+        type: "smart",
       };
     }),
   );
 
+  const viewNodes: Node[] = (project.views ?? []).map((view, index) => {
+    const schema = project.schemas.find((s) => s.id === view.schemaId);
+    return {
+      id: view.id,
+      type: "databaseView",
+      position: {
+        x: view.x ?? (120 + index * 360),
+        y: view.y ?? 240,
+      },
+      data: {
+        viewId: view.id,
+        viewName: view.name,
+        schemaName: schema?.name ?? "public",
+        definition: view.definition ?? "",
+        isMaterialized: view.isMaterialized,
+        triggerCount: view.triggers?.length ?? 0,
+        triggersCount: view.triggers?.length ?? 0,
+      },
+    };
+  });
+
   return {
-    nodes,
+    nodes: [...nodes, ...viewNodes],
     edges,
   };
 }
 
 export function mapProjectToFlowEdges(
   project: DatabaseProject,
-  nodes: Node[],
 ): Edge[] {
   const tables = project.schemas.flatMap((schema) =>
     schema.tables.map((table) => ({
@@ -99,30 +105,21 @@ export function mapProjectToFlowEdges(
 
   return tables.flatMap(({ table }) =>
     table.foreignKeys.map((foreignKey) => {
-      const sourceNode = nodes.find((node) => node.id === table.id);
-
       const targetTableId = findTableIdByName(
         project,
         foreignKey.targetSchema,
         foreignKey.targetTable,
       );
 
-      const targetNode = nodes.find((node) => node.id === targetTableId);
-
-      const sourceIsLeftOfTarget =
-        (sourceNode?.position.x ?? 0) <= (targetNode?.position.x ?? 0);
-
-      const sourceSide = sourceIsLeftOfTarget ? "right" : "left";
-      const targetSide = sourceIsLeftOfTarget ? "left" : "right";
-
       return {
         id: foreignKey.id,
         source: table.id,
-        sourceHandle: `${foreignKey.sourceColumns[0]}-source-${sourceSide}`,
+        sourceHandle: `${foreignKey.sourceColumns[0]}-source-right`,
         target: targetTableId,
-        targetHandle: `${foreignKey.targetColumns[0]}-target-${targetSide}`,
+        targetHandle: `${foreignKey.targetColumns[0]}-target-right`,
         label: `${foreignKey.sourceColumns[0]} → ${foreignKey.targetColumns[0]}`,
         animated: false,
+        type: "smart",
       };
     }),
   );

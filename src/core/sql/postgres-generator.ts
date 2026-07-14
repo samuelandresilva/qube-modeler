@@ -10,6 +10,8 @@ import type {
   CheckConstraint,
   DatabaseFunction,
   DatabaseFunctionArgument,
+  DatabaseTrigger,
+  DatabaseView,
 } from "@/core/model";
 import { supportsScale, supportsSize } from "./postgres-column-types";
 
@@ -48,6 +50,18 @@ function generateSchemaObjectsSql(
     generateTablePostCreateSql(schema, table),
   );
 
+  const views = project.views ?? [];
+  const schemaViews = views.filter((view) => view.schemaId === schema.id);
+  const viewSql = schemaViews.map((view) =>
+    generateViewSql(schema, view),
+  );
+
+  const triggerSql = schema.tables.flatMap((table) =>
+    (table.triggers ?? []).map((trigger) =>
+      generateTriggerSql(schema, table, trigger, project),
+    ),
+  );
+
   const indexSql = schema.tables.flatMap((table) =>
     table.indexes.map((index) => generateIndexSql(schema, table, index)),
   );
@@ -56,8 +70,10 @@ function generateSchemaObjectsSql(
     ...sequenceSql,
     ...functionSql,
     ...tableSql,
-    ...tablePostCreateSql,
+    ...viewSql,
+    ...triggerSql,
     ...indexSql,
+    ...tablePostCreateSql,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -295,4 +311,55 @@ export function generateCheckConstraintSql(
   checkConstraint: CheckConstraint,
 ): string {
   return `    CONSTRAINT ${checkConstraint.name} CHECK (${checkConstraint.expression})`;
+}
+
+export function generateTriggerSql(
+  schema: DatabaseSchema,
+  table: DatabaseTable,
+  trigger: DatabaseTrigger,
+  project: DatabaseProject,
+): string {
+  const targetFn = (project.functions ?? []).find((f) => f.id === trigger.functionId);
+  if (!targetFn) {
+    throw new Error(`Trigger "${trigger.name}" references missing function id "${trigger.functionId}"`);
+  }
+  const fnSchema = project.schemas.find((s) => s.id === targetFn.schemaId);
+  const fnSchemaName = fnSchema ? fnSchema.name : schema.name;
+
+  const constraintPart = trigger.isConstraint ? "CONSTRAINT " : "";
+  const eventsPart = trigger.events.join(" OR ");
+  const forEachPart = `FOR EACH ${trigger.forEach}`;
+
+  const conditionPart = trigger.condition ? `\n    WHEN (${trigger.condition})` : "";
+
+  const deferrablePart = trigger.isConstraint
+    ? `\n    ${trigger.deferrable ? "DEFERRABLE" : "NOT DEFERRABLE"}${
+        trigger.initiallyDeferred ? " INITIALLY DEFERRED" : " INITIALLY IMMEDIATE"
+      }`
+    : "";
+
+  return [
+    `CREATE ${constraintPart}TRIGGER ${trigger.name}`,
+    `    ${trigger.eventTiming} ${eventsPart}`,
+    `    ON ${schema.name}.${table.name}${deferrablePart}`,
+    `    ${forEachPart}${conditionPart}`,
+    `    EXECUTE FUNCTION ${fnSchemaName}.${targetFn.name}();`,
+  ].join("\n");
+}
+
+export function generateViewSql(
+  schema: DatabaseSchema,
+  view: DatabaseView,
+): string {
+  let definition = view.definition.trim();
+  if (definition.endsWith(";")) {
+    definition = definition.slice(0, -1).trim();
+  }
+
+  if (view.isMaterialized) {
+    const noDataPart = view.withNoData ? " WITH NO DATA" : "";
+    return `CREATE MATERIALIZED VIEW ${schema.name}.${view.name} AS\n${definition}${noDataPart};`;
+  } else {
+    return `CREATE OR REPLACE VIEW ${schema.name}.${view.name} AS\n${definition};`;
+  }
 }

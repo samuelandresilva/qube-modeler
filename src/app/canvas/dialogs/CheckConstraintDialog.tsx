@@ -6,6 +6,7 @@ import {
   isValidSqlIdentifier,
 } from "@/core/sql/postgres-identifiers";
 import { CanvasModal } from "@/app/canvas/components/CanvasModal";
+import { SqlEditor } from "@/app/shared/components/SqlEditor";
 
 type Props = {
   table: DatabaseTable;
@@ -80,10 +81,11 @@ export function CheckConstraintDialog({
         </label>
         <label>
           <span>Expression</span>
-          <textarea
+          <SqlEditor
             value={expression}
-            onChange={(event) => setExpression(event.target.value)}
+            onChange={(val) => setExpression(val)}
             placeholder="age BETWEEN 0 AND 120"
+            height="120px"
           />
         </label>
         <label>

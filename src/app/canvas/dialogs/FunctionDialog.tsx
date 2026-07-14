@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { DatabaseProject, DatabaseFunction, DatabaseFunctionArgument } from "@/core/model";
 import { CanvasModal } from "@/app/canvas/components/CanvasModal";
+import { POSTGRES_COLUMN_TYPES } from "@/core/sql/postgres-column-types";
+import { SqlEditor } from "@/app/shared/components/SqlEditor";
 
 type Props = {
   project: DatabaseProject;
@@ -11,6 +13,99 @@ type Props = {
   onSubmit: (input: Omit<DatabaseFunction, "id">) => void;
   onDelete?: () => void;
 };
+
+interface ComboboxProps {
+  value: string;
+  onChange: (val: string) => void;
+  options: string[];
+  placeholder?: string;
+}
+
+function Combobox({ value, onChange, options, placeholder }: ComboboxProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [prevValue, setPrevValue] = useState(value);
+  const [search, setSearch] = useState(value);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setSearch(value);
+  }
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const filteredOptions = options.filter((opt) =>
+    opt.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
+      <input
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          onChange(e.target.value);
+          setIsOpen(true);
+        }}
+        onFocus={() => setIsOpen(true)}
+        placeholder={placeholder}
+      />
+      {isOpen && filteredOptions.length > 0 && (
+        <ul
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            zIndex: 100,
+            background: "var(--color-bg)",
+            border: "1px solid var(--color-border-strong)",
+            borderRadius: "var(--radius-md)",
+            maxHeight: "150px",
+            overflowY: "auto",
+            margin: "4px 0 0 0",
+            padding: "4px 0",
+            listStyle: "none",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
+          }}
+        >
+          {filteredOptions.map((opt) => (
+            <li
+              key={opt}
+              onClick={() => {
+                onChange(opt);
+                setSearch(opt);
+                setIsOpen(false);
+              }}
+              style={{
+                padding: "8px 12px",
+                cursor: "pointer",
+                color: "var(--color-text)",
+                fontSize: "13px",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--color-border-strong)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              {opt}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export function FunctionDialog({
   project,
@@ -27,15 +122,37 @@ export function FunctionDialog({
   const [language, setLanguage] = useState<"plpgsql" | "sql">(
     editingFunction?.language ?? "plpgsql"
   );
-  const [returnType, setReturnType] = useState(editingFunction?.returnType ?? "trigger");
-  const [body, setBody] = useState(
-    editingFunction?.body ?? "BEGIN\n    RETURN NEW;\nEND;"
-  );
+  const [returnType, setReturnType] = useState(editingFunction?.returnType ?? "");
+  const [body, setBody] = useState(editingFunction?.body ?? "");
   const [args, setArgs] = useState<DatabaseFunctionArgument[]>(
     editingFunction?.arguments ?? []
   );
 
+  const getBodyPlaceholder = () => {
+    if (language === "sql") {
+      return "-- Example:\nSELECT * FROM tables WHERE id = arg_name;";
+    }
+    if (language === "plpgsql") {
+      if (returnType.trim().toLowerCase() === "trigger") {
+        return "-- Example:\nBEGIN\n  NEW.updated_at = NOW();\n  RETURN NEW;\nEND;";
+      } else {
+        return "-- Example:\nBEGIN\n  -- Write your logic here\n  RETURN;\nEND;";
+      }
+    }
+    return "";
+  };
+
+  const isTriggerReturn = returnType.trim().toLowerCase() === "trigger";
+
+  const handleReturnTypeChange = (newType: string) => {
+    setReturnType(newType);
+    if (newType.trim().toLowerCase() === "trigger") {
+      setArgs([]);
+    }
+  };
+
   const handleAddArg = () => {
+    if (isTriggerReturn) return;
     setArgs((prev) => [
       ...prev,
       {
@@ -107,6 +224,8 @@ export function FunctionDialog({
 
   const selectedSchema = project.schemas.find((s) => s.id === schemaId);
 
+  const returnTypeOptions = ["trigger", "void", ...POSTGRES_COLUMN_TYPES];
+
   return (
     <CanvasModal
       title={
@@ -150,9 +269,10 @@ export function FunctionDialog({
 
         <label>
           <span>Return type</span>
-          <input
+          <Combobox
             value={returnType}
-            onChange={(e) => setReturnType(e.target.value)}
+            onChange={handleReturnTypeChange}
+            options={returnTypeOptions}
             placeholder="trigger, integer, numeric, void..."
           />
         </label>
@@ -160,28 +280,34 @@ export function FunctionDialog({
         <div style={{ margin: "16px 0 8px 0", borderBottom: "1px solid #334155", paddingBottom: "4px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontWeight: 600, fontSize: "14px", color: "#94a3b8" }}>Arguments</span>
-            <button
-              type="button"
-              onClick={handleAddArg}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                fontSize: "12px",
-                padding: "2px 8px",
-                background: "#0f172a",
-                border: "1px solid #334155",
-                borderRadius: "4px",
-                color: "#cbd5e1",
-                cursor: "pointer",
-              }}
-            >
-              <Plus size={12} /> Add argument
-            </button>
+            {!isTriggerReturn && (
+              <button
+                type="button"
+                onClick={handleAddArg}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  fontSize: "12px",
+                  padding: "2px 8px",
+                  background: "#0f172a",
+                  border: "1px solid #334155",
+                  borderRadius: "4px",
+                  color: "#cbd5e1",
+                  cursor: "pointer",
+                }}
+              >
+                <Plus size={12} /> Add argument
+              </button>
+            )}
           </div>
         </div>
 
-        {args.length === 0 ? (
+        {isTriggerReturn ? (
+          <div style={{ fontSize: "12px", color: "#38bdf8", fontStyle: "italic", marginBottom: "12px" }}>
+            Trigger functions do not accept formal arguments in PostgreSQL.
+          </div>
+        ) : args.length === 0 ? (
           <div style={{ fontSize: "12px", color: "#64748b", fontStyle: "italic", marginBottom: "12px" }}>
             No arguments defined
           </div>
@@ -207,12 +333,18 @@ export function FunctionDialog({
                   style={{ flex: 1 }}
                 />
 
-                <input
+                <select
                   value={arg.dataType}
                   onChange={(e) => handleUpdateArg(arg.id, "dataType", e.target.value)}
-                  placeholder="data type"
                   style={{ flex: 1 }}
-                />
+                >
+                  <option value="">Select data type</option>
+                  {POSTGRES_COLUMN_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
 
                 <button
                   type="button"
@@ -232,16 +364,15 @@ export function FunctionDialog({
           </div>
         )}
 
-        <label>
-          <span>Body</span>
-          <textarea
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <span style={{ fontWeight: "bold", fontSize: "14px", color: "#cbd5e1" }}>Body</span>
+          <SqlEditor
             value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={6}
-            style={{ fontFamily: "monospace", fontSize: "13px" }}
-            placeholder="BEGIN&#10;    RETURN NEW;&#10;END;"
+            onChange={(val) => setBody(val)}
+            placeholder={getBodyPlaceholder()}
+            height="180px"
           />
-        </label>
+        </div>
 
         {duplicateSignature && (
           <p className="canvas-modal-error">
