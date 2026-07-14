@@ -14,8 +14,8 @@ export function ViewDefinitionDialog({ initialValue, viewName, onClose, onSubmit
 
   return (
     <CanvasModal title={`Edit View SQL · ${viewName}`} onClose={onClose} className="canvas-modal--large">
-      <div className="canvas-modal-form" style={{ width: "900px", maxWidth: "90vw" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+      <div className="canvas-modal-form">
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
           <span style={{ fontWeight: "bold", fontSize: "14px", color: "#cbd5e1" }}>Definition (SQL SELECT)</span>
           <SqlEditor
             value={value}

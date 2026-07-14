@@ -5,6 +5,7 @@ import { generatePostgresColumnTypeSql } from "@/core/sql/postgres-column-type-s
 export function mapProjectToFlow(
   project: DatabaseProject,
   onDoubleClickColumn?: (tableId: string, columnId: string) => void,
+  currentEdges?: Edge[],
 ): {
   nodes: Node[];
   edges: Edge[];
@@ -53,6 +54,8 @@ export function mapProjectToFlow(
         foreignKey.targetTable,
       );
 
+      const existingEdge = currentEdges?.find((e) => e.id === foreignKey.id);
+
       return {
         id: foreignKey.id,
         source: table.id,
@@ -62,6 +65,9 @@ export function mapProjectToFlow(
         label: `${foreignKey.sourceColumns[0]} → ${foreignKey.targetColumns[0]}`,
         animated: false,
         type: "smart",
+        data: {
+          ...existingEdge?.data,
+        },
       };
     }),
   );
@@ -95,6 +101,7 @@ export function mapProjectToFlow(
 
 export function mapProjectToFlowEdges(
   project: DatabaseProject,
+  currentEdges?: Edge[],
 ): Edge[] {
   const tables = project.schemas.flatMap((schema) =>
     schema.tables.map((table) => ({
@@ -111,6 +118,8 @@ export function mapProjectToFlowEdges(
         foreignKey.targetTable,
       );
 
+      const existingEdge = currentEdges?.find((e) => e.id === foreignKey.id);
+
       return {
         id: foreignKey.id,
         source: table.id,
@@ -120,6 +129,9 @@ export function mapProjectToFlowEdges(
         label: `${foreignKey.sourceColumns[0]} → ${foreignKey.targetColumns[0]}`,
         animated: false,
         type: "smart",
+        data: {
+          ...existingEdge?.data,
+        },
       };
     }),
   );

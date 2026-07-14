@@ -14,7 +14,7 @@ interface SqlEditorProps {
 export function SqlEditor({ value, onChange, readOnly = false, height = '400px', placeholder }: SqlEditorProps) {
   return (
     // O div wrapper é OBRIGATÓRIO para bloquear a herança de cor do texto dos labels do modal
-    <div style={{ color: 'initial', backgroundColor: '#282c34', borderRadius: '6px', overflow: 'hidden' }}>
+    <div style={{ width: '100%', color: 'initial', backgroundColor: '#282c34', borderRadius: '6px', overflow: 'hidden' }}>
       <CodeMirror
         value={value}
         height={height}

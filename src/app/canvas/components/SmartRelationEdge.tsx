@@ -1,4 +1,5 @@
-import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useInternalNode, Position, type EdgeProps } from '@xyflow/react';
+import { useState, useRef, useCallback } from 'react';
+import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useInternalNode, Position, useReactFlow, useStore, type EdgeProps } from '@xyflow/react';
 
 export function SmartRelationEdge({
   id,
@@ -10,8 +11,43 @@ export function SmartRelationEdge({
   markerEnd,
   label
 }: EdgeProps) {
+  const { updateEdge, getEdge } = useReactFlow();
+  void useStore;
+
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartX = useRef(0);
+  const initialOffset = useRef(0);
+
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
+
+  const edgeData = getEdge(id)?.data || {};
+  const customOffset = (edgeData.customOffset as number) || 40;
+
+  const handlePointerDown = useCallback((e: React.PointerEvent<SVGPathElement>) => {
+    e.preventDefault();
+    dragStartX.current = e.clientX;
+    initialOffset.current = customOffset;
+    setIsDragging(true);
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const deltaX = moveEvent.clientX - dragStartX.current;
+      const novoValor = initialOffset.current + deltaX;
+      // Impede que o recuo fique menor que 10 pixels
+      const safeValue = Math.max(10, novoValor);
+      const currentEdgeData = getEdge(id)?.data || {};
+      updateEdge(id, { data: { ...currentEdgeData, customOffset: safeValue } });
+    };
+
+    const handlePointerUp = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      setIsDragging(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }, [id, getEdge, updateEdge, customOffset]);
 
   if (!sourceNode || !targetNode) return null;
 
@@ -28,13 +64,13 @@ export function SmartRelationEdge({
   let targetPos: Position;
 
   // Lógica de Roteamento Dinâmico
-  if (dx > sourceWidth + 40) {
+  if (dx > sourceWidth + customOffset) {
     // Target está claramente à direita
     sourcePos = Position.Right;
     targetPos = Position.Left;
     sourceXPos = sourceX + sourceWidth;
     targetXPos = targetX;
-  } else if (dx < -(targetWidth + 40)) {
+  } else if (dx < -(targetWidth + customOffset)) {
     // Target está claramente à esquerda
     sourcePos = Position.Left;
     targetPos = Position.Right;
@@ -45,11 +81,11 @@ export function SmartRelationEdge({
     // Conecta Right -> Right formando um "C" (ou "]" ) na lateral
     sourcePos = Position.Right;
     targetPos = Position.Right;
-    sourceXPos = sourceX + sourceWidth;
-    targetXPos = targetX + targetWidth;
+    sourceXPos = sourceX + sourceWidth + customOffset;
+    targetXPos = targetX + targetWidth + customOffset;
   }
 
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
+  const [initialEdgePath, labelX, labelY] = getSmoothStepPath({
     sourceX: sourceXPos,
     sourceY,
     sourcePosition: sourcePos,
@@ -59,9 +95,34 @@ export function SmartRelationEdge({
     borderRadius: 16,
   });
 
+  let edgePath = initialEdgePath;
+
+  // Se for o caso do "C" (ambos Position.Right), estender o caminho até os handles das tabelas para não flutuar
+  if (sourcePos === Position.Right && targetPos === Position.Right) {
+    const startSegment = `M ${sourceX + sourceWidth} ${sourceY} L ${sourceXPos} ${sourceY}`;
+    const endSegment = `L ${targetX + targetWidth} ${targetY}`;
+    edgePath = `${startSegment} ${edgePath.replace(/^M/, 'L')} ${endSegment}`;
+  }
+
   return (
     <>
+      {/* Linha Visível Original */}
       <BaseEdge id={id} path={edgePath} style={style} markerEnd={markerEnd} />
+
+      {/* Hitbox Transparente e Arrastável */}
+      <path
+        d={edgePath}
+        fill="none"
+        strokeOpacity={0}
+        strokeWidth={20} // Hitbox de 20px para facilitar o clique
+        className="react-flow__edge-interaction"
+        onPointerDown={handlePointerDown}
+        style={{
+          cursor: isDragging ? 'grabbing' : 'grab',
+          pointerEvents: 'all'
+        }}
+      />
+
       {label && (
         <EdgeLabelRenderer>
           <div
@@ -85,4 +146,5 @@ export function SmartRelationEdge({
     </>
   );
 }
+
 export default SmartRelationEdge;

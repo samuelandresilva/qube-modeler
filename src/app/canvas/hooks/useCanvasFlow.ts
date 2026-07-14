@@ -31,8 +31,13 @@ export function useCanvasFlow({
   const [nodes, setNodes] = useNodesState<ReactFlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
+  const edgesRef = useRef<Edge[]>([]);
   useEffect(() => {
-    const flow = mapProjectToFlow(project, onDoubleClickColumn);
+    edgesRef.current = edges;
+  }, [edges]);
+
+  useEffect(() => {
+    const flow = mapProjectToFlow(project, onDoubleClickColumn, edgesRef.current);
     setNodes(
       flow.nodes.map((node) => ({
         ...node,
