@@ -510,7 +510,7 @@ export default function App() {
 
             <div className="about-modal__body">
               <p className="about-modal__description">
-                Visual database modeler for PostgreSQL and Flyway migrations.
+                A modern, local-first visual database modeler tailored for PostgreSQL. Qube Modeler seamlessly bridges the gap between entity-relationship design and state-based Flyway migrations, keeping your entire database history in a single, Git-friendly project file.
               </p>
               
               <div className="about-modal__section">
@@ -520,11 +520,31 @@ export default function App() {
                   Local-first project files designed to be versioned with Git.
                 </p>
               </div>
+
+              <div className="about-modal__section">
+                <div className="about-modal__label">Credits</div>
+                <p className="about-modal__text" style={{ lineHeight: "1.6" }}>
+                  Interactive canvas and diagramming powered by{" "}
+                  <a href="https://reactflow.dev" target="_blank" rel="noopener noreferrer" style={{ color: "#38bdf8", textDecoration: "none" }}>
+                    React Flow
+                  </a>.
+                  <br />
+                  SQL syntax highlighting by{" "}
+                  <a href="https://codemirror.net" target="_blank" rel="noopener noreferrer" style={{ color: "#38bdf8", textDecoration: "none" }}>
+                    CodeMirror
+                  </a>.
+                  <br />
+                  Developed by{" "}
+                  <a href="https://betaqube.dev" target="_blank" rel="noopener noreferrer" style={{ color: "#38bdf8", textDecoration: "none" }}>
+                    BetaQube.dev
+                  </a>.
+                </p>
+              </div>
             </div>
 
             <div className="about-modal__footer">
               <button
-                className="canvas-welcome__btn canvas-welcome__btn--primary about-modal__close-btn"
+                className="about-modal__close-btn"
                 onClick={() => setIsAboutOpen(false)}
                 type="button"
               >

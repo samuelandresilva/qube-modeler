@@ -6,6 +6,7 @@ import {
   Menu,
   nativeImage,
   OpenDialogOptions,
+  shell,
   type WebContents,
 } from "electron";
 import { open, readFile, rename, unlink, writeFile } from "node:fs/promises";
@@ -480,6 +481,13 @@ function createWindow() {
   });
 
   trackWindowState(mainWindow);
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("http:") || url.startsWith("https:")) {
+      shell.openExternal(url);
+    }
+    return { action: "deny" };
+  });
 
   mainWindow.once("ready-to-show", () => {
     if (state.isMaximized) {
