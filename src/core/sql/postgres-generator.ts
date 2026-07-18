@@ -16,16 +16,50 @@ import type {
 import { supportsScale, supportsSize } from "./postgres-column-types";
 
 export function generatePostgresSql(project: DatabaseProject): string {
+  const primaryKeys: string[] = [];
+  const uniqueConstraints: string[] = [];
+  const foreignKeys: string[] = [];
+
   const schemaDefinitions = project.schemas
     .map((schema) => `CREATE SCHEMA IF NOT EXISTS ${schema.name};`)
     .join("\n");
+
+  project.schemas.forEach((schema) => {
+    schema.tables.forEach((table) => {
+      const primaryKeySql = generateAddPrimaryKeySql(schema, table);
+      if (primaryKeySql) {
+        primaryKeys.push(primaryKeySql);
+      }
+      table.uniqueConstraints.forEach((constraint) => {
+        uniqueConstraints.push(generateAddUniqueConstraintSql(schema, table, constraint));
+      });
+      table.foreignKeys.forEach((foreignKey) => {
+        foreignKeys.push(generateAddForeignKeySql(schema, table, foreignKey));
+      });
+    });
+  });
 
   const schemaObjects = project.schemas
     .map((schema) => generateSchemaObjectsSql(schema, project))
     .filter(Boolean)
     .join("\n\n");
 
-  return [schemaDefinitions, schemaObjects].filter(Boolean).join("\n\n");
+  const finalSqlParts = [
+    schemaDefinitions,
+    schemaObjects,
+  ];
+
+  if (primaryKeys.length > 0) {
+    finalSqlParts.push("-- Primary Keys", ...primaryKeys);
+  }
+  if (uniqueConstraints.length > 0) {
+    finalSqlParts.push("-- Unique Constraints", ...uniqueConstraints);
+  }
+  if (foreignKeys.length > 0) {
+    finalSqlParts.push("-- Foreign Keys", ...foreignKeys);
+  }
+
+  return finalSqlParts.filter(Boolean).join("\n\n");
 }
 
 function generateSchemaObjectsSql(
@@ -44,10 +78,6 @@ function generateSchemaObjectsSql(
 
   const tableSql = schema.tables.map((table) =>
     generateTableSql(schema, table, { includeConstraints: false }),
-  );
-
-  const tablePostCreateSql = schema.tables.flatMap((table) =>
-    generateTablePostCreateSql(schema, table),
   );
 
   const views = project.views ?? [];
@@ -73,7 +103,6 @@ function generateSchemaObjectsSql(
     ...viewSql,
     ...triggerSql,
     ...indexSql,
-    ...tablePostCreateSql,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -179,9 +208,9 @@ function generateInlineTableConstraintSql(table: DatabaseTable): string[] {
         ]
       : [];
 
-  const uniqueConstraintLines = table.uniqueConstraints.map(
-    generateUniqueConstraintSql,
-  );
+  const uniqueConstraintLines = table.uniqueConstraints
+    .filter((uc) => !uc.condition)
+    .map(generateUniqueConstraintSql);
 
   const checkConstraints = table.checkConstraints ?? [];
   const checkConstraintLines = checkConstraints.map(generateCheckConstraintSql);
@@ -216,6 +245,10 @@ export function generateAddUniqueConstraintSql(
   table: DatabaseTable,
   uniqueConstraint: DatabaseUniqueConstraint,
 ): string {
+  if (uniqueConstraint.condition && uniqueConstraint.condition.trim() !== "") {
+    const columns = uniqueConstraint.columns.join(", ");
+    return `CREATE UNIQUE INDEX ${uniqueConstraint.name} ON ${schema.name}.${table.name} (${columns}) WHERE ${uniqueConstraint.condition};`;
+  }
   return `ALTER TABLE ${schema.name}.${table.name} ADD ${generateUniqueConstraintSql(uniqueConstraint).trim()};`;
 }
 

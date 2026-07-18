@@ -365,6 +365,7 @@ export type DropUniqueConstraintDiffOperation = {
   tableName: string;
   uniqueConstraintId: string;
   uniqueConstraintName: string;
+  oldCondition?: string;
 };
 
 export type DropIndexDiffOperation = {
@@ -420,6 +421,7 @@ export type AlterUniqueConstraintDiffOperation = {
   uniqueConstraintId: string;
   oldName: string;
   newName: string;
+  oldCondition?: string;
 };
 
 export type AlterIndexDiffOperation = {

@@ -5,7 +5,7 @@ import {
   generateTableSql,
   generateColumnSql,
   generateForeignKeySql,
-  generateUniqueConstraintSql,
+  generateAddUniqueConstraintSql,
   generateIndexSql,
   generateColumnTypeSql,
   generateTablePostCreateSql,
@@ -409,11 +409,8 @@ export function generatePostgresMigrationSql(
         if (!uc) {
           throw new Error(`Unique Constraint ${op.uniqueConstraintName} (ID: ${op.uniqueConstraintId}) not found in table ${table.name}.`);
         }
-        const ucDef = generateUniqueConstraintSql(uc).trim();
-        sqlStatements.push(formatStatement(
-          `ALTER TABLE ${schema.name}.${table.name} ADD ${ucDef};`,
-          op.risk
-        ));
+        const addSql = generateAddUniqueConstraintSql(schema, table, uc);
+        sqlStatements.push(formatStatement(addSql, op.risk));
         break;
       }
 
@@ -489,11 +486,11 @@ export function generatePostgresMigrationSql(
         if (!uc) {
           throw new Error(`Unique Constraint (ID: ${op.uniqueConstraintId}) not found in table ${table.name}.`);
         }
-        const ucDef = generateUniqueConstraintSql(uc).trim();
-        const sql = [
-          `ALTER TABLE ${schema.name}.${table.name} DROP CONSTRAINT ${op.oldName};`,
-          `ALTER TABLE ${schema.name}.${table.name} ADD ${ucDef};`
-        ].join("\n");
+        const dropSql = op.oldCondition
+          ? `DROP INDEX ${schema.name}.${op.oldName};`
+          : `ALTER TABLE ${schema.name}.${table.name} DROP CONSTRAINT ${op.oldName};`;
+        const addSql = generateAddUniqueConstraintSql(schema, table, uc);
+        const sql = [dropSql, addSql].join("\n");
         sqlStatements.push(formatStatement(sql, op.risk));
         break;
       }
@@ -686,10 +683,10 @@ export function generatePostgresMigrationSql(
       }
 
       case "DROP_UNIQUE_CONSTRAINT": {
-        sqlStatements.push(formatStatement(
-          `ALTER TABLE ${op.schemaName}.${op.tableName} DROP CONSTRAINT ${op.uniqueConstraintName};`,
-          op.risk
-        ));
+        const dropSql = op.oldCondition
+          ? `DROP INDEX ${op.schemaName}.${op.uniqueConstraintName};`
+          : `ALTER TABLE ${op.schemaName}.${op.tableName} DROP CONSTRAINT ${op.uniqueConstraintName};`;
+        sqlStatements.push(formatStatement(dropSql, op.risk));
         break;
       }
 

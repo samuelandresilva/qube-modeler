@@ -998,4 +998,42 @@ describe("postgres-generator", () => {
       expect(viewPos).toBeLessThan(triggerPos);
     });
   });
+
+  describe("Conditional Unique Constraints (Partial Unique Indexes)", () => {
+    it("generates CREATE UNIQUE INDEX with WHERE clause for unique constraints with conditions", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_users",
+                columns: [
+                  createColumnFixture({ name: "id", type: "integer" }),
+                  createColumnFixture({ name: "email", type: "varchar" }),
+                ],
+                uniqueConstraints: [
+                  {
+                    id: "uc-1",
+                    name: "uk_users_email_active",
+                    columns: ["email"],
+                    condition: "deleted_at IS NULL",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const sql = generatePostgresSql(project);
+      
+      // Should not be inline
+      const createTablePart = sql.substring(sql.indexOf("CREATE TABLE"), sql.indexOf(");"));
+      expect(createTablePart).not.toContain("uk_users_email_active");
+      
+      // Should be generated as a partial unique index
+      expect(sql).toContain("CREATE UNIQUE INDEX uk_users_email_active ON public.tb_users (email) WHERE deleted_at IS NULL;");
+    });
+  });
 });

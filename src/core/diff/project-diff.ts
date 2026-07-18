@@ -42,6 +42,7 @@ function didForeignKeyChange(
 }
 
 function didUniqueConstraintChange(prevUc: DatabaseUniqueConstraint, currUc: DatabaseUniqueConstraint): boolean {
+  if (prevUc.condition !== currUc.condition) return true;
   if (prevUc.columns.length !== currUc.columns.length) return true;
   for (let i = 0; i < prevUc.columns.length; i++) {
     if (prevUc.columns[i] !== currUc.columns[i]) return true;
@@ -522,6 +523,7 @@ export function diffProjects(
                 uniqueConstraintId: currUc.id,
                 oldName: prevUc.name,
                 newName: currUc.name,
+                oldCondition: prevUc.condition,
               });
             } else if (currUc.name !== prevUc.name) {
               operations.push({
@@ -550,6 +552,7 @@ export function diffProjects(
               tableName: currTable.name,
               uniqueConstraintId: prevUc.id,
               uniqueConstraintName: prevUc.name,
+              oldCondition: prevUc.condition,
             });
           }
         }

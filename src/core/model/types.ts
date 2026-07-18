@@ -121,6 +121,7 @@ export interface DatabaseUniqueConstraint {
   id: string;
   name: string;
   columns: string[];
+  condition?: string;
 }
 
 export interface DatabaseIndex {
