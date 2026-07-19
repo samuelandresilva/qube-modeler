@@ -7,7 +7,7 @@ import {
   type ReactFlowProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   createTable,
   findTableContext,
@@ -110,20 +110,19 @@ function CanvasContent({
   const [isAddingView, setIsAddingView] = useState(false);
   const [isAddingSubjectArea, setIsAddingSubjectArea] = useState(false);
   const [isAddingTextNote, setIsAddingTextNote] = useState(false);
-  const [activeSchemaId, setActiveSchemaId] = useState<string | null>(null);
+  const [selectedSchemaId, setSelectedSchemaId] = useState<string | null>(null);
   const { confirm, requestConfirm, dismissConfirm, acceptConfirm } =
     useConfirm();
 
-  const schemaIds = project.schemas.map((s) => s.id);
-  if (schemaIds.length === 0) {
-    if (activeSchemaId !== null) {
-      setActiveSchemaId(null);
+  const schemaIds = useMemo(() => project.schemas.map((s) => s.id), [project.schemas]);
+
+  const activeSchemaId = useMemo(() => {
+    if (schemaIds.length === 0) return null;
+    if (selectedSchemaId === null || !schemaIds.includes(selectedSchemaId)) {
+      return schemaIds[0];
     }
-  } else {
-    if (activeSchemaId === null || !schemaIds.includes(activeSchemaId)) {
-      setActiveSchemaId(schemaIds[0]);
-    }
-  }
+    return selectedSchemaId;
+  }, [schemaIds, selectedSchemaId]);
 
   const context = selectedTableId
     ? findTableContext(project, selectedTableId)
@@ -250,7 +249,7 @@ function CanvasContent({
       const schemaExists = project.schemas.some((s) => s.id === activeSchemaId);
       if (!schemaExists) {
         setIsAddingTable(false);
-        setActiveSchemaId(project.schemas.length > 0 ? project.schemas[0].id : null);
+        setSelectedSchemaId(project.schemas.length > 0 ? project.schemas[0].id : null);
         onFileOperationError("The selected schema no longer exists. Please select a valid schema.");
         return;
       }
@@ -270,7 +269,7 @@ function CanvasContent({
       const schemaExists = project.schemas.some((s) => s.id === activeSchemaId);
       if (!schemaExists) {
         setIsAddingView(false);
-        setActiveSchemaId(project.schemas.length > 0 ? project.schemas[0].id : null);
+        setSelectedSchemaId(project.schemas.length > 0 ? project.schemas[0].id : null);
         onFileOperationError("The selected schema no longer exists. Please select a valid schema.");
         return;
       }
@@ -440,7 +439,7 @@ function CanvasContent({
           onGenerateSql={() => void download("sql")}
           schemas={project.schemas}
           activeSchemaId={activeSchemaId}
-          onActiveSchemaChange={setActiveSchemaId}
+          onActiveSchemaChange={setSelectedSchemaId}
           onAddSubjectArea={toggleAddSubjectAreaMode}
           onAddTextNote={toggleAddTextNoteMode}
           isAddingSubjectArea={isAddingSubjectArea}

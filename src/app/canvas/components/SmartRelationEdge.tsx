@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useInternalNode, Position, useReactFlow, useStore, type EdgeProps } from '@xyflow/react';
 
 export function SmartRelationEdge({
@@ -29,6 +29,10 @@ export function SmartRelationEdge({
     dragStartX.current = e.clientX;
     initialOffset.current = customOffset;
     setIsDragging(true);
+  }, [customOffset]);
+
+  useEffect(() => {
+    if (!isDragging) return;
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - dragStartX.current;
@@ -40,14 +44,17 @@ export function SmartRelationEdge({
     };
 
     const handlePointerUp = () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
       setIsDragging(false);
     };
 
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-  }, [id, getEdge, updateEdge, customOffset]);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [isDragging, id, getEdge, updateEdge]);
 
   if (!sourceNode || !targetNode) return null;
 
