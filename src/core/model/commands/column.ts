@@ -133,3 +133,29 @@ export function removeColumn(
     })),
   };
 }
+
+export function moveColumn(
+  project: DatabaseProject,
+  schemaId: string,
+  tableId: string,
+  columnId: string,
+  direction: "up" | "down",
+): DatabaseProject {
+  return updateTableInProject(project, schemaId, tableId, (table) => {
+    const index = table.columns.findIndex((col) => col.id === columnId);
+    if (index === -1) return table;
+
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= table.columns.length) return table;
+
+    const updatedColumns = [...table.columns];
+    const temp = updatedColumns[index];
+    updatedColumns[index] = updatedColumns[targetIndex];
+    updatedColumns[targetIndex] = temp;
+
+    return {
+      ...table,
+      columns: updatedColumns,
+    };
+  });
+}

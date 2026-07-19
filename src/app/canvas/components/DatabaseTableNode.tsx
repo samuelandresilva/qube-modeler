@@ -56,7 +56,7 @@ export function DatabaseTableNode({ data }: NodeProps) {
             />
 
             <span className="database-table-card__column-name">
-              {column.primaryKey ? "🔑 " : ""}
+              {column.primaryKey ? "🔑 " : "🔹 "}
               {column.name}
             </span>
 
