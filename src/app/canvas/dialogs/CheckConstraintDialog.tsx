@@ -79,15 +79,17 @@ export function CheckConstraintDialog({
             placeholder="chk_table_column"
           />
         </label>
-        <label>
-          <span>Expression</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
+          <span style={{ color: "var(--color-text-muted)", fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>
+            Expression
+          </span>
           <SqlEditor
             value={expression}
             onChange={(val) => setExpression(val)}
             placeholder="age BETWEEN 0 AND 120"
             height="120px"
           />
-        </label>
+        </div>
         <label>
           <span>Involved columns</span>
           <MultiColumnSelect

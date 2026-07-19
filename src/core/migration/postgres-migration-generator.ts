@@ -63,7 +63,13 @@ const OPERATION_ORDER: Record<string, number> = {
   ADD_FOREIGN_KEY: 83,
   ADD_INDEX: 84,
   ADD_TRIGGER: 85,
+  COMMENT: 100,
 };
+
+function escapeComment(comment?: string): string {
+  if (!comment) return "";
+  return comment.replace(/'/g, "''");
+}
 
 function getOperationOrder(operation: ProjectDiffOperation): number {
   return OPERATION_ORDER[operation.kind] ?? 100;
@@ -281,6 +287,44 @@ export function generatePostgresMigrationSql(
     }
 
     switch (op.kind) {
+      case "COMMENT": {
+        const valueSql = op.comment ? `'${escapeComment(op.comment)}'` : "NULL";
+        let commentSql = "";
+        switch (op.objectType) {
+          case "SCHEMA":
+            commentSql = `COMMENT ON SCHEMA ${op.schemaName} IS ${valueSql};`;
+            break;
+          case "TABLE":
+            commentSql = `COMMENT ON TABLE ${op.schemaName}.${op.tableName} IS ${valueSql};`;
+            break;
+          case "COLUMN":
+            commentSql = `COMMENT ON COLUMN ${op.schemaName}.${op.tableName}.${op.columnName} IS ${valueSql};`;
+            break;
+          case "CONSTRAINT":
+            commentSql = `COMMENT ON CONSTRAINT ${op.constraintName} ON ${op.schemaName}.${op.tableName} IS ${valueSql};`;
+            break;
+          case "INDEX":
+            commentSql = `COMMENT ON INDEX ${op.schemaName}.${op.objectName} IS ${valueSql};`;
+            break;
+          case "TRIGGER":
+            commentSql = `COMMENT ON TRIGGER ${op.triggerName} ON ${op.schemaName}.${op.tableName} IS ${valueSql};`;
+            break;
+          case "FUNCTION":
+            commentSql = `COMMENT ON FUNCTION ${op.schemaName}.${op.functionSignature} IS ${valueSql};`;
+            break;
+          case "VIEW":
+            commentSql = `COMMENT ON VIEW ${op.schemaName}.${op.objectName} IS ${valueSql};`;
+            break;
+          case "SEQUENCE":
+            commentSql = `COMMENT ON SEQUENCE ${op.schemaName}.${op.objectName} IS ${valueSql};`;
+            break;
+        }
+        if (commentSql) {
+          sqlStatements.push(formatStatement(commentSql, op.risk));
+        }
+        break;
+      }
+
       case "CREATE_SCHEMA": {
         sqlStatements.push(formatStatement(
           `CREATE SCHEMA IF NOT EXISTS ${op.schemaName};`,

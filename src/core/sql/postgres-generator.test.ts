@@ -1036,4 +1036,124 @@ describe("postgres-generator", () => {
       expect(sql).toContain("CREATE UNIQUE INDEX uk_users_email_active ON public.tb_users (email) WHERE deleted_at IS NULL;");
     });
   });
+
+  describe("Database Comments", () => {
+    it("generates comments for schemas, tables, columns, PK, FK, UK, indexes, functions, triggers, views, sequences", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "app",
+            comment: "Application Schema",
+            sequences: [
+              {
+                id: "seq-1",
+                name: "user_seq",
+                startWith: 1,
+                incrementBy: 1,
+                comment: "User sequence",
+              },
+            ],
+            tables: [
+              createTableFixture({
+                name: "users",
+                comment: "Users Table",
+                primaryKeyComment: "PK comment",
+                columns: [
+                  createColumnFixture({
+                    name: "id",
+                    type: "integer",
+                    primaryKey: true,
+                    comment: "User ID",
+                  }),
+                  createColumnFixture({
+                    name: "email",
+                    type: "varchar",
+                    comment: "User Email",
+                  }),
+                ],
+                uniqueConstraints: [
+                  {
+                    id: "uc-1",
+                    name: "uk_users_email",
+                    columns: ["email"],
+                    comment: "UK email comment",
+                  },
+                ],
+                indexes: [
+                  {
+                    id: "idx-1",
+                    name: "idx_users_email",
+                    columns: ["email"],
+                    comment: "Index comment",
+                  },
+                ],
+                foreignKeys: [
+                  {
+                    id: "fk-1",
+                    name: "fk_users_tenant",
+                    sourceColumns: ["id"],
+                    targetSchema: "app",
+                    targetTable: "tenants",
+                    targetColumns: ["id"],
+                    comment: "FK comment",
+                  },
+                ],
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_users_audit",
+                    eventTiming: "BEFORE",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                    comment: "Trigger comment",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            name: "audit_log",
+            schemaId: "s1",
+            language: "plpgsql",
+            returnType: "trigger",
+            body: "BEGIN RETURN NEW; END;",
+            comment: "Audit function",
+            arguments: [],
+          },
+        ],
+        views: [
+          {
+            id: "v-1",
+            name: "active_users",
+            schemaId: "s1",
+            definition: "SELECT * FROM users",
+            isMaterialized: false,
+            comment: "Active users view",
+          },
+        ],
+      });
+
+      project.functions![0].schemaId = project.schemas[0].id;
+      project.views![0].schemaId = project.schemas[0].id;
+
+      const sql = generatePostgresSql(project);
+
+      expect(sql).toContain("COMMENT ON SCHEMA app IS 'Application Schema';");
+      expect(sql).toContain("COMMENT ON SEQUENCE app.user_seq IS 'User sequence';");
+      expect(sql).toContain("COMMENT ON TABLE app.users IS 'Users Table';");
+      expect(sql).toContain("COMMENT ON COLUMN app.users.id IS 'User ID';");
+      expect(sql).toContain("COMMENT ON COLUMN app.users.email IS 'User Email';");
+      expect(sql).toContain("COMMENT ON CONSTRAINT pk_users ON app.users IS 'PK comment';");
+      expect(sql).toContain("COMMENT ON CONSTRAINT uk_users_email ON app.users IS 'UK email comment';");
+      expect(sql).toContain("COMMENT ON INDEX app.idx_users_email IS 'Index comment';");
+      expect(sql).toContain("COMMENT ON CONSTRAINT fk_users_tenant ON app.users IS 'FK comment';");
+      expect(sql).toContain("COMMENT ON TRIGGER trg_users_audit ON app.users IS 'Trigger comment';");
+      expect(sql).toContain("COMMENT ON FUNCTION app.audit_log() IS 'Audit function';");
+      expect(sql).toContain("COMMENT ON VIEW app.active_users IS 'Active users view';");
+    });
+  });
 });

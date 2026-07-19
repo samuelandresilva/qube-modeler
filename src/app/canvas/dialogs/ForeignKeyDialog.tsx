@@ -53,6 +53,7 @@ export function ForeignKeyDialog({
   const [onDeleteAction, setOnDeleteAction] = useState<ForeignKeyAction>(
     foreignKey?.onDelete ?? "NO ACTION",
   );
+  const [comment, setComment] = useState(foreignKey?.comment ?? "");
   const selectedSchema = project.schemas.find(
     (schema) => schema.name === targetSchema,
   );
@@ -174,6 +175,16 @@ export function ForeignKeyDialog({
           value={onDeleteAction}
           onChange={setOnDeleteAction}
         />
+        <label>
+          <span>Comment / Documentation</span>
+          <textarea
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            placeholder="Describe the foreign key's purpose..."
+            rows={2}
+            style={{ width: "100%", resize: "vertical" }}
+          />
+        </label>
         {duplicate && (
           <p className="canvas-modal-error">
             A foreign key with this name already exists.
@@ -214,6 +225,7 @@ export function ForeignKeyDialog({
                 targetColumns: [targetColumn],
                 onUpdate,
                 onDelete: onDeleteAction,
+                comment: comment.trim() === "" ? undefined : comment.trim(),
               })
             }
           >

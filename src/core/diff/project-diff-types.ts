@@ -60,7 +60,23 @@ export type ProjectDiffOperation =
   | AlterTriggerDiffOperation
   | AddViewDiffOperation
   | DropViewDiffOperation
-  | AlterViewDiffOperation;
+  | AlterViewDiffOperation
+  | CommentDiffOperation;
+
+// ... (other types)
+export type CommentDiffOperation = {
+  kind: "COMMENT";
+  risk: "safe";
+  objectType: "SCHEMA" | "TABLE" | "COLUMN" | "CONSTRAINT" | "INDEX" | "TRIGGER" | "FUNCTION" | "VIEW" | "SEQUENCE";
+  schemaName: string;
+  tableName?: string;
+  objectName: string;
+  columnName?: string;
+  constraintName?: string;
+  triggerName?: string;
+  functionSignature?: string;
+  comment?: string;
+};
 
 // Existing operations
 export type CreateSchemaDiffOperation = {

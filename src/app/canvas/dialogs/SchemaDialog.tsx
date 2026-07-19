@@ -7,18 +7,21 @@ import { CanvasModal } from "@/app/canvas/components/CanvasModal";
 
 type Props = {
   initialName?: string;
+  initialComment?: string;
   existingNames: string[];
   onClose: () => void;
-  onSubmit: (name: string) => void;
+  onSubmit: (name: string, comment: string) => void;
 };
 
 export function SchemaDialog({
   initialName,
+  initialComment,
   existingNames,
   onClose,
   onSubmit,
 }: Props) {
   const [name, setName] = useState(initialName ?? "");
+  const [comment, setComment] = useState(initialComment ?? "");
   const normalized = name.trim();
   const duplicate = existingNames.some(
     (item) => item !== initialName && item === normalized,
@@ -38,6 +41,16 @@ export function SchemaDialog({
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="schema_name"
+          />
+        </label>
+        <label>
+          <span>Comment / Documentation</span>
+          <textarea
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            placeholder="Describe the schema's purpose..."
+            rows={3}
+            style={{ width: "100%", resize: "vertical" }}
           />
         </label>
         {duplicate && (
@@ -62,7 +75,7 @@ export function SchemaDialog({
           <button
             type="button"
             disabled={!canSubmit}
-            onClick={() => onSubmit(normalized)}
+            onClick={() => onSubmit(normalized, comment.trim())}
           >
             Save schema
           </button>

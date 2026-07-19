@@ -124,6 +124,7 @@ export function FunctionDialog({
   );
   const [returnType, setReturnType] = useState(editingFunction?.returnType ?? "");
   const [body, setBody] = useState(editingFunction?.body ?? "");
+  const [comment, setComment] = useState(editingFunction?.comment ?? "");
   const [args, setArgs] = useState<DatabaseFunctionArgument[]>(
     editingFunction?.arguments ?? []
   );
@@ -277,6 +278,17 @@ export function FunctionDialog({
           />
         </label>
 
+        <label style={{ width: "100%" }}>
+          <span>Comment / Documentation</span>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Describe the function's purpose..."
+            rows={2}
+            style={{ width: "100%", resize: "vertical" }}
+          />
+        </label>
+
         <div style={{ margin: "16px 0 8px 0", borderBottom: "1px solid #334155", paddingBottom: "4px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontWeight: 600, fontSize: "14px", color: "#94a3b8" }}>Arguments</span>
@@ -411,6 +423,7 @@ export function FunctionDialog({
                 returnType: normalizedReturnType,
                 arguments: normalizedArgs,
                 body: normalizedBody,
+                comment: comment.trim() === "" ? undefined : comment.trim(),
               })
             }
           >

@@ -53,6 +53,7 @@ export function TriggerDialog({
   );
   const [functionId, setFunctionId] = useState(current?.functionId ?? "");
   const [condition, setCondition] = useState(current?.condition ?? "");
+  const [comment, setComment] = useState(current?.comment ?? "");
   const [isConstraint, setIsConstraint] = useState(!isView && (current?.isConstraint ?? false));
   const [deferrable, setDeferrable] = useState(!isView && (current?.deferrable ?? false));
   const [initiallyDeferred, setInitiallyDeferred] = useState(!isView && (current?.initiallyDeferred ?? false));
@@ -252,6 +253,17 @@ export function TriggerDialog({
           )}
         </label>
 
+        <label>
+          <span>Comment / Documentation</span>
+          <textarea
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            placeholder="Describe the trigger's purpose..."
+            rows={2}
+            style={{ width: "100%", resize: "vertical" }}
+          />
+        </label>
+
         {!isView && (
           <div className="canvas-modal-form__row" style={{ marginTop: "6px" }}>
             <label className="canvas-modal-checkbox">
@@ -334,6 +346,7 @@ export function TriggerDialog({
                 deferrable: !isView && isConstraint ? deferrable : undefined,
                 initiallyDeferred: !isView && isConstraint ? initiallyDeferred : undefined,
                 forEach: isView ? "ROW" : (isConstraint ? "ROW" : forEach),
+                comment: comment.trim() === "" ? undefined : comment.trim(),
               })
             }
           >

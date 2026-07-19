@@ -1,5 +1,6 @@
 import type { DatabaseProject, DatabaseSchema, DatabaseTable, DatabaseForeignKey, DatabaseUniqueConstraint, DatabaseIndex, DatabaseFunctionArgument } from "../model/types";
 import type { ProjectDiff, ProjectDiffOperation, UnsupportedDiffOperation } from "./project-diff-types";
+import { generateFunctionArgsSql } from "../sql/postgres-generator";
 
 function findTableIdByName(
   project: DatabaseProject,
@@ -100,14 +101,36 @@ export function diffProjects(
         schemaId: currSchema.id,
         schemaName: currSchema.name,
       });
-    } else if (currSchema.name !== prevSchema.name) {
-      operations.push({
-        kind: "RENAME_SCHEMA",
-        risk: "warning",
-        schemaId: currSchema.id,
-        oldName: prevSchema.name,
-        newName: currSchema.name,
-      });
+      if (currSchema.comment) {
+        operations.push({
+          kind: "COMMENT",
+          risk: "safe",
+          objectType: "SCHEMA",
+          schemaName: currSchema.name,
+          objectName: currSchema.name,
+          comment: currSchema.comment,
+        });
+      }
+    } else {
+      if (prevSchema.comment !== currSchema.comment) {
+        operations.push({
+          kind: "COMMENT",
+          risk: "safe",
+          objectType: "SCHEMA",
+          schemaName: currSchema.name,
+          objectName: currSchema.name,
+          comment: currSchema.comment,
+        });
+      }
+      if (currSchema.name !== prevSchema.name) {
+        operations.push({
+          kind: "RENAME_SCHEMA",
+          risk: "warning",
+          schemaId: currSchema.id,
+          oldName: prevSchema.name,
+          newName: currSchema.name,
+        });
+      }
     }
   }
 
@@ -145,16 +168,38 @@ export function diffProjects(
           sequenceId: currSeq.id,
           sequenceName: currSeq.name,
         });
-      } else if (currSeq.name !== prevSeq.name) {
-        operations.push({
-          kind: "RENAME_SEQUENCE",
-          risk: "warning",
-          schemaId: currSchema.id,
-          schemaName: currSchema.name,
-          sequenceId: currSeq.id,
-          oldName: prevSeq.name,
-          newName: currSeq.name,
-        });
+        if (currSeq.comment) {
+          operations.push({
+            kind: "COMMENT",
+            risk: "safe",
+            objectType: "SEQUENCE",
+            schemaName: currSchema.name,
+            objectName: currSeq.name,
+            comment: currSeq.comment,
+          });
+        }
+      } else {
+        if (prevSeq.comment !== currSeq.comment) {
+          operations.push({
+            kind: "COMMENT",
+            risk: "safe",
+            objectType: "SEQUENCE",
+            schemaName: currSchema.name,
+            objectName: currSeq.name,
+            comment: currSeq.comment,
+          });
+        }
+        if (currSeq.name !== prevSeq.name) {
+          operations.push({
+            kind: "RENAME_SEQUENCE",
+            risk: "warning",
+            schemaId: currSchema.id,
+            schemaName: currSchema.name,
+            sequenceId: currSeq.id,
+            oldName: prevSeq.name,
+            newName: currSeq.name,
+          });
+        }
       }
 
       if (
@@ -209,9 +254,72 @@ export function diffProjects(
           tableId: currTable.id,
           tableName: currTable.name,
         });
+        if (currTable.comment) {
+          operations.push({
+            kind: "COMMENT",
+            risk: "safe",
+            objectType: "TABLE",
+            schemaName: currSchema.name,
+            tableName: currTable.name,
+            objectName: currTable.name,
+            comment: currTable.comment,
+          });
+        }
+        if (currTable.primaryKeyComment && currTable.columns.some((c) => c.primaryKey)) {
+          operations.push({
+            kind: "COMMENT",
+            risk: "safe",
+            objectType: "CONSTRAINT",
+            schemaName: currSchema.name,
+            tableName: currTable.name,
+            constraintName: `pk_${currTable.name}`,
+            objectName: `pk_${currTable.name}`,
+            comment: currTable.primaryKeyComment,
+          });
+        }
+        // Columns comments for new table
+        currTable.columns.forEach((col) => {
+          if (col.comment) {
+            operations.push({
+              kind: "COMMENT",
+              risk: "safe",
+              objectType: "COLUMN",
+              schemaName: currSchema.name,
+              tableName: currTable.name,
+              columnName: col.name,
+              objectName: col.name,
+              comment: col.comment,
+            });
+          }
+        });
       } else {
         const prevTable = prevEntry.table;
         const prevSchema = prevEntry.schema;
+
+        if (prevTable.comment !== currTable.comment) {
+          operations.push({
+            kind: "COMMENT",
+            risk: "safe",
+            objectType: "TABLE",
+            schemaName: currSchema.name,
+            tableName: currTable.name,
+            objectName: currTable.name,
+            comment: currTable.comment,
+          });
+        }
+
+        if (prevTable.primaryKeyComment !== currTable.primaryKeyComment) {
+          operations.push({
+            kind: "COMMENT",
+            risk: "safe",
+            objectType: "CONSTRAINT",
+            schemaName: currSchema.name,
+            tableName: currTable.name,
+            constraintName: `pk_${currTable.name}`,
+            objectName: `pk_${currTable.name}`,
+            comment: currTable.primaryKeyComment,
+          });
+        }
 
         // Detect schema change
         if (prevSchema.id !== currSchema.id) {
@@ -257,7 +365,31 @@ export function diffProjects(
               columnId: currCol.id,
               columnName: currCol.name,
             });
+            if (currCol.comment) {
+              operations.push({
+                kind: "COMMENT",
+                risk: "safe",
+                objectType: "COLUMN",
+                schemaName: currSchema.name,
+                tableName: currTable.name,
+                columnName: currCol.name,
+                objectName: currCol.name,
+                comment: currCol.comment,
+              });
+            }
           } else {
+            if (prevCol.comment !== currCol.comment) {
+              operations.push({
+                kind: "COMMENT",
+                risk: "safe",
+                objectType: "COLUMN",
+                schemaName: currSchema.name,
+                tableName: currTable.name,
+                columnName: currCol.name,
+                objectName: currCol.name,
+                comment: currCol.comment,
+              });
+            }
             // 1. Rename
             if (currCol.name !== prevCol.name) {
               operations.push({
@@ -448,7 +580,31 @@ export function diffProjects(
               foreignKeyId: currFk.id,
               foreignKeyName: currFk.name,
             });
+            if (currFk.comment) {
+              operations.push({
+                kind: "COMMENT",
+                risk: "safe",
+                objectType: "CONSTRAINT",
+                schemaName: currSchema.name,
+                tableName: currTable.name,
+                constraintName: currFk.name,
+                objectName: currFk.name,
+                comment: currFk.comment,
+              });
+            }
           } else {
+            if (prevFk.comment !== currFk.comment) {
+              operations.push({
+                kind: "COMMENT",
+                risk: "safe",
+                objectType: "CONSTRAINT",
+                schemaName: currSchema.name,
+                tableName: currTable.name,
+                constraintName: currFk.name,
+                objectName: currFk.name,
+                comment: currFk.comment,
+              });
+            }
             const hasCompositionChanged = didForeignKeyChange(previousProject, currentProject, prevFk, currFk);
             if (hasCompositionChanged) {
               operations.push({
@@ -510,7 +666,31 @@ export function diffProjects(
               uniqueConstraintId: currUc.id,
               uniqueConstraintName: currUc.name,
             });
+            if (currUc.comment) {
+              operations.push({
+                kind: "COMMENT",
+                risk: "safe",
+                objectType: (currUc.condition && currUc.condition.trim() !== "") ? "INDEX" : "CONSTRAINT",
+                schemaName: currSchema.name,
+                tableName: currTable.name,
+                constraintName: currUc.name,
+                objectName: currUc.name,
+                comment: currUc.comment,
+              });
+            }
           } else {
+            if (prevUc.comment !== currUc.comment) {
+              operations.push({
+                kind: "COMMENT",
+                risk: "safe",
+                objectType: (currUc.condition && currUc.condition.trim() !== "") ? "INDEX" : "CONSTRAINT",
+                schemaName: currSchema.name,
+                tableName: currTable.name,
+                constraintName: currUc.name,
+                objectName: currUc.name,
+                comment: currUc.comment,
+              });
+            }
             const hasCompositionChanged = didUniqueConstraintChange(prevUc, currUc);
             if (hasCompositionChanged) {
               operations.push({
@@ -574,7 +754,29 @@ export function diffProjects(
               indexId: currIdx.id,
               indexName: currIdx.name,
             });
+            if (currIdx.comment) {
+              operations.push({
+                kind: "COMMENT",
+                risk: "safe",
+                objectType: "INDEX",
+                schemaName: currSchema.name,
+                tableName: currTable.name,
+                objectName: currIdx.name,
+                comment: currIdx.comment,
+              });
+            }
           } else {
+            if (prevIdx.comment !== currIdx.comment) {
+              operations.push({
+                kind: "COMMENT",
+                risk: "safe",
+                objectType: "INDEX",
+                schemaName: currSchema.name,
+                tableName: currTable.name,
+                objectName: currIdx.name,
+                comment: currIdx.comment,
+              });
+            }
             const hasCompositionChanged = didIndexChange(prevIdx, currIdx);
             if (hasCompositionChanged) {
               operations.push({
@@ -707,7 +909,31 @@ export function diffProjects(
               initiallyDeferred: currTrg.initiallyDeferred,
               forEach: currTrg.forEach,
             });
+            if (currTrg.comment) {
+              operations.push({
+                kind: "COMMENT",
+                risk: "safe",
+                objectType: "TRIGGER",
+                schemaName: currSchema.name,
+                tableName: currTable.name,
+                triggerName: currTrg.name,
+                objectName: currTrg.name,
+                comment: currTrg.comment,
+              });
+            }
           } else {
+            if (prevTrg.comment !== currTrg.comment) {
+              operations.push({
+                kind: "COMMENT",
+                risk: "safe",
+                objectType: "TRIGGER",
+                schemaName: currSchema.name,
+                tableName: currTable.name,
+                triggerName: currTrg.name,
+                objectName: currTrg.name,
+                comment: currTrg.comment,
+              });
+            }
             const nameChanged = currTrg.name !== prevTrg.name;
             const timingChanged = currTrg.eventTiming !== prevTrg.eventTiming;
             const eventsChanged = !areEventsEqual(currTrg.events, prevTrg.events);
@@ -827,7 +1053,31 @@ export function diffProjects(
         arguments: currFn.arguments ?? [],
         body: currFn.body,
       });
+      if (currFn.comment) {
+        const argsSql = generateFunctionArgsSql(currFn.arguments ?? []);
+        operations.push({
+          kind: "COMMENT",
+          risk: "safe",
+          objectType: "FUNCTION",
+          schemaName: currSchemaName,
+          objectName: currFn.name,
+          functionSignature: `${currFn.name}(${argsSql})`,
+          comment: currFn.comment,
+        });
+      }
     } else {
+      if (prevFn.comment !== currFn.comment) {
+        const argsSql = generateFunctionArgsSql(currFn.arguments ?? []);
+        operations.push({
+          kind: "COMMENT",
+          risk: "safe",
+          objectType: "FUNCTION",
+          schemaName: currSchemaName,
+          objectName: currFn.name,
+          functionSignature: `${currFn.name}(${argsSql})`,
+          comment: currFn.comment,
+        });
+      }
       const schemaIdChanged = prevFn.schemaId !== currFn.schemaId;
       const nameChanged = (prevFn.name ?? "").trim() !== (currFn.name ?? "").trim();
       const languageChanged = prevFn.language !== currFn.language;
@@ -917,7 +1167,27 @@ export function diffProjects(
         isMaterialized: currView.isMaterialized,
         withNoData: currView.withNoData,
       });
+      if (currView.comment) {
+        operations.push({
+          kind: "COMMENT",
+          risk: "safe",
+          objectType: "VIEW",
+          schemaName: currSchemaName,
+          objectName: currView.name,
+          comment: currView.comment,
+        });
+      }
     } else {
+      if (prevView.comment !== currView.comment) {
+        operations.push({
+          kind: "COMMENT",
+          risk: "safe",
+          objectType: "VIEW",
+          schemaName: currSchemaName,
+          objectName: currView.name,
+          comment: currView.comment,
+        });
+      }
       const schemaIdChanged = prevView.schemaId !== currView.schemaId;
       const nameChanged = prevView.name.trim() !== currView.name.trim();
       const definitionChanged = prevView.definition.trim() !== currView.definition.trim();

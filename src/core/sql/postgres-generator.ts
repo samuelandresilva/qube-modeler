@@ -15,13 +15,24 @@ import type {
 } from "@/core/model";
 import { supportsScale, supportsSize } from "./postgres-column-types";
 
+function escapeComment(comment?: string): string {
+  if (!comment) return "";
+  return comment.replace(/'/g, "''");
+}
+
 export function generatePostgresSql(project: DatabaseProject): string {
   const primaryKeys: string[] = [];
   const uniqueConstraints: string[] = [];
   const foreignKeys: string[] = [];
 
   const schemaDefinitions = project.schemas
-    .map((schema) => `CREATE SCHEMA IF NOT EXISTS ${schema.name};`)
+    .map((schema) => {
+      let sql = `CREATE SCHEMA IF NOT EXISTS ${schema.name};`;
+      if (schema.comment) {
+        sql += `\nCOMMENT ON SCHEMA ${schema.name} IS '${escapeComment(schema.comment)}';`;
+      }
+      return sql;
+    })
     .join("\n");
 
   project.schemas.forEach((schema) => {
@@ -113,12 +124,16 @@ export function generateFunctionSql(
   fn: DatabaseFunction,
 ): string {
   const argsSql = generateFunctionArgsSql(fn.arguments ?? []);
-  return [
+  let sql = [
     `CREATE OR REPLACE FUNCTION ${schema.name}.${fn.name}(${argsSql})`,
     `RETURNS ${fn.returnType} AS $$`,
     fn.body,
     `$$ LANGUAGE ${fn.language};`,
   ].join("\n");
+  if (fn.comment) {
+    sql += `\nCOMMENT ON FUNCTION ${schema.name}.${fn.name}(${argsSql}) IS '${escapeComment(fn.comment)}';`;
+  }
+  return sql;
 }
 
 export function generateFunctionArgsSql(args: DatabaseFunctionArgument[]): string {
@@ -135,11 +150,15 @@ export function generateSequenceSql(
   schema: DatabaseSchema,
   sequence: DatabaseSequence,
 ): string {
-  return [
+  let sql = [
     `CREATE SEQUENCE IF NOT EXISTS ${schema.name}.${sequence.name}`,
     `    START WITH ${sequence.startWith}`,
     `    INCREMENT BY ${sequence.incrementBy};`,
   ].join("\n");
+  if (sequence.comment) {
+    sql += `\nCOMMENT ON SEQUENCE ${schema.name}.${sequence.name} IS '${escapeComment(sequence.comment)}';`;
+  }
+  return sql;
 }
 
 export function generateTableSql(
@@ -165,7 +184,7 @@ export function generateTableSql(
         ...checkLines,
       ];
 
-  return [
+  let sql = [
     `CREATE TABLE IF NOT EXISTS ${schema.name}.${table.name}`,
     `(`,
     lines
@@ -173,6 +192,17 @@ export function generateTableSql(
       .join("\n"),
     `);`,
   ].join("\n");
+
+  if (table.comment) {
+    sql += `\nCOMMENT ON TABLE ${schema.name}.${table.name} IS '${escapeComment(table.comment)}';`;
+  }
+  table.columns.forEach((column) => {
+    if (column.comment) {
+      sql += `\nCOMMENT ON COLUMN ${schema.name}.${table.name}.${column.name} IS '${escapeComment(column.comment)}';`;
+    }
+  });
+
+  return sql;
 }
 
 export function generateTablePostCreateSql(
@@ -237,7 +267,11 @@ export function generateAddPrimaryKeySql(
 
   if (primaryKeyColumns.length === 0) return null;
 
-  return `ALTER TABLE ${schema.name}.${table.name} ADD CONSTRAINT pk_${table.name} PRIMARY KEY (${primaryKeyColumns.join(", ")});`;
+  let sql = `ALTER TABLE ${schema.name}.${table.name} ADD CONSTRAINT pk_${table.name} PRIMARY KEY (${primaryKeyColumns.join(", ")});`;
+  if (table.primaryKeyComment) {
+    sql += `\nCOMMENT ON CONSTRAINT pk_${table.name} ON ${schema.name}.${table.name} IS '${escapeComment(table.primaryKeyComment)}';`;
+  }
+  return sql;
 }
 
 export function generateAddUniqueConstraintSql(
@@ -247,9 +281,17 @@ export function generateAddUniqueConstraintSql(
 ): string {
   if (uniqueConstraint.condition && uniqueConstraint.condition.trim() !== "") {
     const columns = uniqueConstraint.columns.join(", ");
-    return `CREATE UNIQUE INDEX ${uniqueConstraint.name} ON ${schema.name}.${table.name} (${columns}) WHERE ${uniqueConstraint.condition};`;
+    let sql = `CREATE UNIQUE INDEX ${uniqueConstraint.name} ON ${schema.name}.${table.name} (${columns}) WHERE ${uniqueConstraint.condition};`;
+    if (uniqueConstraint.comment) {
+      sql += `\nCOMMENT ON INDEX ${schema.name}.${uniqueConstraint.name} IS '${escapeComment(uniqueConstraint.comment)}';`;
+    }
+    return sql;
   }
-  return `ALTER TABLE ${schema.name}.${table.name} ADD ${generateUniqueConstraintSql(uniqueConstraint).trim()};`;
+  let sql = `ALTER TABLE ${schema.name}.${table.name} ADD ${generateUniqueConstraintSql(uniqueConstraint).trim()};`;
+  if (uniqueConstraint.comment) {
+    sql += `\nCOMMENT ON CONSTRAINT ${uniqueConstraint.name} ON ${schema.name}.${table.name} IS '${escapeComment(uniqueConstraint.comment)}';`;
+  }
+  return sql;
 }
 
 export function generateAddForeignKeySql(
@@ -257,7 +299,11 @@ export function generateAddForeignKeySql(
   table: DatabaseTable,
   foreignKey: DatabaseForeignKey,
 ): string {
-  return `ALTER TABLE ${schema.name}.${table.name} ADD ${generateForeignKeySql(foreignKey).trim()};`;
+  let sql = `ALTER TABLE ${schema.name}.${table.name} ADD ${generateForeignKeySql(foreignKey).trim()};`;
+  if (foreignKey.comment) {
+    sql += `\nCOMMENT ON CONSTRAINT ${foreignKey.name} ON ${schema.name}.${table.name} IS '${escapeComment(foreignKey.comment)}';`;
+  }
+  return sql;
 }
 
 export function generateColumnTypeSql(column: DatabaseColumn): string {
@@ -337,7 +383,11 @@ export function generateIndexSql(
 ): string {
   const columns = index.columns.join(", ");
 
-  return `CREATE INDEX IF NOT EXISTS ${index.name} ON ${schema.name}.${table.name} (${columns});`;
+  let sql = `CREATE INDEX IF NOT EXISTS ${index.name} ON ${schema.name}.${table.name} (${columns});`;
+  if (index.comment) {
+    sql += `\nCOMMENT ON INDEX ${schema.name}.${index.name} IS '${escapeComment(index.comment)}';`;
+  }
+  return sql;
 }
 
 export function generateCheckConstraintSql(
@@ -371,13 +421,18 @@ export function generateTriggerSql(
       }`
     : "";
 
-  return [
+  let sql = [
     `CREATE ${constraintPart}TRIGGER ${trigger.name}`,
     `    ${trigger.eventTiming} ${eventsPart}`,
     `    ON ${schema.name}.${table.name}${deferrablePart}`,
     `    ${forEachPart}${conditionPart}`,
     `    EXECUTE FUNCTION ${fnSchemaName}.${targetFn.name}();`,
   ].join("\n");
+
+  if (trigger.comment) {
+    sql += `\nCOMMENT ON TRIGGER ${trigger.name} ON ${schema.name}.${table.name} IS '${escapeComment(trigger.comment)}';`;
+  }
+  return sql;
 }
 
 export function generateViewSql(
@@ -389,10 +444,12 @@ export function generateViewSql(
     definition = definition.slice(0, -1).trim();
   }
 
-  if (view.isMaterialized) {
-    const noDataPart = view.withNoData ? " WITH NO DATA" : "";
-    return `CREATE MATERIALIZED VIEW ${schema.name}.${view.name} AS\n${definition}${noDataPart};`;
-  } else {
-    return `CREATE OR REPLACE VIEW ${schema.name}.${view.name} AS\n${definition};`;
+  let sql = view.isMaterialized
+    ? `CREATE MATERIALIZED VIEW ${schema.name}.${view.name} AS\n${definition}${view.withNoData ? " WITH NO DATA" : ""};`
+    : `CREATE OR REPLACE VIEW ${schema.name}.${view.name} AS\n${definition};`;
+
+  if (view.comment) {
+    sql += `\nCOMMENT ON VIEW ${schema.name}.${view.name} IS '${escapeComment(view.comment)}';`;
   }
+  return sql;
 }

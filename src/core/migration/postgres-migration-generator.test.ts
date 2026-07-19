@@ -1906,4 +1906,47 @@ describe("postgres-migration-generator", () => {
       expect(sql).toContain("DROP VIEW IF EXISTS public.v_users CASCADE;");
     });
   });
+
+  describe("COMMENT migrations", () => {
+    it("generates COMMENT ON statements for set and null comments", () => {
+      const project = createProjectFixture({});
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "COMMENT",
+            risk: "safe",
+            objectType: "SCHEMA",
+            schemaName: "public",
+            objectName: "public",
+            comment: "new schema comment",
+          },
+          {
+            kind: "COMMENT",
+            risk: "safe",
+            objectType: "TABLE",
+            schemaName: "public",
+            tableName: "tb_users",
+            objectName: "tb_users",
+            comment: undefined,
+          },
+          {
+            kind: "COMMENT",
+            risk: "safe",
+            objectType: "COLUMN",
+            schemaName: "public",
+            tableName: "tb_users",
+            columnName: "name",
+            objectName: "name",
+            comment: "user's name",
+          },
+        ],
+      };
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain("COMMENT ON SCHEMA public IS 'new schema comment';");
+      expect(sql).toContain("COMMENT ON TABLE public.tb_users IS NULL;");
+      expect(sql).toContain("COMMENT ON COLUMN public.tb_users.name IS 'user''s name';");
+    });
+  });
 });

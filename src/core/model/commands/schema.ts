@@ -9,6 +9,7 @@ import type {
 export function createSchema(
   project: DatabaseProject,
   name: string,
+  comment?: string,
 ): CreateResult {
   const id = crypto.randomUUID();
 
@@ -16,7 +17,7 @@ export function createSchema(
     id,
     project: {
       ...project,
-      schemas: [...project.schemas, { id, name, sequences: [], tables: [] }],
+      schemas: [...project.schemas, { id, name, sequences: [], tables: [], comment }],
     },
   };
 }

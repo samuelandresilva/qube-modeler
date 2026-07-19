@@ -38,6 +38,7 @@ export function ColumnDialog({
   const [primaryKey, setPrimaryKey] = useState(column?.primaryKey ?? false);
   const [defaultValue, setDefaultValue] = useState(column?.defaultValue ?? "");
   const [sequenceName, setSequenceName] = useState(column?.sequenceName ?? "");
+  const [comment, setComment] = useState(column?.comment ?? "");
   const normalizedName = name.trim();
   const duplicate = existingColumnNames.some(
     (candidate) => candidate !== column?.name && candidate === normalizedName,
@@ -77,6 +78,7 @@ export function ColumnDialog({
           ? undefined
           : defaultValue.trim(),
       sequenceName: sequenceName === "" ? undefined : sequenceName,
+      comment: comment.trim() === "" ? undefined : comment.trim(),
     });
 
   return (
@@ -187,6 +189,16 @@ export function ColumnDialog({
             disabled={sequenceName !== ""}
             onChange={(event) => setDefaultValue(event.target.value)}
             placeholder="CURRENT_TIMESTAMP, true, 0..."
+          />
+        </label>
+        <label>
+          <span>Comment / Documentation</span>
+          <textarea
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            placeholder="Describe the column's purpose..."
+            rows={2}
+            style={{ width: "100%", resize: "vertical" }}
           />
         </label>
         {duplicate && (

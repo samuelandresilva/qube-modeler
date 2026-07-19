@@ -73,13 +73,14 @@ export function CanvasDialogs({
     return (
       <SchemaDialog
         initialName={schema?.name}
+        initialComment={schema?.comment}
         existingNames={project.schemas.map((item) => item.name)}
         onClose={close}
-        onSubmit={(name) => {
+        onSubmit={(name, comment) => {
           setProject((current) =>
             schema
-              ? updateSchema(current, schema.id, (item) => ({ ...item, name }))
-              : createSchema(current, name).project,
+              ? updateSchema(current, schema.id, (item) => ({ ...item, name, comment }))
+              : createSchema(current, name, comment).project,
           );
           close();
         }}

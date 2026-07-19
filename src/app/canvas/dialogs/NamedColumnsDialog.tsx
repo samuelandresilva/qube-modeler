@@ -11,9 +11,9 @@ type Entity = "index" | "unique constraint";
 type Props = {
   entity: Entity;
   table: DatabaseTable;
-  current?: { name: string; columns: string[]; condition?: string };
+  current?: { name: string; columns: string[]; condition?: string; comment?: string };
   onClose: () => void;
-  onSubmit: (input: { name: string; columns: string[]; condition?: string }) => void;
+  onSubmit: (input: { name: string; columns: string[]; condition?: string; comment?: string }) => void;
   onDelete?: () => void;
 };
 
@@ -31,6 +31,7 @@ export function NamedColumnsDialog({
   const [name, setName] = useState(current?.name ?? `${prefix}_${table.name}_`);
   const [columns, setColumns] = useState(current?.columns ?? []);
   const [condition, setCondition] = useState(current?.condition ?? "");
+  const [comment, setComment] = useState(current?.comment ?? "");
   const normalizedName = name.trim();
   const duplicate = collection.some(
     (item) => item.name !== current?.name && item.name === normalizedName,
@@ -78,6 +79,16 @@ export function NamedColumnsDialog({
             />
           </label>
         )}
+        <label>
+          <span>Comment / Documentation</span>
+          <textarea
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            placeholder={`Describe the ${label}'s purpose...`}
+            rows={2}
+            style={{ width: "100%", resize: "vertical" }}
+          />
+        </label>
         {duplicate && (
           <p className="canvas-modal-error">
             A {label} with this name already exists.
@@ -112,7 +123,8 @@ export function NamedColumnsDialog({
             onClick={() => onSubmit({
               name: normalizedName,
               columns,
-              condition: entity === "unique constraint" ? condition.trim() : undefined
+              condition: entity === "unique constraint" ? condition.trim() : undefined,
+              comment: comment.trim() === "" ? undefined : comment.trim(),
             })}
           >
             {current ? "Save" : "Create"} {label}
