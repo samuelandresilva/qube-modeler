@@ -42,9 +42,9 @@ export function updateColumn(
 
   return {
     ...project,
-    schemas: project.schemas.map((schema) => ({
-      ...schema,
-      tables: schema.tables.map((table): DatabaseTable => {
+    schemas: project.schemas.map((schema) => {
+      let schemaChanged = false;
+      const tables = schema.tables.map((table): DatabaseTable => {
         const isSource = schema.id === schemaId && table.id === tableId;
         const columns = isSource
           ? table.columns.map((column) =>
@@ -52,41 +52,101 @@ export function updateColumn(
             )
           : table.columns;
 
-        if (!nameChanged) return { ...table, columns };
+        const tableChanged = isSource;
 
-        return {
-          ...table,
-          columns,
-          uniqueConstraints: table.uniqueConstraints.map((constraint) => ({
-            ...constraint,
-            columns: constraint.columns.map((name) =>
-              isSource && name === current.name ? updated.name : name,
-            ),
-          })),
-          indexes: table.indexes.map((index) => ({
-            ...index,
-            columns: index.columns.map((name) =>
-              isSource && name === current.name ? updated.name : name,
-            ),
-          })),
-          foreignKeys: table.foreignKeys.map((foreignKey) => ({
-            ...foreignKey,
-            sourceColumns: isSource
-              ? foreignKey.sourceColumns.map((name) =>
-                  name === current.name ? updated.name : name,
-                )
-              : foreignKey.sourceColumns,
-            targetColumns:
-              foreignKey.targetSchema === context.schema.name &&
-              foreignKey.targetTable === context.table.name
-                ? foreignKey.targetColumns.map((name) =>
-                    name === current.name ? updated.name : name,
-                  )
-                : foreignKey.targetColumns,
-          })),
-        };
-      }),
-    })),
+        if (!nameChanged) {
+          if (tableChanged) {
+            schemaChanged = true;
+            return { ...table, columns };
+          }
+          return table;
+        }
+
+        let ucChanged = false;
+        const uniqueConstraints = table.uniqueConstraints.map((constraint) => {
+          let uChanged = false;
+          const mappedColumns = constraint.columns.map((name) => {
+            if (isSource && name === current.name) {
+              uChanged = true;
+              return updated.name;
+            }
+            return name;
+          });
+          if (uChanged) {
+            ucChanged = true;
+            return { ...constraint, columns: mappedColumns };
+          }
+          return constraint;
+        });
+
+        let idxChanged = false;
+        const indexes = table.indexes.map((index) => {
+          let iChanged = false;
+          const mappedColumns = index.columns.map((name) => {
+            if (isSource && name === current.name) {
+              iChanged = true;
+              return updated.name;
+            }
+            return name;
+          });
+          if (iChanged) {
+            idxChanged = true;
+            return { ...index, columns: mappedColumns };
+          }
+          return index;
+        });
+
+        let fkChanged = false;
+        const foreignKeys = table.foreignKeys.map((foreignKey) => {
+          let fChanged = false;
+          const sourceColumns = isSource
+            ? foreignKey.sourceColumns.map((name) => {
+                if (name === current.name) {
+                  fChanged = true;
+                  return updated.name;
+                }
+                return name;
+              })
+            : foreignKey.sourceColumns;
+
+          const targetColumns =
+            foreignKey.targetSchema === context.schema.name &&
+            foreignKey.targetTable === context.table.name
+              ? foreignKey.targetColumns.map((name) => {
+                  if (name === current.name) {
+                    fChanged = true;
+                    return updated.name;
+                  }
+                  return name;
+                })
+              : foreignKey.targetColumns;
+
+          if (fChanged) {
+            fkChanged = true;
+            return { ...foreignKey, sourceColumns, targetColumns };
+          }
+          return foreignKey;
+        });
+
+        if (tableChanged || ucChanged || idxChanged || fkChanged) {
+          schemaChanged = true;
+          return {
+            ...table,
+            columns,
+            uniqueConstraints,
+            indexes,
+            foreignKeys,
+          };
+        }
+
+        return table;
+      });
+
+      if (schemaChanged) {
+        return { ...schema, tables };
+      }
+      return schema;
+    }),
   };
 }
 
@@ -104,33 +164,61 @@ export function removeColumn(
 
   return {
     ...project,
-    schemas: project.schemas.map((schema) => ({
-      ...schema,
-      tables: schema.tables.map((table) => {
+    schemas: project.schemas.map((schema) => {
+      let schemaChanged = false;
+      const tables = schema.tables.map((table) => {
         const isSource = schema.id === schemaId && table.id === tableId;
-        return {
-          ...table,
-          columns: isSource
-            ? table.columns.filter((column) => column.id !== columnId)
-            : table.columns,
-          uniqueConstraints: table.uniqueConstraints.filter(
-            (constraint) => !constraint.columns.includes(removed.name),
-          ),
-          indexes: table.indexes.filter(
-            (index) => !index.columns.includes(removed.name),
-          ),
-          foreignKeys: table.foreignKeys.filter((foreignKey) => {
-            const sourceUse =
-              isSource && foreignKey.sourceColumns.includes(removed.name);
-            const targetUse =
-              foreignKey.targetSchema === context.schema.name &&
-              foreignKey.targetTable === context.table.name &&
-              foreignKey.targetColumns.includes(removed.name);
-            return !sourceUse && !targetUse;
-          }),
-        };
-      }),
-    })),
+        const filteredColumns = isSource
+          ? table.columns.filter((column) => column.id !== columnId)
+          : table.columns;
+
+        let tableChanged = filteredColumns.length !== table.columns.length;
+
+        const filteredUniqueConstraints = table.uniqueConstraints.filter(
+          (constraint) => !constraint.columns.includes(removed.name),
+        );
+        if (filteredUniqueConstraints.length !== table.uniqueConstraints.length) {
+          tableChanged = true;
+        }
+
+        const filteredIndexes = table.indexes.filter(
+          (index) => !index.columns.includes(removed.name),
+        );
+        if (filteredIndexes.length !== table.indexes.length) {
+          tableChanged = true;
+        }
+
+        const filteredForeignKeys = table.foreignKeys.filter((foreignKey) => {
+          const sourceUse =
+            isSource && foreignKey.sourceColumns.includes(removed.name);
+          const targetUse =
+            foreignKey.targetSchema === context.schema.name &&
+            foreignKey.targetTable === context.table.name &&
+            foreignKey.targetColumns.includes(removed.name);
+          return !sourceUse && !targetUse;
+        });
+        if (filteredForeignKeys.length !== table.foreignKeys.length) {
+          tableChanged = true;
+        }
+
+        if (tableChanged) {
+          schemaChanged = true;
+          return {
+            ...table,
+            columns: filteredColumns,
+            uniqueConstraints: filteredUniqueConstraints,
+            indexes: filteredIndexes,
+            foreignKeys: filteredForeignKeys,
+          };
+        }
+        return table;
+      });
+
+      if (schemaChanged) {
+        return { ...schema, tables };
+      }
+      return schema;
+    }),
   };
 }
 

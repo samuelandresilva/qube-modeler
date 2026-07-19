@@ -246,6 +246,20 @@ export default function App() {
     openedProject.flyway,
   ]);
 
+  const handlersRef = useRef({
+    handleOpenProject,
+    handleSaveProject,
+    handleSaveProjectAs,
+  });
+
+  useEffect(() => {
+    handlersRef.current = {
+      handleOpenProject,
+      handleSaveProject,
+      handleSaveProjectAs,
+    };
+  }, [handleOpenProject, handleSaveProject, handleSaveProjectAs]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) return;
@@ -253,16 +267,18 @@ export default function App() {
       const key = event.key.toLowerCase();
       if (key === "s") {
         event.preventDefault();
-        void (event.shiftKey ? handleSaveProjectAs() : handleSaveProject());
+        void (event.shiftKey
+          ? handlersRef.current.handleSaveProjectAs()
+          : handlersRef.current.handleSaveProject());
       } else if (key === "o" && !event.shiftKey) {
         event.preventDefault();
-        void handleOpenProject();
+        void handlersRef.current.handleOpenProject();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleOpenProject, handleSaveProject, handleSaveProjectAs]);
+  }, []);
 
   useEffect(() => {
     const api = getQubeModelerApi();

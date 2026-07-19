@@ -74,6 +74,30 @@ describe("qbm-file", () => {
       expect(() => parseQbmFile(json)).toThrowError("Unsupported .qbm format version: 999");
     });
 
+    it("preserves createdWith and savedAt metadata during parse", () => {
+      const qbm = createQbmFile(validProject, { versions: [] }, "1.2.3");
+      const json = JSON.stringify(qbm);
+
+      const parsed = parseQbmFile(json);
+      expect(parsed.createdWith).toBeDefined();
+      expect(parsed.createdWith?.app).toBe("Qube Modeler");
+      expect(parsed.createdWith?.version).toBe("1.2.3");
+      expect(parsed.savedAt).toBeDefined();
+      expect(typeof parsed.savedAt).toBe("string");
+    });
+
+    it("allows formatVersion equal or smaller than QBM_FORMAT_VERSION", () => {
+      const qbm = createQbmFile(validProject, { versions: [] }, "1.0.0");
+      
+      const jsonEqual = JSON.stringify({ ...qbm, formatVersion: QBM_FORMAT_VERSION });
+      const parsedEqual = parseQbmFile(jsonEqual);
+      expect(parsedEqual.project).toEqual(validProject);
+
+      const jsonSmaller = JSON.stringify({ ...qbm, formatVersion: QBM_FORMAT_VERSION - 1 });
+      const parsedSmaller = parseQbmFile(jsonSmaller);
+      expect(parsedSmaller.project).toEqual(validProject);
+    });
+
     it("fails and does not discard invalid migrations silently", () => {
       const qbm = createQbmFile(validProject, { versions: [] }, "1.0.0");
       const obj = { ...qbm, flyway: { versions: [{ invalid: "migration" }] } };

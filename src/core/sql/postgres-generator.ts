@@ -418,6 +418,7 @@ export function generateTriggerSql(
   const fnSchemaName = fnSchema ? fnSchema.name : schema.name;
 
   const constraintPart = trigger.isConstraint ? "CONSTRAINT " : "";
+  const eventTiming = trigger.isConstraint ? "AFTER" : trigger.eventTiming;
   const eventsPart = trigger.events.join(" OR ");
   const forEachPart = `FOR EACH ${trigger.forEach}`;
 
@@ -431,7 +432,7 @@ export function generateTriggerSql(
 
   let sql = [
     `CREATE ${constraintPart}TRIGGER ${trigger.name}`,
-    `    ${trigger.eventTiming} ${eventsPart}`,
+    `    ${eventTiming}${eventsPart ? " " + eventsPart : ""}`,
     `    ON ${schema.name}.${table.name}${deferrablePart}`,
     `    ${forEachPart}${conditionPart}`,
     `    EXECUTE FUNCTION ${fnSchemaName}.${targetFn.name}();`,

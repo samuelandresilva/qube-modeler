@@ -780,6 +780,55 @@ describe("postgres-generator", () => {
       );
     });
 
+    it("3b. Forces AFTER timing for CONSTRAINT TRIGGER even if BEFORE/INSTEAD OF is set in model", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_users",
+                triggers: [
+                  {
+                    id: "trg-1",
+                    name: "trg_test",
+                    eventTiming: "BEFORE",
+                    events: ["INSERT"],
+                    functionId: "fn-1",
+                    forEach: "ROW",
+                    isConstraint: true,
+                    deferrable: true,
+                    initiallyDeferred: true,
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            schemaId: "schema-1",
+            name: "fn_test",
+            language: "plpgsql",
+            returnType: "trigger",
+            arguments: [],
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+      const sql = generatePostgresSql(project);
+      expect(sql).toContain(
+        "CREATE CONSTRAINT TRIGGER trg_test\n" +
+        "    AFTER INSERT\n" +
+        "    ON public.tb_users\n" +
+        "    DEFERRABLE INITIALLY DEFERRED\n" +
+        "    FOR EACH ROW\n" +
+        "    EXECUTE FUNCTION public.fn_test();"
+      );
+    });
+
     it("4. Gera trigger referenciando função de outro schema", () => {
       const project = createProjectFixture({
         schemas: [

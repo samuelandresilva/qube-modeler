@@ -20,12 +20,9 @@ function didForeignKeyChange(
 ): boolean {
   const prevTargetId = findTableIdByName(prevProject, prevFk.targetSchema, prevFk.targetTable);
   const currTargetId = findTableIdByName(currProject, currFk.targetSchema, currFk.targetTable);
-  const targetTableChanged = prevTargetId !== currTargetId;
 
-  if (targetTableChanged) {
-    if (prevFk.targetSchema !== currFk.targetSchema) return true;
-    if (prevFk.targetTable !== currFk.targetTable) return true;
-  }
+  if (prevTargetId !== currTargetId) return true;
+  if (prevFk.targetTable !== currFk.targetTable) return true;
   if (prevFk.onDelete !== currFk.onDelete) return true;
   if (prevFk.onUpdate !== currFk.onUpdate) return true;
   

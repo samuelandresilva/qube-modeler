@@ -75,18 +75,33 @@ export function updateTable(
 
   return {
     ...nextProject,
-    schemas: nextProject.schemas.map((schema) => ({
-      ...schema,
-      tables: schema.tables.map((table) => ({
-        ...table,
-        foreignKeys: table.foreignKeys.map((foreignKey) =>
-          foreignKey.targetSchema === context.schema.name &&
-          foreignKey.targetTable === context.table.name
-            ? { ...foreignKey, targetTable: updated.name }
-            : foreignKey,
-        ),
-      })),
-    })),
+    schemas: nextProject.schemas.map((schema) => {
+      let schemaChanged = false;
+      const tables = schema.tables.map((table) => {
+        let tableChanged = false;
+        const foreignKeys = table.foreignKeys.map((foreignKey) => {
+          if (
+            foreignKey.targetSchema === context.schema.name &&
+            foreignKey.targetTable === context.table.name
+          ) {
+            tableChanged = true;
+            return { ...foreignKey, targetTable: updated.name };
+          }
+          return foreignKey;
+        });
+
+        if (tableChanged) {
+          schemaChanged = true;
+          return { ...table, foreignKeys };
+        }
+        return table;
+      });
+
+      if (schemaChanged) {
+        return { ...schema, tables };
+      }
+      return schema;
+    }),
   };
 }
 
@@ -100,19 +115,33 @@ export function removeTable(
 
   return {
     ...project,
-    schemas: project.schemas.map((schema) => ({
-      ...schema,
-      tables: schema.tables
-        .filter((table) => !(schema.id === schemaId && table.id === tableId))
-        .map((table) => ({
-          ...table,
-          foreignKeys: table.foreignKeys.filter(
-            (foreignKey) =>
-              foreignKey.targetSchema !== context.schema.name ||
-              foreignKey.targetTable !== context.table.name,
-          ),
-        })),
-    })),
+    schemas: project.schemas.map((schema) => {
+      const isTargetSchema = schema.id === schemaId;
+      const filteredTables = isTargetSchema
+        ? schema.tables.filter((table) => table.id !== tableId)
+        : schema.tables;
+
+      let schemaChanged = isTargetSchema;
+
+      const tables = filteredTables.map((table) => {
+        const filteredFks = table.foreignKeys.filter(
+          (foreignKey) =>
+            foreignKey.targetSchema !== context.schema.name ||
+            foreignKey.targetTable !== context.table.name,
+        );
+
+        if (filteredFks.length !== table.foreignKeys.length) {
+          schemaChanged = true;
+          return { ...table, foreignKeys: filteredFks };
+        }
+        return table;
+      });
+
+      if (schemaChanged) {
+        return { ...schema, tables };
+      }
+      return schema;
+    }),
     diagram: {
       ...project.diagram,
       tableNodes: project.diagram.tableNodes.filter(
@@ -136,7 +165,6 @@ export function moveTableSchema(
   const oldSchemaName = context.schema.name;
   const newSchemaName = targetSchema.name;
 
-  // Remove table from old schema
   const schemasAfterRemoval = project.schemas.map((s) => {
     if (s.id === context.schema.id) {
       return {
@@ -147,28 +175,42 @@ export function moveTableSchema(
     return s;
   });
 
-  // Add table to new schema, and update any foreign keys referencing the moved table to point to the new schema
   const schemasAfterMove = schemasAfterRemoval.map((s) => {
+    const isTargetSchema = s.id === targetSchemaId;
     let updatedTables = s.tables;
-    if (s.id === targetSchemaId) {
+    if (isTargetSchema) {
       updatedTables = [...updatedTables, context.table];
     }
 
+    let schemaChanged = isTargetSchema;
+
     if (oldSchemaName !== newSchemaName) {
-      updatedTables = updatedTables.map((t) => ({
-        ...t,
-        foreignKeys: t.foreignKeys.map((fk) =>
-          fk.targetSchema === oldSchemaName && fk.targetTable === context.table.name
-            ? { ...fk, targetSchema: newSchemaName }
-            : fk
-        ),
-      }));
+      const mappedTables = updatedTables.map((t) => {
+        let tableChanged = false;
+        const foreignKeys = t.foreignKeys.map((fk) => {
+          if (fk.targetSchema === oldSchemaName && fk.targetTable === context.table.name) {
+            tableChanged = true;
+            return { ...fk, targetSchema: newSchemaName };
+          }
+          return fk;
+        });
+
+        if (tableChanged) {
+          schemaChanged = true;
+          return { ...t, foreignKeys };
+        }
+        return t;
+      });
+      updatedTables = mappedTables;
     }
 
-    return {
-      ...s,
-      tables: updatedTables,
-    };
+    if (schemaChanged) {
+      return {
+        ...s,
+        tables: updatedTables,
+      };
+    }
+    return s;
   });
 
   return {

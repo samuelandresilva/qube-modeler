@@ -72,6 +72,7 @@ export function CanvasDialogs({
     const schema = project.schemas.find((item) => item.id === dialog.schemaId);
     return (
       <SchemaDialog
+        key={schema?.id ?? "new_schema"}
         initialName={schema?.name}
         initialComment={schema?.comment}
         existingNames={project.schemas.map((item) => item.name)}
@@ -95,6 +96,7 @@ export function CanvasDialogs({
     if (!schema) return null;
     return (
       <SequenceDialog
+        key={sequence?.id ?? "new_sequence"}
         sequence={sequence}
         schemaName={schema.name}
         existingNames={schema.sequences.map((item) => item.name)}
@@ -121,6 +123,7 @@ export function CanvasDialogs({
     if (!schema) return null;
     return (
       <FunctionDialog
+        key={databaseFunction?.id ?? "new_function"}
         project={project}
         editingFunction={databaseFunction}
         initialSchemaId={schema.id}
@@ -155,6 +158,7 @@ export function CanvasDialogs({
     if (!viewCtx) return null;
     return (
       <ViewDefinitionDialog
+        key={viewCtx.view.id}
         initialValue={viewCtx.view.definition}
         viewName={viewCtx.view.name}
         onClose={close}
@@ -181,6 +185,7 @@ export function CanvasDialogs({
 
     return (
       <TriggerDialog
+        key={trigger?.id ?? "new_view_trigger"}
         project={project}
         table={viewCtx.view}
         entityType="view"
@@ -211,6 +216,7 @@ export function CanvasDialogs({
     );
     return (
       <ColumnDialog
+        key={column?.id ?? "new_column"}
         column={column}
         existingColumnNames={context.table.columns.map((item) => item.name)}
         availableSequenceNames={context.schema.sequences.map(
@@ -264,6 +270,7 @@ export function CanvasDialogs({
     );
     return (
       <ForeignKeyDialog
+        key={foreignKey?.id ?? "new_fk"}
         project={project}
         sourceTable={context.table}
         foreignKey={foreignKey}
@@ -315,6 +322,7 @@ export function CanvasDialogs({
     );
     return (
       <NamedColumnsDialog
+        key={constraint?.id ?? "new_uc"}
         entity="unique constraint"
         table={context.table}
         current={constraint}
@@ -366,6 +374,7 @@ export function CanvasDialogs({
     );
     return (
       <CheckConstraintDialog
+        key={constraint?.id ?? "new_cc"}
         table={context.table}
         current={constraint}
         onClose={close}
@@ -419,6 +428,7 @@ export function CanvasDialogs({
     );
     return (
       <TriggerDialog
+        key={trigger?.id ?? "new_trigger"}
         project={project}
         table={tableCtx.table}
         entityType="table"
@@ -471,6 +481,7 @@ export function CanvasDialogs({
   );
   return (
     <NamedColumnsDialog
+      key={index?.id ?? "new_index"}
       entity="index"
       table={context.table}
       current={index}

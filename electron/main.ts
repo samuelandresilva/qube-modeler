@@ -121,8 +121,19 @@ async function readRecentProjects(): Promise<RecentProject[]> {
         );
       });
     }
-    return [];
-  } catch {
+    throw new Error("Invalid structure in recent projects file.");
+  } catch (error: unknown) {
+    const err = error as Record<string, unknown>;
+    if (err && err.code !== "ENOENT") {
+      console.error(`Recent projects file is corrupted: ${getErrorMessage(error)}`);
+      try {
+        const backupPath = `${filePath}.corrupted`;
+        await rename(filePath, backupPath);
+        console.error(`Corrupted file renamed to ${backupPath} for recovery.`);
+      } catch (backupError) {
+        console.error(`Failed to backup corrupted recent projects file: ${getErrorMessage(backupError)}`);
+      }
+    }
     return [];
   }
 }
@@ -133,16 +144,17 @@ async function saveRecentProjects(projects: RecentProject[]): Promise<void> {
 }
 
 async function addRecentProject(filePath: string): Promise<RecentProject[]> {
+  const sanitized = sanitizeAndValidateQbmPath(filePath);
   const projects = await readRecentProjects();
-  const name = path.basename(filePath, path.extname(filePath));
+  const name = path.basename(sanitized, path.extname(sanitized));
   const newProject: RecentProject = {
-    filePath,
+    filePath: sanitized,
     name,
     lastOpenedAt: new Date().toISOString(),
   };
 
   const filtered = projects.filter(
-    (p) => p.filePath.toLowerCase() !== filePath.toLowerCase()
+    (p) => p.filePath.toLowerCase() !== sanitized.toLowerCase()
   );
 
   const updated = [newProject, ...filtered];
@@ -156,9 +168,10 @@ async function addRecentProject(filePath: string): Promise<RecentProject[]> {
 }
 
 async function removeRecentProject(filePath: string): Promise<RecentProject[]> {
+  const sanitized = sanitizeAndValidateQbmPath(filePath);
   const projects = await readRecentProjects();
   const filtered = projects.filter(
-    (p) => p.filePath.toLowerCase() !== filePath.toLowerCase()
+    (p) => p.filePath.toLowerCase() !== sanitized.toLowerCase()
   );
   await saveRecentProjects(filtered);
   return filtered;
@@ -179,13 +192,11 @@ function configureProjectIpc() {
 
   ipcMain.handle("qbm:open-project-file", async (_event, filePath: string): Promise<OpenProjectFileResult> => {
     try {
-      if (!hasQbmExtension(filePath)) {
-        return { error: "Only .qbm files can be opened." };
-      }
-      const raw = await readFile(filePath, "utf8");
+      const sanitizedPath = sanitizeAndValidateQbmPath(filePath);
+      const raw = await readFile(sanitizedPath, "utf8");
       const { project, flyway } = parseQbmFile(raw);
       return {
-        filePath,
+        filePath: sanitizedPath,
         project,
         flyway,
       };
@@ -261,15 +272,14 @@ function configureProjectIpc() {
       try {
         if (!isRecord(payload) || typeof payload.filePath !== "string")
           throw new Error("Invalid save request.");
-        if (!hasQbmExtension(payload.filePath))
-          throw new Error("The project path must use the .qbm extension.");
+        const sanitizedPath = sanitizeAndValidateQbmPath(payload.filePath);
 
         await writeProjectFile(
-          payload.filePath,
+          sanitizedPath,
           payload.project as DatabaseProject,
           payload.flyway as QbmFlywayConfig,
         );
-        return { canceled: false, filePath: payload.filePath };
+        return { canceled: false, filePath: sanitizedPath };
       } catch (error) {
         return {
           canceled: false,
@@ -303,12 +313,13 @@ function configureProjectIpc() {
         if (result.canceled || !result.filePath) return { canceled: true };
 
         const filePath = ensureQbmExtension(result.filePath);
+        const sanitizedPath = sanitizeAndValidateQbmPath(filePath);
         await writeProjectFile(
-          filePath,
+          sanitizedPath,
           payload.project as DatabaseProject,
           payload.flyway as QbmFlywayConfig,
         );
-        return { canceled: false, filePath };
+        return { canceled: false, filePath: sanitizedPath };
       } catch (error) {
         return {
           canceled: false,
@@ -407,6 +418,24 @@ function hasQbmExtension(filePath: string): boolean {
 
 function ensureQbmExtension(filePath: string): string {
   return hasQbmExtension(filePath) ? filePath : `${filePath}.qbm`;
+}
+
+function sanitizeAndValidateQbmPath(filePath: string): string {
+  if (typeof filePath !== "string" || !filePath.trim()) {
+    throw new Error("Invalid file path: path must be a non-empty string.");
+  }
+  const normalized = path.normalize(filePath);
+  if (!path.isAbsolute(normalized)) {
+    throw new Error("Invalid file path: path must be absolute.");
+  }
+  const resolved = path.resolve(normalized);
+  if (resolved.includes("..") || resolved.includes("/../") || resolved.includes("\\..\\")) {
+    throw new Error("Invalid file path: directory traversal attempt detected.");
+  }
+  if (path.extname(resolved).toLowerCase() !== ".qbm") {
+    throw new Error("Invalid file path: file must have .qbm extension.");
+  }
+  return resolved;
 }
 
 function getSuggestedFileName(suggestedFileName?: string): string {

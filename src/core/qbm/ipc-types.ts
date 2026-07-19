@@ -3,7 +3,17 @@ import type { QbmFlywayConfig } from "./qbm-file";
 
 export type OpenProjectResult =
   | { canceled: true }
-  | { canceled: false; filePath: string; project: DatabaseProject; flyway: QbmFlywayConfig }
+  | {
+      canceled: false;
+      filePath: string;
+      project: DatabaseProject;
+      flyway: QbmFlywayConfig;
+      createdWith?: {
+        app: string;
+        version: string;
+      };
+      savedAt?: string;
+    }
   | { canceled: false; error: string };
 
 export type SaveProjectPayload = {
@@ -41,7 +51,16 @@ export type RecentProject = {
 
 export type OpenProjectFileResult =
   | { error: string }
-  | { filePath: string; project: DatabaseProject; flyway: QbmFlywayConfig };
+  | {
+      filePath: string;
+      project: DatabaseProject;
+      flyway: QbmFlywayConfig;
+      createdWith?: {
+        app: string;
+        version: string;
+      };
+      savedAt?: string;
+    };
 
 export type QubeModelerApi = {
   openProject(): Promise<OpenProjectResult>;

@@ -60,6 +60,11 @@ export function createQbmFile(
 export function parseQbmFile(raw: string): {
   project: DatabaseProject;
   flyway: QbmFlywayConfig;
+  createdWith?: {
+    app: string;
+    version: string;
+  };
+  savedAt?: string;
 } {
   let value: unknown;
 
@@ -72,7 +77,7 @@ export function parseQbmFile(raw: string): {
   if (!isObject(value)) throw new Error("The .qbm file must contain an object.");
   if (value.format !== QBM_FORMAT)
     throw new Error("This is not a Qube Modeler project file.");
-  if (value.formatVersion !== QBM_FORMAT_VERSION)
+  if (typeof value.formatVersion !== "number" || value.formatVersion > QBM_FORMAT_VERSION)
     throw new Error(
       `Unsupported .qbm format version: ${String(value.formatVersion)}.`,
     );
@@ -103,7 +108,21 @@ export function parseQbmFile(raw: string): {
     });
   }
 
-  return { project, flyway };
+  let createdWith: { app: string; version: string } | undefined;
+  if (isObject(value.createdWith)) {
+    const appVal = typeof value.createdWith.app === "string" ? value.createdWith.app : "Qube Modeler";
+    const versionVal = typeof value.createdWith.version === "string" ? value.createdWith.version : "0.0.0";
+    createdWith = { app: appVal, version: versionVal };
+  }
+
+  const savedAt = typeof value.savedAt === "string" ? value.savedAt : undefined;
+
+  return {
+    project,
+    flyway,
+    createdWith,
+    savedAt,
+  };
 }
 
 export function validateQbmFlywayConfig(flyway: unknown): QbmFlywayConfig {
