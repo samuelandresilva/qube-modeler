@@ -82,6 +82,14 @@ export function validateProject(project: unknown): DatabaseProject {
     validateDatabaseView(view, schemas);
   });
 
+  // Normalize subjectAreas and textNotes for backward compatibility
+  if (!Array.isArray(rawProject.subjectAreas)) {
+    rawProject.subjectAreas = [];
+  }
+  if (!Array.isArray(rawProject.textNotes)) {
+    rawProject.textNotes = [];
+  }
+
   validateDiagram(project);
   return project as unknown as DatabaseProject;
 }

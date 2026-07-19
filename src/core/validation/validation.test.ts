@@ -658,3 +658,37 @@ describe("Views validation and normalization", () => {
   });
 });
 
+describe("Project validation and backward compatibility", () => {
+  it("should normalize legacy project files missing visual grouping properties", () => {
+    const legacyProject = {
+      id: "proj-1",
+      engine: "postgresql",
+      name: "Legacy Project",
+      schemas: [
+        {
+          id: "schema-1",
+          name: "public",
+          tables: [],
+          sequences: [],
+        },
+      ],
+      diagram: {
+        tableNodes: [],
+      },
+    };
+
+    const raw = legacyProject as unknown as Record<string, unknown>;
+
+    // Before parsing/validation, subjectAreas and textNotes are undefined
+    expect(raw.subjectAreas).toBeUndefined();
+    expect(raw.textNotes).toBeUndefined();
+
+    const validated = validateProject(legacyProject);
+
+    expect(validated.subjectAreas).toBeDefined();
+    expect(validated.subjectAreas).toEqual([]);
+    expect(validated.textNotes).toBeDefined();
+    expect(validated.textNotes).toEqual([]);
+  });
+});
+
