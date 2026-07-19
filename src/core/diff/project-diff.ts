@@ -1608,6 +1608,7 @@ export function diffProjects(
     adjacencyList.set(qname, new Set<string>());
 
     if (view.definition) {
+      const cleanDefinition = stripSqlCommentsAndStrings(view.definition);
       for (const candidate of allPrevEntityIds) {
         if (candidate === qname) continue;
         const parts = candidate.split(".");
@@ -1616,7 +1617,7 @@ export function diffProjects(
         const escapedName = candidateName.replace(/\./g, "\\.");
         const regexFull = new RegExp(`\\b${escapedCandidate}\\b`, "i");
         const regexName = new RegExp(`\\b${escapedName}\\b`, "i");
-        if (regexFull.test(view.definition) || regexName.test(view.definition)) {
+        if (regexFull.test(cleanDefinition) || regexName.test(cleanDefinition)) {
           adjacencyList.get(qname)!.add(candidate);
         }
       }
@@ -1742,4 +1743,83 @@ function areEventsEqual(a: string[], b: string[]): boolean {
   const sortedA = [...a].sort();
   const sortedB = [...b].sort();
   return sortedA.every((val, index) => val === sortedB[index]);
+}
+
+export function stripSqlCommentsAndStrings(sql: string): string {
+  let result = "";
+  let i = 0;
+  const n = sql.length;
+
+  while (i < n) {
+    if (sql[i] === "-" && i + 1 < n && sql[i + 1] === "-") {
+      i += 2;
+      while (i < n && sql[i] !== "\n" && sql[i] !== "\r") {
+        i++;
+      }
+      continue;
+    }
+
+    if (sql[i] === "/" && i + 1 < n && sql[i + 1] === "*") {
+      i += 2;
+      let depth = 1;
+      while (i < n && depth > 0) {
+        if (sql[i] === "/" && i + 1 < n && sql[i + 1] === "*") {
+          depth++;
+          i += 2;
+        } else if (sql[i] === "*" && i + 1 < n && sql[i + 1] === "/") {
+          depth--;
+          i += 2;
+        } else {
+          i++;
+        }
+      }
+      continue;
+    }
+
+    if (sql[i] === "'") {
+      i++;
+      while (i < n) {
+        if (sql[i] === "'") {
+          if (i + 1 < n && sql[i + 1] === "'") {
+            i += 2;
+          } else {
+            i++;
+            break;
+          }
+        } else if (sql[i] === "\\") {
+          i += 2;
+        } else {
+          i++;
+        }
+      }
+      result += " ";
+      continue;
+    }
+
+    if (sql[i] === '"') {
+      result += sql[i];
+      i++;
+      while (i < n) {
+        if (sql[i] === '"') {
+          if (i + 1 < n && sql[i + 1] === '"') {
+            result += '""';
+            i += 2;
+          } else {
+            result += '"';
+            i++;
+            break;
+          }
+        } else {
+          result += sql[i];
+          i++;
+        }
+      }
+      continue;
+    }
+
+    result += sql[i];
+    i++;
+  }
+
+  return result;
 }

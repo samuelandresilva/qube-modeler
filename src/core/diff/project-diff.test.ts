@@ -2448,5 +2448,77 @@ describe("project-diff", () => {
         })
       );
     });
+
+    it("view dependencies ignore mentions in comments and strings", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-users",
+                name: "users",
+              }),
+              createTableFixture({
+                id: "table-roles",
+                name: "roles",
+              }),
+            ],
+          }),
+        ],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_active_users",
+            definition: `
+              SELECT * FROM public.roles
+              -- Dependency on users table? No, this is a comment referring to public.users
+              /* Or maybe a multi-line comment referencing users */
+              WHERE name = 'users'
+            `,
+            isMaterialized: false,
+          },
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "schema-1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "table-roles",
+                name: "roles",
+              }),
+            ],
+          }),
+        ],
+        views: [
+          {
+            id: "view-1",
+            schemaId: "schema-1",
+            name: "v_active_users",
+            definition: `
+              SELECT * FROM public.roles
+              -- Dependency on users table? No, this is a comment referring to public.users
+              /* Or maybe a multi-line comment referencing users */
+              WHERE name = 'users'
+            `,
+            isMaterialized: false,
+          },
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+
+      const hasDropView = diff.operations.some((op) => op.kind === "DROP_VIEW");
+      expect(hasDropView).toBe(false);
+
+      const hasDropTable = diff.operations.some((op) => op.kind === "DROP_TABLE" && op.tableName === "users");
+      expect(hasDropTable).toBe(true);
+    });
   });
 });
