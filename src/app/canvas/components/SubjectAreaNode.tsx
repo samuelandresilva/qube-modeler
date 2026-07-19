@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { NodeResizer } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
 
@@ -7,10 +8,10 @@ export type SubjectAreaNodeData = {
   color: string;
   width: number;
   height: number;
-  onChangeDimensions?: (width: number, height: number) => void;
+  onChangeDimensions?: (id: string, width: number, height: number) => void;
 };
 
-export function SubjectAreaNode({ data, selected }: NodeProps) {
+export const SubjectAreaNode = memo(function SubjectAreaNode({ id, data, selected }: NodeProps) {
   const areaData = data as unknown as SubjectAreaNodeData;
   const color = areaData.color || "#3b82f6";
 
@@ -36,7 +37,7 @@ export function SubjectAreaNode({ data, selected }: NodeProps) {
           lineStyle={{ borderColor: color }}
           handleStyle={{ background: color, borderRadius: "50%" }}
           onResizeEnd={(_event, params) => {
-            areaData.onChangeDimensions?.(params.width, params.height);
+            areaData.onChangeDimensions?.(id, params.width, params.height);
           }}
         />
       </div>
@@ -57,4 +58,4 @@ export function SubjectAreaNode({ data, selected }: NodeProps) {
       </div>
     </div>
   );
-}
+});

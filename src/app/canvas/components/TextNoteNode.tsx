@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import { NodeResizer } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
 
@@ -8,11 +8,11 @@ export type TextNoteNodeData = {
   color: string;
   width: number;
   height: number;
-  onChangeContent?: (content: string) => void;
-  onChangeDimensions?: (width: number, height: number) => void;
+  onChangeContent?: (id: string, content: string) => void;
+  onChangeDimensions?: (id: string, width: number, height: number) => void;
 };
 
-export function TextNoteNode({ data, selected }: NodeProps) {
+export const TextNoteNode = memo(function TextNoteNode({ id, data, selected }: NodeProps) {
   const noteData = data as unknown as TextNoteNodeData;
   const color = noteData.color || "#eab308";
 
@@ -30,7 +30,7 @@ export function TextNoteNode({ data, selected }: NodeProps) {
   const handleFinishEditing = () => {
     setIsEditing(false);
     if (tempContent.trim() !== noteData.content.trim()) {
-      noteData.onChangeContent?.(tempContent);
+      noteData.onChangeContent?.(id, tempContent);
     }
   };
 
@@ -65,7 +65,7 @@ export function TextNoteNode({ data, selected }: NodeProps) {
         lineStyle={{ borderColor: color }}
         handleStyle={{ background: color, borderRadius: "50%" }}
         onResizeEnd={(_event, params) => {
-          noteData.onChangeDimensions?.(params.width, params.height);
+          noteData.onChangeDimensions?.(id, params.width, params.height);
         }}
       />
 
@@ -118,4 +118,4 @@ export function TextNoteNode({ data, selected }: NodeProps) {
       )}
     </div>
   );
-}
+});

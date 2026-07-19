@@ -36,9 +36,7 @@ export function mapProjectToFlow(
       data: {
         tableName: table.name,
         schemaName: schema.name,
-        onDoubleClickColumn: onDoubleClickColumn
-          ? (columnId: string) => onDoubleClickColumn(table.id, columnId)
-          : undefined,
+        onDoubleClickColumn: onDoubleClickColumn,
         columns: table.columns.map((column) => ({
           id: column.id,
           name: column.name,
@@ -109,9 +107,7 @@ export function mapProjectToFlow(
       color: area.color,
       width: area.width,
       height: area.height,
-      onChangeDimensions: onUpdateSubjectAreaDimensions
-        ? (width: number, height: number) => onUpdateSubjectAreaDimensions(area.id, width, height)
-        : undefined,
+      onChangeDimensions: onUpdateSubjectAreaDimensions,
     },
   }));
 
@@ -126,12 +122,8 @@ export function mapProjectToFlow(
       color: note.color,
       width: note.width,
       height: note.height,
-      onChangeContent: onUpdateTextNoteContent
-        ? (content: string) => onUpdateTextNoteContent(note.id, content)
-        : undefined,
-      onChangeDimensions: onUpdateTextNoteDimensions
-        ? (width: number, height: number) => onUpdateTextNoteDimensions(note.id, width, height)
-        : undefined,
+      onChangeContent: onUpdateTextNoteContent,
+      onChangeDimensions: onUpdateTextNoteDimensions,
     },
   }));
 

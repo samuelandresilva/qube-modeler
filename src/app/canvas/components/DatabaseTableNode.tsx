@@ -1,10 +1,11 @@
+import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { FolderTree } from "lucide-react";
 
 export type DatabaseTableNodeData = {
   tableName: string;
   schemaName?: string;
-  onDoubleClickColumn?: (columnId: string) => void;
+  onDoubleClickColumn?: (tableId: string, columnId: string) => void;
   columns: {
     id: string;
     name: string;
@@ -14,7 +15,7 @@ export type DatabaseTableNodeData = {
   }[];
 };
 
-export function DatabaseTableNode({ data }: NodeProps) {
+export const DatabaseTableNode = memo(function DatabaseTableNode({ id, data }: NodeProps) {
   const tableData = data as DatabaseTableNodeData;
   const schemaName = tableData.schemaName || "unknown schema";
 
@@ -38,7 +39,7 @@ export function DatabaseTableNode({ data }: NodeProps) {
             key={column.id}
             onDoubleClick={(e) => {
               e.stopPropagation();
-              tableData.onDoubleClickColumn?.(column.id);
+              tableData.onDoubleClickColumn?.(id, column.id);
             }}
           >
             <Handle
@@ -56,7 +57,7 @@ export function DatabaseTableNode({ data }: NodeProps) {
             />
 
             <span className="database-table-card__column-name">
-              {column.primaryKey ? "🔑 " : "🔹 "}
+               {column.primaryKey ? "🔑 " : "🔹 "}
               {column.name}
             </span>
 
@@ -83,4 +84,4 @@ export function DatabaseTableNode({ data }: NodeProps) {
       </div>
     </div>
   );
-}
+});
