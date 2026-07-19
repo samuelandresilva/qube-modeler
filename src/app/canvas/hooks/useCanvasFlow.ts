@@ -18,6 +18,9 @@ type Args = {
   selectedTableId: string | null;
   onSelectTable: (id: string | null) => void;
   onDoubleClickColumn?: (tableId: string, columnId: string) => void;
+  onUpdateSubjectAreaDimensions?: (id: string, width: number, height: number) => void;
+  onUpdateTextNoteContent?: (id: string, content: string) => void;
+  onUpdateTextNoteDimensions?: (id: string, width: number, height: number) => void;
 };
 
 export function useCanvasFlow({
@@ -26,6 +29,9 @@ export function useCanvasFlow({
   selectedTableId,
   onSelectTable,
   onDoubleClickColumn,
+  onUpdateSubjectAreaDimensions,
+  onUpdateTextNoteContent,
+  onUpdateTextNoteDimensions,
 }: Args) {
   const instanceRef = useRef<ReactFlowInstance<ReactFlowNode> | null>(null);
   const [nodes, setNodes] = useNodesState<ReactFlowNode>([]);
@@ -37,7 +43,14 @@ export function useCanvasFlow({
   }, [edges]);
 
   useEffect(() => {
-    const flow = mapProjectToFlow(project, onDoubleClickColumn, edgesRef.current);
+    const flow = mapProjectToFlow(
+      project,
+      onDoubleClickColumn,
+      edgesRef.current,
+      onUpdateSubjectAreaDimensions,
+      onUpdateTextNoteContent,
+      onUpdateTextNoteDimensions,
+    );
     setNodes(
       flow.nodes.map((node) => ({
         ...node,
@@ -45,7 +58,16 @@ export function useCanvasFlow({
       })),
     );
     setEdges(flow.edges);
-  }, [project, selectedTableId, setEdges, setNodes, onDoubleClickColumn]);
+  }, [
+    project,
+    selectedTableId,
+    setEdges,
+    setNodes,
+    onDoubleClickColumn,
+    onUpdateSubjectAreaDimensions,
+    onUpdateTextNoteContent,
+    onUpdateTextNoteDimensions,
+  ]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -68,6 +90,24 @@ export function useCanvasFlow({
           y: node.position.y,
         })),
       );
+    } else if (node.type === "subjectArea") {
+      setProject((current) => ({
+        ...current,
+        subjectAreas: (current.subjectAreas ?? []).map((area) =>
+          area.id === node.id
+            ? { ...area, position: { x: node.position.x, y: node.position.y } }
+            : area,
+        ),
+      }));
+    } else if (node.type === "textNote") {
+      setProject((current) => ({
+        ...current,
+        textNotes: (current.textNotes ?? []).map((note) =>
+          note.id === node.id
+            ? { ...note, position: { x: node.position.x, y: node.position.y } }
+            : note,
+        ),
+      }));
     } else {
       setProject((current) =>
         updateTableNodePosition(current, node.id, node.position),

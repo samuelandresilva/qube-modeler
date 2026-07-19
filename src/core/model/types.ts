@@ -25,6 +25,25 @@ export interface DatabaseFunction {
   returnType: string;
   arguments: DatabaseFunctionArgument[];
   body: string;
+  comment?: string;
+}
+
+export interface SubjectArea {
+  id: string;
+  name: string;
+  color: string;
+  position: { x: number; y: number };
+  width: number;
+  height: number;
+}
+
+export interface TextNote {
+  id: string;
+  content: string;
+  color: string;
+  position: { x: number; y: number };
+  width: number;
+  height: number;
 }
 
 export interface DatabaseProject {
@@ -35,6 +54,8 @@ export interface DatabaseProject {
   diagram: DatabaseDiagram;
   functions: DatabaseFunction[];
   views: DatabaseView[];
+  subjectAreas?: SubjectArea[];
+  textNotes?: TextNote[];
 }
 
 export interface DatabaseSchema {
@@ -42,6 +63,7 @@ export interface DatabaseSchema {
   name: string;
   sequences: DatabaseSequence[];
   tables: DatabaseTable[];
+  comment?: string;
 }
 
 export interface DatabaseSequence {
@@ -49,6 +71,7 @@ export interface DatabaseSequence {
   name: string;
   startWith: number;
   incrementBy: number;
+  comment?: string;
 }
 
 export interface CheckConstraint {
@@ -69,6 +92,7 @@ export interface DatabaseTrigger {
   deferrable?: boolean;
   initiallyDeferred?: boolean;
   forEach: "ROW" | "STATEMENT";
+  comment?: string;
 }
 
 export interface DatabaseView {
@@ -81,6 +105,7 @@ export interface DatabaseView {
   triggers?: DatabaseTrigger[];
   x?: number;
   y?: number;
+  comment?: string;
 }
 
 export interface DatabaseTable {
@@ -92,6 +117,9 @@ export interface DatabaseTable {
   indexes: DatabaseIndex[];
   checkConstraints: CheckConstraint[];
   triggers: DatabaseTrigger[];
+  comment?: string;
+  primaryKeyComment?: string;
+  subjectAreaId?: string;
 }
 
 export interface DatabaseColumn {
@@ -104,6 +132,7 @@ export interface DatabaseColumn {
   primaryKey: boolean;
   defaultValue?: string;
   sequenceName?: string;
+  comment?: string;
 }
 
 export interface DatabaseForeignKey {
@@ -115,6 +144,7 @@ export interface DatabaseForeignKey {
   targetColumns: string[];
   onUpdate?: ForeignKeyAction;
   onDelete?: ForeignKeyAction;
+  comment?: string;
 }
 
 export interface DatabaseUniqueConstraint {
@@ -122,12 +152,14 @@ export interface DatabaseUniqueConstraint {
   name: string;
   columns: string[];
   condition?: string;
+  comment?: string;
 }
 
 export interface DatabaseIndex {
   id: string;
   name: string;
   columns: string[];
+  comment?: string;
 }
 
 export type DatabaseColumnInput = Omit<DatabaseColumn, "id">;

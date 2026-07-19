@@ -21,6 +21,14 @@ import {
   updateTable,
   moveTableSchema,
   removeDatabaseFunction,
+  moveColumn,
+  createSubjectArea,
+  updateSubjectArea,
+  removeSubjectArea,
+  createTextNote,
+  updateTextNote,
+  removeTextNote,
+  setTableSubjectArea,
   type DatabaseProject,
 } from "@/core/model";
 import { generatePostgresSql } from "@/core/sql/postgres-generator";
@@ -31,6 +39,8 @@ import { CanvasToolbar } from "./components/CanvasToolbar";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { DatabaseTableNode } from "./components/DatabaseTableNode";
 import { DatabaseViewNode } from "./components/DatabaseViewNode";
+import { SubjectAreaNode } from "./components/SubjectAreaNode";
+import { TextNoteNode } from "./components/TextNoteNode";
 import { SmartRelationEdge } from "./components/SmartRelationEdge";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 import { CanvasDialogs } from "./dialogs/CanvasDialogs";
@@ -57,6 +67,8 @@ type CanvasProps = {
 const nodeTypes = {
   databaseTable: DatabaseTableNode,
   databaseView: DatabaseViewNode,
+  subjectArea: SubjectAreaNode,
+  textNote: TextNoteNode,
 };
 const edgeTypes = {
   smart: SmartRelationEdge,
@@ -96,6 +108,8 @@ function CanvasContent({
   const [dialog, setDialog] = useState<CanvasDialogState>(null);
   const [isAddingTable, setIsAddingTable] = useState(false);
   const [isAddingView, setIsAddingView] = useState(false);
+  const [isAddingSubjectArea, setIsAddingSubjectArea] = useState(false);
+  const [isAddingTextNote, setIsAddingTextNote] = useState(false);
   const [activeSchemaId, setActiveSchemaId] = useState<string | null>(null);
   const { confirm, requestConfirm, dismissConfirm, acceptConfirm } =
     useConfirm();
@@ -119,10 +133,38 @@ function CanvasContent({
     ? findViewContext(project, selectedTableId)
     : undefined;
 
+  const subjectAreaContext = selectedTableId
+    ? (project.subjectAreas ?? []).find((area) => area.id === selectedTableId)
+    : undefined;
+
+  const textNoteContext = selectedTableId
+    ? (project.textNotes ?? []).find((note) => note.id === selectedTableId)
+    : undefined;
+
   const handleDoubleClickColumn = useCallback((tableId: string, columnId: string) => {
     setSelectedTableId(tableId);
     setDialog({ kind: "column", columnId });
   }, []);
+
+  const handleUpdateSubjectAreaDimensions = useCallback((id: string, width: number, height: number) => {
+    setProject((current) =>
+      updateSubjectArea(current, id, (area) => ({ ...area, width, height })),
+    );
+  }, [setProject]);
+
+  const handleUpdateTextNoteContent = useCallback((id: string, content: string) => {
+    setProject((current) =>
+      updateTextNote(current, id, (note) => ({ ...note, content })),
+    );
+  }, [setProject]);
+
+  const handleUpdateTextNoteDimensions = useCallback((id: string, width: number, height: number) => {
+    setProject((current) =>
+      updateTextNote(current, id, (note) => ({ ...note, width, height })),
+    );
+  }, [setProject]);
+
+
 
   const flow = useCanvasFlow({
     project,
@@ -130,19 +172,24 @@ function CanvasContent({
     selectedTableId,
     onSelectTable: setSelectedTableId,
     onDoubleClickColumn: handleDoubleClickColumn,
+    onUpdateSubjectAreaDimensions: handleUpdateSubjectAreaDimensions,
+    onUpdateTextNoteContent: handleUpdateTextNoteContent,
+    onUpdateTextNoteDimensions: handleUpdateTextNoteDimensions,
   });
 
   useEffect(() => {
-    if (!isAddingTable && !isAddingView) return;
+    if (!isAddingTable && !isAddingView && !isAddingSubjectArea && !isAddingTextNote) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsAddingTable(false);
         setIsAddingView(false);
+        setIsAddingSubjectArea(false);
+        setIsAddingTextNote(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isAddingTable, isAddingView]);
+  }, [isAddingTable, isAddingView, isAddingSubjectArea, isAddingTextNote]);
 
   const toggleAddTableMode = () => {
     if (!activeSchemaId) return;
@@ -150,6 +197,8 @@ function CanvasContent({
       const next = !prev;
       if (next) {
         setIsAddingView(false);
+        setIsAddingSubjectArea(false);
+        setIsAddingTextNote(false);
       }
       return next;
     });
@@ -161,6 +210,32 @@ function CanvasContent({
       const next = !prev;
       if (next) {
         setIsAddingTable(false);
+        setIsAddingSubjectArea(false);
+        setIsAddingTextNote(false);
+      }
+      return next;
+    });
+  };
+
+  const toggleAddSubjectAreaMode = () => {
+    setIsAddingSubjectArea((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsAddingTable(false);
+        setIsAddingView(false);
+        setIsAddingTextNote(false);
+      }
+      return next;
+    });
+  };
+
+  const toggleAddTextNoteMode = () => {
+    setIsAddingTextNote((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsAddingTable(false);
+        setIsAddingView(false);
+        setIsAddingSubjectArea(false);
       }
       return next;
     });
@@ -207,6 +282,36 @@ function CanvasContent({
       setProject(result.project);
       setSelectedTableId(result.id);
       setIsAddingView(false);
+    } else if (isAddingSubjectArea) {
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      setProject((current) =>
+        createSubjectArea(current, {
+          name: "New Subject Area",
+          color: "#3b82f6",
+          position,
+          width: 300,
+          height: 300,
+        }),
+      );
+      setIsAddingSubjectArea(false);
+    } else if (isAddingTextNote) {
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      setProject((current) =>
+        createTextNote(current, {
+          content: "New Text Note\nDouble-click to edit me!",
+          color: "#eab308",
+          position,
+          width: 200,
+          height: 150,
+        }),
+      );
+      setIsAddingTextNote(false);
     } else {
       setSelectedTableId(null);
     }
@@ -336,6 +441,10 @@ function CanvasContent({
           schemas={project.schemas}
           activeSchemaId={activeSchemaId}
           onActiveSchemaChange={setActiveSchemaId}
+          onAddSubjectArea={toggleAddSubjectAreaMode}
+          onAddTextNote={toggleAddTextNoteMode}
+          isAddingSubjectArea={isAddingSubjectArea}
+          isAddingTextNote={isAddingTextNote}
         />
         {context && (
           <CanvasInspector
@@ -343,6 +452,17 @@ function CanvasContent({
             onClose={() => setSelectedTableId(null)}
             schemas={project.schemas}
             currentSchemaId={context.schema.id}
+            subjectAreas={project.subjectAreas}
+            onSetSubjectArea={(subjectAreaId) =>
+              setProject((current) =>
+                setTableSubjectArea(
+                  current,
+                  context.schema.id,
+                  context.table.id,
+                  subjectAreaId,
+                ),
+              )
+            }
             onChangeSchema={(schemaId) =>
               setProject((current) =>
                 moveTableSchema(current, context.table.id, schemaId),
@@ -358,11 +478,42 @@ function CanvasContent({
                 ),
               )
             }
+            onChangeTableComment={(comment) =>
+              setProject((current) =>
+                updateTable(
+                  current,
+                  context.schema.id,
+                  context.table.id,
+                  (table) => ({ ...table, comment: comment.trim() === "" ? undefined : comment }),
+                ),
+              )
+            }
+            onChangePrimaryKeyComment={(primaryKeyComment) =>
+              setProject((current) =>
+                updateTable(
+                  current,
+                  context.schema.id,
+                  context.table.id,
+                  (table) => ({ ...table, primaryKeyComment: primaryKeyComment.trim() === "" ? undefined : primaryKeyComment }),
+                ),
+              )
+            }
             onDeleteTable={() =>
               deleteTable(context.schema.id, context.table.id)
             }
             onAddColumn={() => setDialog({ kind: "column" })}
             onEditColumn={(columnId) => setDialog({ kind: "column", columnId })}
+            onMoveColumn={(columnId, direction) =>
+              setProject((current) =>
+                moveColumn(
+                  current,
+                  context.schema.id,
+                  context.table.id,
+                  columnId,
+                  direction,
+                ),
+              )
+            }
             onAddForeignKey={() => setDialog({ kind: "foreign-key" })}
             onEditForeignKey={(foreignKeyId) =>
               setDialog({ kind: "foreign-key", foreignKeyId })
@@ -405,6 +556,14 @@ function CanvasContent({
                 })),
               )
             }
+            onChangeViewComment={(comment) =>
+              setProject((current) =>
+                updateDatabaseView(current, viewContext.view.id, (view) => ({
+                  ...view,
+                  comment: comment.trim() === "" ? undefined : comment,
+                })),
+              )
+            }
             onEditViewDefinition={() =>
               setDialog({ kind: "view-definition", viewId: viewContext.view.id })
             }
@@ -436,6 +595,75 @@ function CanvasContent({
             onEditTrigger={(triggerId) => setDialog({ kind: "trigger", triggerId, parentId: viewContext.view.id, parentType: "view" })}
           />
         )}
+        {subjectAreaContext && (
+          <CanvasInspector
+            subjectArea={subjectAreaContext}
+            onClose={() => setSelectedTableId(null)}
+            schemas={project.schemas}
+            currentSchemaId=""
+            onChangeSchema={() => {}}
+            onRenameSubjectArea={(name) =>
+              setProject((current) =>
+                updateSubjectArea(current, subjectAreaContext.id, (area) => ({
+                  ...area,
+                  name,
+                })),
+              )
+            }
+            onChangeSubjectAreaColor={(color) =>
+              setProject((current) =>
+                updateSubjectArea(current, subjectAreaContext.id, (area) => ({
+                  ...area,
+                  color,
+                })),
+              )
+            }
+            onDeleteSubjectArea={() => {
+              requestConfirm(
+                `Remove subject area "${subjectAreaContext.name}"? Tables inside will not be deleted.`,
+                () => {
+                  setProject((current) =>
+                    removeSubjectArea(current, subjectAreaContext.id),
+                  );
+                  setSelectedTableId(null);
+                },
+              );
+            }}
+          />
+        )}
+        {textNoteContext && (
+          <CanvasInspector
+            textNote={textNoteContext}
+            onClose={() => setSelectedTableId(null)}
+            schemas={project.schemas}
+            currentSchemaId=""
+            onChangeSchema={() => {}}
+            onChangeTextNoteContent={(content) =>
+              setProject((current) =>
+                updateTextNote(current, textNoteContext.id, (note) => ({
+                  ...note,
+                  content,
+                })),
+              )
+            }
+            onChangeTextNoteColor={(color) =>
+              setProject((current) =>
+                updateTextNote(current, textNoteContext.id, (note) => ({
+                  ...note,
+                  color,
+                })),
+              )
+            }
+            onDeleteTextNote={() => {
+              requestConfirm("Remove text note?", () => {
+                setProject((current) =>
+                  removeTextNote(current, textNoteContext.id),
+                );
+                setSelectedTableId(null);
+              });
+            }}
+          />
+        )}
         <CanvasDialogs
           dialog={dialog}
           setDialog={setDialog}
@@ -453,18 +681,37 @@ function CanvasContent({
           />
         )}
         <ReactFlow
-          className={`canvas-flow ${isAddingTable ? "canvas-flow--adding-table" : ""} ${isAddingView ? "canvas-flow--adding-view" : ""}`}
+          className={`canvas-flow ${isAddingTable ? "canvas-flow--adding-table" : ""} ${isAddingView ? "canvas-flow--adding-view" : ""} ${isAddingSubjectArea ? "canvas-flow--adding-subject-area" : ""} ${isAddingTextNote ? "canvas-flow--adding-text-note" : ""}`}
           nodes={flow.nodes}
           edges={flow.edges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onNodeDragStop={flow.onNodeDragStop}
+          onNodesDelete={(deletedNodes) => {
+            setProject((current) => {
+              let updated = current;
+              for (const node of deletedNodes) {
+                if (node.type === "subjectArea") {
+                  updated = removeSubjectArea(updated, node.id);
+                } else if (node.type === "textNote") {
+                  updated = removeTextNote(updated, node.id);
+                }
+              }
+              return updated;
+            });
+          }}
           onNodeClick={(_, node) => {
             if (isAddingTable) {
               setIsAddingTable(false);
             }
             if (isAddingView) {
               setIsAddingView(false);
+            }
+            if (isAddingSubjectArea) {
+              setIsAddingSubjectArea(false);
+            }
+            if (isAddingTextNote) {
+              setIsAddingTextNote(false);
             }
             setSelectedTableId(node.id);
           }}

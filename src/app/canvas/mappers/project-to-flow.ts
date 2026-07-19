@@ -6,6 +6,9 @@ export function mapProjectToFlow(
   project: DatabaseProject,
   onDoubleClickColumn?: (tableId: string, columnId: string) => void,
   currentEdges?: Edge[],
+  onUpdateSubjectAreaDimensions?: (id: string, width: number, height: number) => void,
+  onUpdateTextNoteContent?: (id: string, content: string) => void,
+  onUpdateTextNoteDimensions?: (id: string, width: number, height: number) => void,
 ): {
   nodes: Node[];
   edges: Edge[];
@@ -25,6 +28,7 @@ export function mapProjectToFlow(
     return {
       id: table.id,
       type: "databaseTable",
+      parentId: table.subjectAreaId,
       position: tableNode?.position ?? {
         x: 120 + index * 360,
         y: 120,
@@ -93,8 +97,46 @@ export function mapProjectToFlow(
     };
   });
 
+  const subjectAreaNodes: Node[] = (project.subjectAreas ?? []).map((area) => ({
+    id: area.id,
+    type: "subjectArea",
+    position: area.position,
+    style: { width: area.width, height: area.height },
+    zIndex: -1,
+    data: {
+      id: area.id,
+      label: area.name,
+      color: area.color,
+      width: area.width,
+      height: area.height,
+      onChangeDimensions: onUpdateSubjectAreaDimensions
+        ? (width: number, height: number) => onUpdateSubjectAreaDimensions(area.id, width, height)
+        : undefined,
+    },
+  }));
+
+  const textNoteNodes: Node[] = (project.textNotes ?? []).map((note) => ({
+    id: note.id,
+    type: "textNote",
+    position: note.position,
+    style: { width: note.width, height: note.height },
+    data: {
+      id: note.id,
+      content: note.content,
+      color: note.color,
+      width: note.width,
+      height: note.height,
+      onChangeContent: onUpdateTextNoteContent
+        ? (content: string) => onUpdateTextNoteContent(note.id, content)
+        : undefined,
+      onChangeDimensions: onUpdateTextNoteDimensions
+        ? (width: number, height: number) => onUpdateTextNoteDimensions(note.id, width, height)
+        : undefined,
+    },
+  }));
+
   return {
-    nodes: [...nodes, ...viewNodes],
+    nodes: [...nodes, ...viewNodes, ...subjectAreaNodes, ...textNoteNodes],
     edges,
   };
 }

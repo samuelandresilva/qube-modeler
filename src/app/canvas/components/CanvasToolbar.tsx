@@ -8,7 +8,9 @@ import {
   Save,
   SaveAll,
   Scan,
-  Tv,
+  ScanEye,
+  Layers,
+  StickyNote,
 } from "lucide-react";
 
 export type CanvasToolbarProps = {
@@ -28,6 +30,10 @@ export type CanvasToolbarProps = {
   schemas: DatabaseSchema[];
   activeSchemaId: string | null;
   onActiveSchemaChange: (schemaId: string | null) => void;
+  onAddSubjectArea?: () => void;
+  onAddTextNote?: () => void;
+  isAddingSubjectArea?: boolean;
+  isAddingTextNote?: boolean;
 };
 
 export function CanvasToolbar({
@@ -46,6 +52,10 @@ export function CanvasToolbar({
   schemas,
   activeSchemaId,
   onActiveSchemaChange,
+  onAddSubjectArea,
+  onAddTextNote,
+  isAddingSubjectArea = false,
+  isAddingTextNote = false,
 }: CanvasToolbarProps) {
   return (
     <div className="canvas-toolbar">
@@ -160,10 +170,30 @@ export function CanvasToolbar({
           onClick={onAddView}
           disabled={!activeSchemaId}
         >
-          <Tv size={18} strokeWidth={2.4} color="oklch(75.5% 0.177 280)" />
+          <ScanEye size={18} strokeWidth={2.4} color="oklch(75.5% 0.177 280)" />
         </button>
 
+        <button
+          className={`canvas-toolbar__icon-button ${isAddingSubjectArea ? "canvas-toolbar__button--active" : ""}`}
+          type="button"
+          title="Add subject area"
+          aria-label="Add subject area"
+          onClick={onAddSubjectArea}
+        >
+          <Layers size={18} strokeWidth={2.4} color="oklch(65% 0.203 205.504)" />
+        </button>
 
+        <button
+          className={`canvas-toolbar__icon-button ${isAddingTextNote ? "canvas-toolbar__button--active" : ""}`}
+          type="button"
+          title="Add text note"
+          aria-label="Add text note"
+          onClick={onAddTextNote}
+        >
+          <StickyNote size={18} strokeWidth={2.4} color="oklch(80% 0.16 85)" />
+        </button>
+
+        <div className="canvas-toolbar__separator" aria-hidden="true" />
 
         <button
           className="canvas-toolbar__icon-button"

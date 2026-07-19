@@ -9,6 +9,7 @@ import {
   Table2,
   Trash2,
   Cpu,
+  ScanEye,
 } from "lucide-react";
 import { useState } from "react";
 import type { DatabaseSchema, DatabaseFunction, DatabaseView } from "@/core/model";
@@ -217,7 +218,7 @@ export function SchemaTreeItem({
               className="canvas-sidebar__chevron"
               data-expanded={viewsExpanded}
             />
-            <Table2 size={15} className="canvas-sidebar__item-icon" />
+            <ScanEye size={15} className="canvas-sidebar__item-icon" />
             <span>views</span>
           </div>
           {viewsExpanded && (
@@ -252,7 +253,7 @@ export function SchemaTreeItem({
                       onClick={() => onSeeTableOnDiagram(schema.id, view.id)}
                       style={{ cursor: "pointer" }}
                     >
-                      <Table2
+                      <ScanEye
                         size={14}
                         className="canvas-sidebar__item-icon canvas-sidebar__item-icon--muted"
                       />
