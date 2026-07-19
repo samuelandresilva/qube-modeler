@@ -599,9 +599,6 @@ function CanvasContent({
           <CanvasInspector
             subjectArea={subjectAreaContext}
             onClose={() => setSelectedTableId(null)}
-            schemas={project.schemas}
-            currentSchemaId=""
-            onChangeSchema={() => {}}
             onRenameSubjectArea={(name) =>
               setProject((current) =>
                 updateSubjectArea(current, subjectAreaContext.id, (area) => ({
@@ -635,9 +632,6 @@ function CanvasContent({
           <CanvasInspector
             textNote={textNoteContext}
             onClose={() => setSelectedTableId(null)}
-            schemas={project.schemas}
-            currentSchemaId=""
-            onChangeSchema={() => {}}
             onChangeTextNoteContent={(content) =>
               setProject((current) =>
                 updateTextNote(current, textNoteContext.id, (note) => ({

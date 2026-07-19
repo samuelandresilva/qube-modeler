@@ -27,9 +27,9 @@ type Props = {
   onEditCheckConstraint?: (id: string) => void;
   onAddTrigger: () => void;
   onEditTrigger: (id: string) => void;
-  schemas: DatabaseSchema[];
-  currentSchemaId: string;
-  onChangeSchema: (schemaId: string) => void;
+  schemas?: DatabaseSchema[];
+  currentSchemaId?: string;
+  onChangeSchema?: (schemaId: string) => void;
   onRenameView?: (name: string) => void;
   onEditViewDefinition?: () => void;
   onToggleMaterialized?: (isMaterialized: boolean) => void;
