@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createQbmFile, parseQbmFile, QBM_FORMAT, QBM_FORMAT_VERSION } from "./qbm-file";
 import { createProjectFixture, createSchemaFixture } from "../test-utils/project-fixtures";
+import { validateProject } from "../validation/project";
 
 describe("qbm-file", () => {
-  const validProject = createProjectFixture({ schemas: [createSchemaFixture()] });
+  const validProject = validateProject(createProjectFixture({ schemas: [createSchemaFixture()] }));
 
   describe("createQbmFile", () => {
     it("creates a valid .qbm file structure", () => {

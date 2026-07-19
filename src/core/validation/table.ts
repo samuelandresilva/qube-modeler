@@ -1,3 +1,4 @@
+import type { DatabaseTable } from "@/core/model";
 import { validateColumn } from "./column";
 import {
   validateNamedColumnList,
@@ -19,18 +20,16 @@ export function validateTable(
   schemaName: unknown,
   sequences: unknown[],
   projectSchemas: unknown[],
-): void {
+): DatabaseTable {
   if (!isObject(table))
     throw new Error(`Invalid table in schema "${schemaName}".`);
   validateRequiredString(table.id, `Table id in schema "${schemaName}"`);
   validateSqlIdentifier(table.name, `Table name in schema "${schemaName}"`);
 
-  if (!Array.isArray(table.checkConstraints)) {
-    table.checkConstraints = [];
-  }
-  if (!Array.isArray(table.triggers)) {
-    table.triggers = [];
-  }
+  const checkConstraints = Array.isArray(table.checkConstraints)
+    ? table.checkConstraints
+    : [];
+  const triggers = Array.isArray(table.triggers) ? table.triggers : [];
 
   const columns = requireArray(
     table.columns,
@@ -47,14 +46,6 @@ export function validateTable(
   const indexes = requireArray(
     table.indexes,
     `Table "${table.name}" indexes are required.`,
-  );
-  const checkConstraints = requireArray(
-    table.checkConstraints,
-    `Table "${table.name}" checkConstraints are required.`,
-  );
-  const triggers = requireArray(
-    table.triggers,
-    `Table "${table.name}" triggers are required.`,
   );
 
   validateUniqueNames(
@@ -120,6 +111,12 @@ export function validateTable(
   indexes.forEach((item) => validateNamedColumnList(item, table, "Index"));
   checkConstraints.forEach((item) => validateCheckConstraint(item, table));
   triggers.forEach((item) => validateTrigger(item, String(table.name)));
+
+  return {
+    ...table,
+    checkConstraints,
+    triggers,
+  } as unknown as DatabaseTable;
 }
 
 function requireArray(value: unknown, message: string): unknown[] {

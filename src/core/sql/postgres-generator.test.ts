@@ -1155,5 +1155,59 @@ describe("postgres-generator", () => {
       expect(sql).toContain("COMMENT ON FUNCTION app.audit_log() IS 'Audit function';");
       expect(sql).toContain("COMMENT ON VIEW app.active_users IS 'Active users view';");
     });
+
+    it("25. Gera DDL para trigger em views", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "app",
+          }),
+        ],
+        functions: [
+          {
+            id: "fn-1",
+            name: "audit_log",
+            schemaId: "s1",
+            language: "plpgsql",
+            returnType: "trigger",
+            body: "BEGIN RETURN NEW; END;",
+            arguments: [],
+          },
+        ],
+        views: [
+          {
+            id: "v-1",
+            name: "active_users",
+            schemaId: "s1",
+            definition: "SELECT * FROM users",
+            isMaterialized: false,
+            triggers: [
+              {
+                id: "trg-1",
+                name: "trg_view_audit",
+                eventTiming: "INSTEAD OF",
+                events: ["INSERT"],
+                functionId: "fn-1",
+                forEach: "ROW",
+                comment: "View trigger comment",
+              },
+            ],
+          },
+        ],
+      });
+
+      project.functions![0].schemaId = project.schemas[0].id;
+      project.views![0].schemaId = project.schemas[0].id;
+
+      const sql = generatePostgresSql(project);
+
+      expect(sql).toContain("CREATE TRIGGER trg_view_audit");
+      expect(sql).toContain("INSTEAD OF INSERT");
+      expect(sql).toContain("ON app.active_users");
+      expect(sql).toContain("FOR EACH ROW");
+      expect(sql).toContain("EXECUTE FUNCTION app.audit_log();");
+      expect(sql).toContain("COMMENT ON TRIGGER trg_view_audit ON app.active_users IS 'View trigger comment';");
+    });
   });
 });

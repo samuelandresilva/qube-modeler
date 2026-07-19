@@ -1949,4 +1949,69 @@ describe("postgres-migration-generator", () => {
       expect(sql).toContain("COMMENT ON COLUMN public.tb_users.name IS 'user''s name';");
     });
   });
+
+  describe("View trigger migrations", () => {
+    it("generates CREATE TRIGGER and DROP TRIGGER for views correctly", () => {
+      const project = createProjectFixture({
+        schemas: [createSchemaFixture({ id: "s1", name: "public" })],
+        functions: [
+          {
+            id: "fn-1",
+            name: "audit_log",
+            schemaId: "s1",
+            language: "plpgsql",
+            returnType: "trigger",
+            body: "BEGIN RETURN NEW; END;",
+            arguments: [],
+          },
+        ],
+        views: [
+          {
+            id: "v-1",
+            name: "v_active_users",
+            schemaId: "s1",
+            definition: "SELECT * FROM users",
+            isMaterialized: false,
+          },
+        ],
+      });
+
+      const diff: ProjectDiff = {
+        unsupportedOperations: [],
+        operations: [
+          {
+            kind: "ADD_TRIGGER",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "v-1",
+            tableName: "v_active_users",
+            triggerId: "trg-1",
+            triggerName: "trg_view_audit",
+            eventTiming: "INSTEAD OF",
+            events: ["INSERT"],
+            functionId: "fn-1",
+            forEach: "ROW",
+            comment: "View trigger comment",
+          },
+          {
+            kind: "DROP_TRIGGER",
+            risk: "destructive",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "v-1",
+            tableName: "v_active_users",
+            triggerId: "trg-2",
+            triggerName: "trg_view_old",
+          },
+        ],
+      };
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain("CREATE TRIGGER trg_view_audit");
+      expect(sql).toContain("INSTEAD OF INSERT");
+      expect(sql).toContain("ON public.v_active_users");
+      expect(sql).toContain("DROP TRIGGER IF EXISTS trg_view_old ON public.v_active_users;");
+    });
+  });
 });

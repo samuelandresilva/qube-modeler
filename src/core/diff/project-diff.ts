@@ -1177,6 +1177,38 @@ export function diffProjects(
           comment: currView.comment,
         });
       }
+      for (const currTrg of (currView.triggers ?? [])) {
+        operations.push({
+          kind: "ADD_TRIGGER",
+          risk: "warning",
+          schemaId: currView.schemaId,
+          schemaName: currSchemaName,
+          tableId: currView.id,
+          tableName: currView.name,
+          triggerId: currTrg.id,
+          triggerName: currTrg.name,
+          eventTiming: currTrg.eventTiming,
+          events: currTrg.events,
+          functionId: currTrg.functionId,
+          condition: currTrg.condition,
+          isConstraint: currTrg.isConstraint,
+          deferrable: currTrg.deferrable,
+          initiallyDeferred: currTrg.initiallyDeferred,
+          forEach: currTrg.forEach,
+        });
+        if (currTrg.comment) {
+          operations.push({
+            kind: "COMMENT",
+            risk: "safe",
+            objectType: "TRIGGER",
+            schemaName: currSchemaName,
+            tableName: currView.name,
+            triggerName: currTrg.name,
+            objectName: currTrg.name,
+            comment: currTrg.comment,
+          });
+        }
+      }
     } else {
       if (prevView.comment !== currView.comment) {
         operations.push({
@@ -1227,6 +1259,131 @@ export function diffProjects(
           },
           requiresDropAndRecreate: true,
         });
+      }
+
+      // Trigger additions, alterations & drops for views
+      const prevTriggers = new Map((prevView.triggers ?? []).map((t) => [t.id, t]));
+      const currTriggers = new Map((currView.triggers ?? []).map((t) => [t.id, t]));
+
+      for (const currTrg of (currView.triggers ?? [])) {
+        const prevTrg = prevTriggers.get(currTrg.id);
+        if (!prevTrg) {
+          operations.push({
+            kind: "ADD_TRIGGER",
+            risk: "warning",
+            schemaId: currView.schemaId,
+            schemaName: currSchemaName,
+            tableId: currView.id,
+            tableName: currView.name,
+            triggerId: currTrg.id,
+            triggerName: currTrg.name,
+            eventTiming: currTrg.eventTiming,
+            events: currTrg.events,
+            functionId: currTrg.functionId,
+            condition: currTrg.condition,
+            isConstraint: currTrg.isConstraint,
+            deferrable: currTrg.deferrable,
+            initiallyDeferred: currTrg.initiallyDeferred,
+            forEach: currTrg.forEach,
+          });
+          if (currTrg.comment) {
+            operations.push({
+              kind: "COMMENT",
+              risk: "safe",
+              objectType: "TRIGGER",
+              schemaName: currSchemaName,
+              tableName: currView.name,
+              triggerName: currTrg.name,
+              objectName: currTrg.name,
+              comment: currTrg.comment,
+            });
+          }
+        } else {
+          if (prevTrg.comment !== currTrg.comment) {
+            operations.push({
+              kind: "COMMENT",
+              risk: "safe",
+              objectType: "TRIGGER",
+              schemaName: currSchemaName,
+              tableName: currView.name,
+              triggerName: currTrg.name,
+              objectName: currTrg.name,
+              comment: currTrg.comment,
+            });
+          }
+          const nameChanged = currTrg.name !== prevTrg.name;
+          const timingChanged = currTrg.eventTiming !== prevTrg.eventTiming;
+          const eventsChanged = !areEventsEqual(currTrg.events, prevTrg.events);
+          const fnChanged = currTrg.functionId !== prevTrg.functionId;
+          const conditionChanged = (currTrg.condition ?? "").trim() !== (prevTrg.condition ?? "").trim();
+          const constraintChanged = !!currTrg.isConstraint !== !!prevTrg.isConstraint;
+          const deferrableChanged = !!currTrg.deferrable !== !!prevTrg.deferrable;
+          const initDeferredChanged = !!currTrg.initiallyDeferred !== !!prevTrg.initiallyDeferred;
+          const forEachChanged = currTrg.forEach !== prevTrg.forEach;
+
+          if (
+            nameChanged ||
+            timingChanged ||
+            eventsChanged ||
+            fnChanged ||
+            conditionChanged ||
+            constraintChanged ||
+            deferrableChanged ||
+            initDeferredChanged ||
+            forEachChanged
+          ) {
+            const prevSchemaName = prevSchemaNames.get(prevView.schemaId) ?? "public";
+            operations.push({
+              kind: "ALTER_TRIGGER",
+              risk: "warning",
+              schemaId: currView.schemaId,
+              schemaName: currSchemaName,
+              tableId: currView.id,
+              tableName: currView.name,
+              oldSchemaName: prevSchemaName,
+              oldTableName: prevView.name,
+              triggerId: currTrg.id,
+              oldTriggerName: prevTrg.name,
+              newTriggerName: currTrg.name,
+
+              eventTiming: currTrg.eventTiming,
+              events: currTrg.events,
+              functionId: currTrg.functionId,
+              condition: currTrg.condition,
+              isConstraint: currTrg.isConstraint,
+              deferrable: currTrg.deferrable,
+              initiallyDeferred: currTrg.initiallyDeferred,
+              forEach: currTrg.forEach,
+
+              oldEventTiming: prevTrg.eventTiming,
+              oldEvents: prevTrg.events,
+              oldFunctionId: prevTrg.functionId,
+              oldCondition: prevTrg.condition,
+              oldIsConstraint: prevTrg.isConstraint,
+              oldDeferrable: prevTrg.deferrable,
+              oldInitiallyDeferred: prevTrg.initiallyDeferred,
+              oldForEach: prevTrg.forEach,
+
+              requiresDropAndRecreate: true,
+            });
+          }
+        }
+      }
+
+      for (const prevTrg of (prevView.triggers ?? [])) {
+        if (!currTriggers.has(prevTrg.id)) {
+          const prevSchemaName = prevSchemaNames.get(prevView.schemaId) ?? "public";
+          operations.push({
+            kind: "DROP_TRIGGER",
+            risk: "destructive",
+            schemaId: prevView.schemaId,
+            schemaName: prevSchemaName,
+            tableId: prevView.id,
+            tableName: prevView.name,
+            triggerId: prevTrg.id,
+            triggerName: prevTrg.name,
+          });
+        }
       }
     }
   }
@@ -1341,6 +1498,84 @@ export function diffProjects(
                 forEach: currTrigger.forEach,
               });
             }
+          }
+        }
+      }
+    }
+  }
+
+  // droppedViews set to check if the view was dropped
+  const droppedViews = new Set<string>();
+  for (const op of operations) {
+    if (op.kind === "DROP_VIEW") {
+      droppedViews.add(op.viewId);
+    }
+  }
+
+  // Check triggers on views for dropped/rebuilt functions
+  for (const view of (previousProject.views ?? [])) {
+    if (droppedViews.has(view.id)) continue;
+
+    for (const trigger of (view.triggers ?? [])) {
+      if (triggersHandled.has(trigger.id)) continue;
+
+      const isDroppedFn = droppedFunctions.has(trigger.functionId);
+      const isRebuiltFn = rebuiltFunctions.has(trigger.functionId);
+
+      if (isDroppedFn || isRebuiltFn) {
+        const prevSchemaName = prevSchemaNames.get(view.schemaId) ?? "public";
+        operations.push({
+          kind: "DROP_TRIGGER",
+          risk: "destructive",
+          schemaId: view.schemaId,
+          schemaName: prevSchemaName,
+          tableId: view.id,
+          tableName: view.name,
+          triggerId: trigger.id,
+          triggerName: trigger.name,
+        });
+
+        if (isRebuiltFn) {
+          let currSchemaId = view.schemaId;
+          let currSchemaName = prevSchemaName;
+          let currViewId = view.id;
+          let currViewName = view.name;
+          let currTrigger = trigger;
+          let foundCurrent = false;
+
+          for (const cView of (currentProject.views ?? [])) {
+            const cTrg = (cView.triggers ?? []).find((t) => t.id === trigger.id);
+            if (cTrg) {
+              const cSchema = currentProject.schemas.find((s) => s.id === cView.schemaId);
+              currSchemaId = cView.schemaId;
+              currSchemaName = cSchema ? cSchema.name : "public";
+              currViewId = cView.id;
+              currViewName = cView.name;
+              currTrigger = cTrg;
+              foundCurrent = true;
+              break;
+            }
+          }
+
+          if (foundCurrent) {
+            operations.push({
+              kind: "ADD_TRIGGER",
+              risk: "warning",
+              schemaId: currSchemaId,
+              schemaName: currSchemaName,
+              tableId: currViewId,
+              tableName: currViewName,
+              triggerId: currTrigger.id,
+              triggerName: currTrigger.name,
+              eventTiming: currTrigger.eventTiming,
+              events: currTrigger.events,
+              functionId: currTrigger.functionId,
+              condition: currTrigger.condition,
+              isConstraint: currTrigger.isConstraint,
+              deferrable: currTrigger.deferrable,
+              initiallyDeferred: currTrigger.initiallyDeferred,
+              forEach: currTrigger.forEach,
+            });
           }
         }
       }

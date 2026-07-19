@@ -1,3 +1,4 @@
+import type { DatabaseSchema } from "@/core/model";
 import {
   isObject,
   validateRequiredNumber,
@@ -10,7 +11,7 @@ import { validateTable } from "./table";
 export function validateSchema(
   schema: unknown,
   projectSchemas: unknown[],
-): void {
+): DatabaseSchema {
   if (!isObject(schema)) throw new Error("Invalid schema.");
   validateRequiredString(schema.id, "Schema id");
   validateSqlIdentifier(schema.name, "Schema name");
@@ -31,7 +32,7 @@ export function validateSchema(
   schema.sequences.forEach((sequence) =>
     validateSequence(sequence, schema.name),
   );
-  schema.tables.forEach((table) =>
+  const tables = schema.tables.map((table) =>
     validateTable(
       table,
       schema.name,
@@ -39,6 +40,11 @@ export function validateSchema(
       projectSchemas,
     ),
   );
+
+  return {
+    ...schema,
+    tables,
+  } as unknown as DatabaseSchema;
 }
 
 function validateSequence(sequence: unknown, schemaName: unknown): void {

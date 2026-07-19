@@ -40,26 +40,20 @@ export function validateDatabaseView(
     throw new Error(`View "${view.name}" withNoData must be a boolean.`);
   }
 
-  // Coordinates validation
-  if (view.x === undefined) {
-    view.x = 100;
+  if (view.x !== undefined && typeof view.x !== "number") {
+    throw new Error(`View "${view.name}" coordinates x and y must be numbers.`);
   }
-  if (view.y === undefined) {
-    view.y = 100;
-  }
-  if (typeof view.x !== "number" || typeof view.y !== "number") {
+  if (view.y !== undefined && typeof view.y !== "number") {
     throw new Error(`View "${view.name}" coordinates x and y must be numbers.`);
   }
 
-  // Initialize triggers list if not present
-  if (!Array.isArray(view.triggers)) {
-    view.triggers = [];
-  }
+  const x = typeof view.x === "number" ? view.x : 100;
+  const y = typeof view.y === "number" ? view.y : 100;
 
-  const triggers = view.triggers as unknown[];
+  const triggers = Array.isArray(view.triggers) ? view.triggers : [];
   validateUniqueNames(
     triggers,
-    `View "${view.name}" triggers`,
+    `View "${viewName}" triggers`,
     (item: unknown) => (isObject(item) && typeof item.name === "string" ? item.name : ""),
   );
 
@@ -67,5 +61,10 @@ export function validateDatabaseView(
     validateTrigger(trigger, viewName);
   });
 
-  return view as unknown as DatabaseView;
+  return {
+    ...view,
+    x,
+    y,
+    triggers,
+  } as unknown as DatabaseView;
 }

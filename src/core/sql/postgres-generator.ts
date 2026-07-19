@@ -97,11 +97,19 @@ function generateSchemaObjectsSql(
     generateViewSql(schema, view),
   );
 
-  const triggerSql = schema.tables.flatMap((table) =>
+  const tableTriggerSql = schema.tables.flatMap((table) =>
     (table.triggers ?? []).map((trigger) =>
       generateTriggerSql(schema, table, trigger, project),
     ),
   );
+
+  const viewTriggerSql = schemaViews.flatMap((view) =>
+    (view.triggers ?? []).map((trigger) =>
+      generateTriggerSql(schema, view, trigger, project),
+    ),
+  );
+
+  const triggerSql = [...tableTriggerSql, ...viewTriggerSql];
 
   const indexSql = schema.tables.flatMap((table) =>
     table.indexes.map((index) => generateIndexSql(schema, table, index)),
@@ -398,7 +406,7 @@ export function generateCheckConstraintSql(
 
 export function generateTriggerSql(
   schema: DatabaseSchema,
-  table: DatabaseTable,
+  table: DatabaseTable | DatabaseView,
   trigger: DatabaseTrigger,
   project: DatabaseProject,
 ): string {

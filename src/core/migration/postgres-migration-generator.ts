@@ -794,9 +794,10 @@ export function generatePostgresMigrationSql(
         if (!schema) {
           throw new Error(`Schema ${op.schemaName} (ID: ${op.schemaId}) not found in current project.`);
         }
-        const table = schema.tables.find((t) => t.id === op.tableId);
+        const table = schema.tables.find((t) => t.id === op.tableId) ||
+                      (currentProject.views ?? []).find((v) => v.id === op.tableId);
         if (!table) {
-          throw new Error(`Table ${op.tableName} (ID: ${op.tableId}) not found in schema ${schema.name}.`);
+          throw new Error(`Table or View ${op.tableName} (ID: ${op.tableId}) not found in project.`);
         }
         const trigger = {
           id: op.triggerId,

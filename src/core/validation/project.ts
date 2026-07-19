@@ -11,49 +11,37 @@ import { validateDatabaseView } from "./view";
 
 export function validateProject(project: unknown): DatabaseProject {
   if (!isObject(project)) throw new Error("Invalid project file.");
-  const rawProject = project as Record<string, unknown>;
-  validateRequiredString(rawProject.id, "Project id");
-  if (rawProject.engine !== "postgresql")
+  
+  // Clone to avoid mutating the original input object
+  const cloned = structuredClone(project) as Record<string, unknown>;
+
+  validateRequiredString(cloned.id, "Project id");
+  if (cloned.engine !== "postgresql")
     throw new Error("Only PostgreSQL projects are supported.");
-  validateRequiredString(rawProject.name, "Project name");
-  if (!Array.isArray(rawProject.schemas) || rawProject.schemas.length === 0)
+  validateRequiredString(cloned.name, "Project name");
+  if (!Array.isArray(cloned.schemas) || cloned.schemas.length === 0)
     throw new Error("Project must have at least one schema.");
 
-  const schemas = rawProject.schemas as unknown[];
-
-  // Normalize checkConstraints and triggers on tables for backward compatibility
-  schemas.forEach((schema) => {
-    if (isObject(schema) && Array.isArray(schema.tables)) {
-      schema.tables.forEach((table) => {
-        if (isObject(table) && !Array.isArray(table.checkConstraints)) {
-          table.checkConstraints = [];
-        }
-        if (isObject(table) && !Array.isArray(table.triggers)) {
-          table.triggers = [];
-        }
-      });
-    }
-  });
+  const schemas = cloned.schemas as unknown[];
 
   // Normalize functions for backward compatibility
-  if (!Array.isArray(rawProject.functions)) {
-    rawProject.functions = [];
-  }
-  const functions = rawProject.functions as unknown[];
+  const functions = Array.isArray(cloned.functions) ? cloned.functions : [];
 
   validateUniqueNames(
     schemas,
     "Project schemas",
-    (schema) => schema.name,
+    (schema) => (isObject(schema) && typeof schema.name === "string" ? schema.name : ""),
   );
-  schemas.forEach((schema) =>
+
+  // Validate and normalize schemas (which handles table checkConstraints and triggers)
+  const validatedSchemas = schemas.map((schema) =>
     validateSchema(schema, schemas),
   );
 
   // Validate functions and check signature uniqueness
   const signatures = new Set<string>();
   functions.forEach((fn: unknown) => {
-    validateDatabaseFunction(fn, schemas);
+    validateDatabaseFunction(fn, validatedSchemas);
     if (isObject(fn)) {
       const schemaId = String(fn.schemaId);
       const name = String(fn.name);
@@ -74,22 +62,24 @@ export function validateProject(project: unknown): DatabaseProject {
   });
 
   // Normalize views for backward compatibility
-  if (!Array.isArray(rawProject.views)) {
-    rawProject.views = [];
-  }
-  const views = rawProject.views as unknown[];
-  views.forEach((view: unknown) => {
-    validateDatabaseView(view, schemas);
+  const rawViews = Array.isArray(cloned.views) ? cloned.views : [];
+  const validatedViews = rawViews.map((view: unknown) => {
+    return validateDatabaseView(view, validatedSchemas);
   });
 
   // Normalize subjectAreas and textNotes for backward compatibility
-  if (!Array.isArray(rawProject.subjectAreas)) {
-    rawProject.subjectAreas = [];
-  }
-  if (!Array.isArray(rawProject.textNotes)) {
-    rawProject.textNotes = [];
-  }
+  const subjectAreas = Array.isArray(cloned.subjectAreas) ? cloned.subjectAreas : [];
+  const textNotes = Array.isArray(cloned.textNotes) ? cloned.textNotes : [];
 
-  validateDiagram(project);
-  return project as unknown as DatabaseProject;
+  const finalProject = {
+    ...cloned,
+    schemas: validatedSchemas,
+    functions,
+    views: validatedViews,
+    subjectAreas,
+    textNotes,
+  };
+
+  validateDiagram(finalProject);
+  return finalProject as unknown as DatabaseProject;
 }
