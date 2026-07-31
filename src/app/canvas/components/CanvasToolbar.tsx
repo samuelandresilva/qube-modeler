@@ -5,12 +5,14 @@ import {
   FolderOpen,
   FolderX,
   Grid2X2Plus,
+  Redo2,
   Save,
   SaveAll,
   Scan,
   ScanEye,
   Layers,
   StickyNote,
+  Undo2,
 } from "lucide-react";
 
 export type CanvasToolbarProps = {
@@ -34,6 +36,10 @@ export type CanvasToolbarProps = {
   onAddTextNote?: () => void;
   isAddingSubjectArea?: boolean;
   isAddingTextNote?: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 };
 
 export function CanvasToolbar({
@@ -56,6 +62,10 @@ export function CanvasToolbar({
   onAddTextNote,
   isAddingSubjectArea = false,
   isAddingTextNote = false,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }: CanvasToolbarProps) {
   return (
     <div className="canvas-toolbar">
@@ -115,6 +125,30 @@ export function CanvasToolbar({
           disabled={isFileOperationLoading}
         >
           <SaveAll size={18} strokeWidth={2.4} color="oklch(58.8% 0.158 241.966)" />
+        </button>
+
+        <div className="canvas-toolbar__separator" aria-hidden="true" />
+
+        <button
+          className="canvas-toolbar__icon-button"
+          type="button"
+          title="Undo (Ctrl+Z)"
+          aria-label="Undo"
+          onClick={onUndo}
+          disabled={!canUndo}
+        >
+          <Undo2 size={18} strokeWidth={2.4} />
+        </button>
+
+        <button
+          className="canvas-toolbar__icon-button"
+          type="button"
+          title="Redo (Ctrl+Y)"
+          aria-label="Redo"
+          onClick={onRedo}
+          disabled={!canRedo}
+        >
+          <Redo2 size={18} strokeWidth={2.4} />
         </button>
 
         <div className="canvas-toolbar__separator" aria-hidden="true" />

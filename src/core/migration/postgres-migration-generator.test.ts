@@ -1992,7 +1992,6 @@ describe("postgres-migration-generator", () => {
             events: ["INSERT"],
             functionId: "fn-1",
             forEach: "ROW",
-            comment: "View trigger comment",
           },
           {
             kind: "DROP_TRIGGER",

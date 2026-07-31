@@ -25,8 +25,8 @@ type Props = {
   onEditIndex?: (id: string) => void;
   onAddCheckConstraint?: () => void;
   onEditCheckConstraint?: (id: string) => void;
-  onAddTrigger: () => void;
-  onEditTrigger: (id: string) => void;
+  onAddTrigger?: () => void;
+  onEditTrigger?: (id: string) => void;
   schemas?: DatabaseSchema[];
   currentSchemaId?: string;
   onChangeSchema?: (schemaId: string) => void;
@@ -258,10 +258,10 @@ export function CanvasInspector({
           <select
             className="canvas-inspector__select"
             value={currentSchemaId}
-            onChange={(event) => onChangeSchema(event.target.value)}
-            disabled={schemas.length === 0}
+            onChange={(event) => onChangeSchema?.(event.target.value)}
+            disabled={!schemas || schemas.length === 0}
           >
-            {schemas.length === 0 ? (
+            {!schemas || schemas.length === 0 ? (
               <option value="">No schemas</option>
             ) : (
               schemas.map((s) => (
@@ -327,8 +327,8 @@ export function CanvasInspector({
             label: item.name,
             detail: `${item.eventTiming} ${item.events.join(" OR ")}`,
           }))}
-          onAdd={onAddTrigger}
-          onEdit={onEditTrigger}
+          onAdd={onAddTrigger ?? (() => {})}
+          onEdit={onEditTrigger ?? (() => {})}
         />
       </aside>
     );
@@ -358,10 +358,10 @@ export function CanvasInspector({
         <select
           className="canvas-inspector__select"
           value={currentSchemaId}
-          onChange={(event) => onChangeSchema(event.target.value)}
-          disabled={schemas.length === 0}
+          onChange={(event) => onChangeSchema?.(event.target.value)}
+          disabled={!schemas || schemas.length === 0}
         >
-          {schemas.length === 0 ? (
+          {!schemas || schemas.length === 0 ? (
              <option value="">No schemas</option>
           ) : (
             schemas.map((s) => (
@@ -487,8 +487,8 @@ export function CanvasInspector({
           label: item.name,
           detail: `${item.eventTiming} ${item.events.join(" OR ")}`,
         }))}
-        onAdd={onAddTrigger}
-        onEdit={onEditTrigger}
+        onAdd={onAddTrigger ?? (() => {})}
+        onEdit={onEditTrigger ?? (() => {})}
       />
       <InspectorSection
         title="Indexes"

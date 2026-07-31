@@ -21,6 +21,7 @@ type Args = {
   onUpdateSubjectAreaDimensions?: (id: string, width: number, height: number) => void;
   onUpdateTextNoteContent?: (id: string, content: string) => void;
   onUpdateTextNoteDimensions?: (id: string, width: number, height: number) => void;
+  onCommitHistory: (currentProject: DatabaseProject) => void;
 };
 
 export function useCanvasFlow({
@@ -32,6 +33,7 @@ export function useCanvasFlow({
   onUpdateSubjectAreaDimensions,
   onUpdateTextNoteContent,
   onUpdateTextNoteDimensions,
+  onCommitHistory,
 }: Args) {
   const instanceRef = useRef<ReactFlowInstance<ReactFlowNode> | null>(null);
   const [nodes, setNodes] = useNodesState<ReactFlowNode>([]);
@@ -82,6 +84,7 @@ export function useCanvasFlow({
   );
 
   const onNodeDragStop: OnNodeDrag<ReactFlowNode> = (_event, node) => {
+    onCommitHistory(project);
     if (node.type === "databaseView") {
       setProject((current) =>
         updateDatabaseView(current, node.id, (view) => ({

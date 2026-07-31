@@ -6,6 +6,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { useProjectHistory } from "@/app/canvas/hooks/useProjectHistory";
 
 import { Canvas } from "@/app/canvas/Canvas";
 import { ConfirmDialog } from "@/app/canvas/components/ConfirmDialog";
@@ -36,7 +37,6 @@ export default function App() {
     project: createEmptyProject(),
     filePath: null,
     flyway: { versions: [] },
-    // A new untouched project has no user changes to preserve yet.
     isDirty: false,
   }));
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -49,6 +49,8 @@ export default function App() {
   const fileOperationInProgressRef = useRef(false);
   const { confirm, requestConfirm, dismissConfirm, acceptConfirm } =
     useConfirm();
+  const { commitHistory, undo, redo, canUndo, canRedo, clearHistory } =
+    useProjectHistory();
 
   const beginFileOperation = useCallback((message: string): boolean => {
     if (fileOperationInProgressRef.current) return false;
@@ -74,7 +76,24 @@ export default function App() {
     [],
   );
 
+  const handleUndo = useCallback(() => {
+    setOpenedProject((current) => {
+      const previous = undo(current.project);
+      if (previous === null) return current;
+      return { ...current, project: previous, isDirty: true };
+    });
+  }, [undo]);
+
+  const handleRedo = useCallback(() => {
+    setOpenedProject((current) => {
+      const next = redo(current.project);
+      if (next === null) return current;
+      return { ...current, project: next, isDirty: true };
+    });
+  }, [redo]);
+
   const createNewProject = useCallback(() => {
+    clearHistory();
     setOpenedProject({
       project: createEmptyProject(),
       filePath: null,
@@ -82,7 +101,7 @@ export default function App() {
       isDirty: false,
     });
     setView("canvas");
-  }, []);
+  }, [clearHistory]);
 
   const handleNewProject = useCallback(() => {
     if (!openedProject.isDirty) {
@@ -113,6 +132,7 @@ export default function App() {
         setErrorMessage(result.error);
         return;
       }
+      clearHistory();
       setOpenedProject({
         project: result.project,
         filePath: result.filePath,
@@ -129,7 +149,7 @@ export default function App() {
     } finally {
       finishFileOperation();
     }
-  }, [beginFileOperation, finishFileOperation]);
+  }, [beginFileOperation, finishFileOperation, clearHistory]);
 
   const handleOpenProject = useCallback(() => {
     if (!openedProject.isDirty) {
@@ -250,6 +270,8 @@ export default function App() {
     handleOpenProject,
     handleSaveProject,
     handleSaveProjectAs,
+    handleUndo,
+    handleRedo,
   });
 
   useEffect(() => {
@@ -257,12 +279,20 @@ export default function App() {
       handleOpenProject,
       handleSaveProject,
       handleSaveProjectAs,
+      handleUndo,
+      handleRedo,
     };
-  }, [handleOpenProject, handleSaveProject, handleSaveProjectAs]);
+  }, [handleOpenProject, handleSaveProject, handleSaveProjectAs, handleUndo, handleRedo]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) return;
+
+      const target = document.activeElement;
+      const isEditing =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable);
 
       const key = event.key.toLowerCase();
       if (key === "s") {
@@ -273,6 +303,12 @@ export default function App() {
       } else if (key === "o" && !event.shiftKey) {
         event.preventDefault();
         void handlersRef.current.handleOpenProject();
+      } else if (key === "z" && !event.shiftKey && !isEditing) {
+        event.preventDefault();
+        handlersRef.current.handleUndo();
+      } else if ((key === "y" || (key === "z" && event.shiftKey)) && !isEditing) {
+        event.preventDefault();
+        handlersRef.current.handleRedo();
       }
     };
 
@@ -336,6 +372,7 @@ export default function App() {
           );
           return;
         }
+        clearHistory();
         setOpenedProject({
           project: result.project,
           filePath: result.filePath,
@@ -361,7 +398,7 @@ export default function App() {
     } else {
       await loadProject();
     }
-  }, [openedProject.isDirty, beginFileOperation, finishFileOperation, requestConfirm]);
+  }, [openedProject.isDirty, beginFileOperation, finishFileOperation, requestConfirm, clearHistory]);
 
   const handleOpenRecentProject = useCallback(async (filePath: string) => {
     await handleOpenProjectFile(filePath);
@@ -401,6 +438,7 @@ export default function App() {
 
   const handleCloseProject = useCallback(() => {
     const performClose = () => {
+      clearHistory();
       setOpenedProject({
         project: createEmptyProject(),
         filePath: null,
@@ -419,7 +457,7 @@ export default function App() {
     } else {
       performClose();
     }
-  }, [openedProject.isDirty, requestConfirm]);
+  }, [openedProject.isDirty, requestConfirm, clearHistory]);
 
   const handleConfirmMigration = useCallback((newVersion: QbmFlywayVersion) => {
     setOpenedProject((current) => ({
@@ -468,6 +506,11 @@ export default function App() {
             finishFileOperation={finishFileOperation}
             onFileOperationError={setErrorMessage}
             onViewFlyway={() => setView("flyway")}
+            onCommitHistory={commitHistory}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
           />
         ) : (
           <FlywayMigrationsScreen

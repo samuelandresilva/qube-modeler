@@ -52,6 +52,7 @@ type Props = {
   setProject: Dispatch<SetStateAction<DatabaseProject>>;
   selectedTableId: string | null;
   requestConfirm: (message: string, onConfirm: () => void) => void;
+  onCommitHistory: (currentProject: DatabaseProject) => void;
 };
 
 export function CanvasDialogs({
@@ -61,6 +62,7 @@ export function CanvasDialogs({
   setProject,
   selectedTableId,
   requestConfirm,
+  onCommitHistory,
 }: Props) {
   if (!dialog) return null;
   const close = () => setDialog(null);
@@ -78,6 +80,7 @@ export function CanvasDialogs({
         existingNames={project.schemas.map((item) => item.name)}
         onClose={close}
         onSubmit={(name, comment) => {
+          onCommitHistory(project);
           setProject((current) =>
             schema
               ? updateSchema(current, schema.id, (item) => ({ ...item, name, comment }))
@@ -102,6 +105,7 @@ export function CanvasDialogs({
         existingNames={schema.sequences.map((item) => item.name)}
         onClose={close}
         onSubmit={(input) => {
+          onCommitHistory(project);
           setProject((current) =>
             sequence
               ? updateSequence(current, schema.id, sequence.id, (item) => ({
@@ -129,6 +133,7 @@ export function CanvasDialogs({
         initialSchemaId={schema.id}
         onClose={close}
         onSubmit={(input) => {
+          onCommitHistory(project);
           setProject((current) =>
             databaseFunction
               ? updateDatabaseFunction(current, databaseFunction.id, input)
@@ -163,6 +168,7 @@ export function CanvasDialogs({
         viewName={viewCtx.view.name}
         onClose={close}
         onSubmit={(value) => {
+          onCommitHistory(project);
           setProject((current) =>
             updateDatabaseView(current, viewCtx.view.id, (view) => ({
               ...view,
@@ -192,6 +198,7 @@ export function CanvasDialogs({
         current={trigger}
         onClose={close}
         onSubmit={(input) => {
+          onCommitHistory(project);
           setProject((current) =>
             trigger
               ? updateViewTrigger(current, viewCtx.view.id, trigger.id, (item) => ({ ...item, ...input }))
@@ -224,6 +231,7 @@ export function CanvasDialogs({
         )}
         onClose={close}
         onSubmit={(input) => {
+          onCommitHistory(project);
           setProject((current) =>
             column
               ? updateColumn(
@@ -276,6 +284,7 @@ export function CanvasDialogs({
         foreignKey={foreignKey}
         onClose={close}
         onSubmit={(input) => {
+          onCommitHistory(project);
           setProject((current) =>
             foreignKey
               ? updateForeignKey(
@@ -328,6 +337,7 @@ export function CanvasDialogs({
         current={constraint}
         onClose={close}
         onSubmit={(input) => {
+          onCommitHistory(project);
           setProject((current) =>
             constraint
               ? updateUniqueConstraint(
@@ -379,6 +389,7 @@ export function CanvasDialogs({
         current={constraint}
         onClose={close}
         onSubmit={(input) => {
+          onCommitHistory(project);
           setProject((current) =>
             constraint
               ? updateCheckConstraint(
@@ -435,6 +446,7 @@ export function CanvasDialogs({
         current={trigger}
         onClose={close}
         onSubmit={(input) => {
+          onCommitHistory(project);
           setProject((current) =>
             trigger
               ? updateTrigger(
@@ -487,6 +499,7 @@ export function CanvasDialogs({
       current={index}
       onClose={close}
       onSubmit={(input) => {
+        onCommitHistory(project);
         setProject((current) =>
           index
             ? updateIndex(

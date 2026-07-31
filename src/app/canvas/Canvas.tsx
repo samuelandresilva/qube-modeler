@@ -63,6 +63,11 @@ type CanvasProps = {
   finishFileOperation: () => void;
   onFileOperationError: (message: string) => void;
   onViewFlyway?: () => void;
+  onCommitHistory: (currentProject: DatabaseProject) => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 };
 const nodeTypes = {
   databaseTable: DatabaseTableNode,
@@ -102,6 +107,11 @@ function CanvasContent({
   finishFileOperation,
   onFileOperationError,
   onViewFlyway,
+  onCommitHistory,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }: CanvasProps) {
   const { screenToFlowPosition } = useReactFlow();
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
@@ -174,6 +184,7 @@ function CanvasContent({
     onUpdateSubjectAreaDimensions: handleUpdateSubjectAreaDimensions,
     onUpdateTextNoteContent: handleUpdateTextNoteContent,
     onUpdateTextNoteDimensions: handleUpdateTextNoteDimensions,
+    onCommitHistory,
   });
 
   useEffect(() => {
@@ -257,6 +268,7 @@ function CanvasContent({
         x: event.clientX,
         y: event.clientY,
       });
+      onCommitHistory(project);
       const result = createTable(project, activeSchemaId, position);
       setProject(result.project);
       setSelectedTableId(result.id);
@@ -277,6 +289,7 @@ function CanvasContent({
         x: event.clientX,
         y: event.clientY,
       });
+      onCommitHistory(project);
       const result = createDatabaseView(project, activeSchemaId, position);
       setProject(result.project);
       setSelectedTableId(result.id);
@@ -286,6 +299,7 @@ function CanvasContent({
         x: event.clientX,
         y: event.clientY,
       });
+      onCommitHistory(project);
       setProject((current) =>
         createSubjectArea(current, {
           name: "New Subject Area",
@@ -301,6 +315,7 @@ function CanvasContent({
         x: event.clientX,
         y: event.clientY,
       });
+      onCommitHistory(project);
       setProject((current) =>
         createTextNote(current, {
           content: "New Text Note\nDouble-click to edit me!",
@@ -315,11 +330,12 @@ function CanvasContent({
       setSelectedTableId(null);
     }
   };
-  const deleteTable = (schemaId: string, tableId: string) => {
+  const deleteTable = useCallback((schemaId: string, tableId: string) => {
     const schema = project.schemas.find((item) => item.id === schemaId);
     const table = schema?.tables.find((item) => item.id === tableId);
     if (!schema || !table) return;
     requestConfirm(`Remove table "${table.name}"?`, () => {
+      onCommitHistory(project);
       setProject((current) =>
         removeTable(current, schema.id, table.id),
       );
@@ -328,24 +344,93 @@ function CanvasContent({
         setDialog(null);
       }
     });
-  };
-  const deleteView = (_schemaId: string, viewId: string) => {
+  }, [project, requestConfirm, onCommitHistory, setProject, selectedTableId]);
+  const deleteView = useCallback((_schemaId: string, viewId: string) => {
     const view = project.views?.find((v) => v.id === viewId);
     if (!view) return;
     requestConfirm(`Remove view "${view.name}"?`, () => {
+      onCommitHistory(project);
       setProject((current) => removeDatabaseView(current, viewId));
       if (selectedTableId === viewId) {
         setSelectedTableId(null);
         setDialog(null);
       }
     });
-  };
+  }, [project, requestConfirm, onCommitHistory, setProject, selectedTableId]);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (!selectedTableId) return;
+
+    const subjectArea = (project.subjectAreas ?? []).find((a) => a.id === selectedTableId);
+    if (subjectArea) {
+      requestConfirm(
+        `Remove subject area "${subjectArea.name}"? Tables inside will not be deleted.`,
+        () => {
+          onCommitHistory(project);
+          setProject((current) => removeSubjectArea(current, selectedTableId));
+          setSelectedTableId(null);
+        },
+      );
+      return;
+    }
+
+    const textNote = (project.textNotes ?? []).find((n) => n.id === selectedTableId);
+    if (textNote) {
+      requestConfirm("Remove text note?", () => {
+        onCommitHistory(project);
+        setProject((current) => removeTextNote(current, selectedTableId));
+        setSelectedTableId(null);
+      });
+      return;
+    }
+
+    const viewCtx = findViewContext(project, selectedTableId);
+    if (viewCtx) {
+      deleteView(viewCtx.schema.id, selectedTableId);
+      return;
+    }
+
+    const tableCtx = findTableContext(project, selectedTableId);
+    if (tableCtx) {
+      deleteTable(tableCtx.schema.id, selectedTableId);
+    }
+  }, [
+    selectedTableId,
+    project,
+    requestConfirm,
+    onCommitHistory,
+    setProject,
+    setSelectedTableId,
+    deleteView,
+    deleteTable,
+  ]);
+
+  useEffect(() => {
+    const handleDeleteKey = (event: KeyboardEvent) => {
+      if (event.key !== "Delete") return;
+
+      const target = document.activeElement;
+      const isEditing =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable);
+      if (isEditing) return;
+
+      handleDeleteSelected();
+    };
+
+    window.addEventListener("keydown", handleDeleteKey);
+    return () => window.removeEventListener("keydown", handleDeleteKey);
+  }, [handleDeleteSelected]);
+
   const deleteSchema = (schemaId: string) => {
     const schema = project.schemas.find((item) => item.id === schemaId);
     if (!schema) return;
     requestConfirm(
       `Remove schema "${schema.name}"? This will remove its tables and sequences.`,
       () => {
+        onCommitHistory(project);
         setProject((current) => removeSchema(current, schemaId));
         if (
           selectedTableId &&
@@ -361,6 +446,7 @@ function CanvasContent({
     const sequence = schema?.sequences.find((item) => item.id === sequenceId);
     if (!sequence) return;
     requestConfirm(`Remove sequence "${sequence.name}"?`, () => {
+      onCommitHistory(project);
       setProject((current) => removeSequence(current, schemaId, sequenceId));
       setDialog(null);
     });
@@ -369,6 +455,7 @@ function CanvasContent({
     const fn = (project.functions ?? []).find((item) => item.id === functionId);
     if (!fn) return;
     requestConfirm(`Remove function "${fn.name}"?`, () => {
+      onCommitHistory(project);
       setProject((current) => removeDatabaseFunction(current, functionId));
     });
   };
@@ -444,6 +531,10 @@ function CanvasContent({
           onAddTextNote={toggleAddTextNoteMode}
           isAddingSubjectArea={isAddingSubjectArea}
           isAddingTextNote={isAddingTextNote}
+          onUndo={onUndo}
+          onRedo={onRedo}
+          canUndo={canUndo}
+          canRedo={canRedo}
         />
         {context && (
           <CanvasInspector
@@ -664,6 +755,7 @@ function CanvasContent({
           setProject={setProject}
           selectedTableId={selectedTableId}
           requestConfirm={requestConfirm}
+          onCommitHistory={onCommitHistory}
         />
         {confirm && (
           <ConfirmDialog
@@ -680,19 +772,6 @@ function CanvasContent({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onNodeDragStop={flow.onNodeDragStop}
-          onNodesDelete={(deletedNodes) => {
-            setProject((current) => {
-              let updated = current;
-              for (const node of deletedNodes) {
-                if (node.type === "subjectArea") {
-                  updated = removeSubjectArea(updated, node.id);
-                } else if (node.type === "textNote") {
-                  updated = removeTextNote(updated, node.id);
-                }
-              }
-              return updated;
-            });
-          }}
           onNodeClick={(_, node) => {
             if (isAddingTable) {
               setIsAddingTable(false);
@@ -717,6 +796,7 @@ function CanvasContent({
           defaultEdgeOptions={defaultEdgeOptions}
           onNodesChange={flow.onNodesChange}
           onEdgesChange={flow.onEdgesChange}
+          deleteKeyCode={null}
           nodesConnectable={false}
           elementsSelectable
           fitView
