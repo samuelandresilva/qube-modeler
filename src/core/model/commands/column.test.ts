@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { moveColumn } from "./column";
+import { createColumn, moveColumn, updateColumn } from "./column";
 import {
   createProjectFixture,
   createSchemaFixture,
@@ -40,5 +40,46 @@ describe("column model commands", () => {
     // Move c1 up (already at top, should do nothing)
     const projectNoOp = moveColumn(project, "s1", "t1", "c1", "up");
     expect(projectNoOp).toEqual(project);
+  });
+
+  it("creates and updates column with isArray property", () => {
+    const table = createTableFixture({
+      id: "t1",
+      name: "tb_items",
+      columns: [],
+    });
+    const schema = createSchemaFixture({
+      id: "s1",
+      name: "public",
+      tables: [table],
+    });
+    const project = createProjectFixture({
+      schemas: [schema],
+    });
+
+    const createRes = createColumn(project, "s1", "t1", {
+      name: "tags",
+      type: "varchar",
+      size: 50,
+      isArray: true,
+      nullable: true,
+      primaryKey: false,
+    });
+
+    const createdCol = createRes.project.schemas[0].tables[0].columns[0];
+    expect(createdCol.name).toBe("tags");
+    expect(createdCol.isArray).toBe(true);
+    expect(createdCol.type).toBe("varchar");
+
+    const updatedProject = updateColumn(
+      createRes.project,
+      "s1",
+      "t1",
+      createRes.id,
+      (col) => ({ ...col, isArray: false }),
+    );
+
+    const updatedCol = updatedProject.schemas[0].tables[0].columns[0];
+    expect(updatedCol.isArray).toBe(false);
   });
 });

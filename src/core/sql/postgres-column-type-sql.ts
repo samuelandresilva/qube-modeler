@@ -1,22 +1,32 @@
 import type { DatabaseColumn } from "@/core/model";
-import { supportsScale, supportsSize } from "./postgres-column-types";
+import {
+  getBaseType,
+  isArrayType,
+  supportsScale,
+  supportsSize,
+} from "./postgres-column-types";
 
 export function generatePostgresColumnTypeSql(column: DatabaseColumn): string {
-  if (supportsScale(column.type)) {
+  const baseType = getBaseType(column.type);
+  const isArray = Boolean(column.isArray || isArrayType(column.type));
+
+  let typeSql = baseType;
+  if (supportsScale(baseType)) {
     if (typeof column.size === "number" && typeof column.scale === "number") {
-      return `${column.type}(${column.size},${column.scale})`;
+      typeSql = `${baseType}(${column.size},${column.scale})`;
     }
-
-    return column.type;
-  }
-
-  if (supportsSize(column.type)) {
+  } else if (supportsSize(baseType)) {
     if (typeof column.size === "number") {
-      return `${column.type}(${column.size})`;
+      typeSql = `${baseType}(${column.size})`;
     }
-
-    return column.type;
   }
 
-  return column.type;
+  if (isArray) {
+    const match = column.type.match(/(\s*\[\s*\])+$/);
+    const brackets = match ? match[0].replace(/\s+/g, "") : "[]";
+    return `${typeSql}${brackets}`;
+  }
+
+  return typeSql;
 }
+

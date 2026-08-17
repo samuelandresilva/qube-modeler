@@ -690,5 +690,145 @@ describe("Project validation and backward compatibility", () => {
     expect(validated.textNotes).toBeDefined();
     expect(validated.textNotes).toEqual([]);
   });
+
+  describe("Column array types validation", () => {
+    it("accepts valid array column types (varchar[], integer[], text[], etc.) and isArray: true", () => {
+      const project = {
+        id: "proj-1",
+        engine: "postgresql",
+        name: "Test Project",
+        schemas: [
+          {
+            id: "schema-1",
+            name: "public",
+            sequences: [],
+            tables: [
+              {
+                id: "table-1",
+                name: "users",
+                columns: [
+                  {
+                    id: "col-1",
+                    name: "tags",
+                    type: "varchar[]",
+                    size: 100,
+                    nullable: true,
+                    primaryKey: false,
+                  },
+                  {
+                    id: "col-2",
+                    name: "scores",
+                    type: "integer",
+                    isArray: true,
+                    nullable: false,
+                    primaryKey: false,
+                  },
+                  {
+                    id: "col-3",
+                    name: "rates",
+                    type: "numeric[]",
+                    size: 10,
+                    scale: 2,
+                    nullable: true,
+                    primaryKey: false,
+                  },
+                ],
+                foreignKeys: [],
+                indexes: [],
+                uniqueConstraints: [],
+                checkConstraints: [],
+                triggers: [],
+              },
+            ],
+          },
+        ],
+        diagram: { tableNodes: [] },
+      };
+
+      const validated = validateProject(project);
+      expect(validated.schemas[0].tables[0].columns).toHaveLength(3);
+    });
+
+    it("rejects invalid column array base types", () => {
+      const project = {
+        id: "proj-1",
+        engine: "postgresql",
+        name: "Test Project",
+        schemas: [
+          {
+            id: "schema-1",
+            name: "public",
+            sequences: [],
+            tables: [
+              {
+                id: "table-1",
+                name: "users",
+                columns: [
+                  {
+                    id: "col-1",
+                    name: "data",
+                    type: "invalid_type[]",
+                    nullable: true,
+                    primaryKey: false,
+                  },
+                ],
+                foreignKeys: [],
+                indexes: [],
+                uniqueConstraints: [],
+                checkConstraints: [],
+                triggers: [],
+              },
+            ],
+          },
+        ],
+        diagram: { tableNodes: [] },
+      };
+
+      expect(() => validateProject(project)).toThrow(
+        'Column "data" type "invalid_type[]" is not supported.',
+      );
+    });
+
+    it("rejects isArray if not boolean", () => {
+      const project = {
+        id: "proj-1",
+        engine: "postgresql",
+        name: "Test Project",
+        schemas: [
+          {
+            id: "schema-1",
+            name: "public",
+            sequences: [],
+            tables: [
+              {
+                id: "table-1",
+                name: "users",
+                columns: [
+                  {
+                    id: "col-1",
+                    name: "scores",
+                    type: "integer",
+                    isArray: "yes" as unknown as boolean,
+                    nullable: true,
+                    primaryKey: false,
+                  },
+                ],
+                foreignKeys: [],
+                indexes: [],
+                uniqueConstraints: [],
+                checkConstraints: [],
+                triggers: [],
+              },
+            ],
+          },
+        ],
+        diagram: { tableNodes: [] },
+      };
+
+      expect(() => validateProject(project)).toThrow(
+        'Column "scores" isArray must be boolean.',
+      );
+    });
+  });
 });
 

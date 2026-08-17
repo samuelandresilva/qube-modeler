@@ -225,7 +225,12 @@ export function FunctionDialog({
 
   const selectedSchema = project.schemas.find((s) => s.id === schemaId);
 
-  const returnTypeOptions = ["trigger", "void", ...POSTGRES_COLUMN_TYPES];
+  const returnTypeOptions = [
+    "trigger",
+    "void",
+    ...POSTGRES_COLUMN_TYPES,
+    ...POSTGRES_COLUMN_TYPES.map((t) => `${t}[]`),
+  ];
 
   return (
     <CanvasModal
@@ -351,11 +356,20 @@ export function FunctionDialog({
                   style={{ flex: 1 }}
                 >
                   <option value="">Select data type</option>
-                  {POSTGRES_COLUMN_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
+                  <optgroup label="Scalar Types">
+                    {POSTGRES_COLUMN_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Array Types">
+                    {POSTGRES_COLUMN_TYPES.map((type) => (
+                      <option key={`${type}[]`} value={`${type}[]`}>
+                        {type}[]
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
 
                 <button

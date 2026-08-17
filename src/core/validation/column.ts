@@ -1,4 +1,5 @@
 import {
+  getBaseType,
   isPostgresColumnType,
   supportsScale,
   supportsSize,
@@ -26,6 +27,9 @@ export function validateColumn(
     throw new Error(
       `Column "${column.name}" type "${column.type}" is not supported.`,
     );
+  }
+  if (column.isArray !== undefined && typeof column.isArray !== "boolean") {
+    throw new Error(`Column "${column.name}" isArray must be boolean.`);
   }
   validateSizeAndScale(column);
   if (typeof column.nullable !== "boolean")
@@ -73,12 +77,13 @@ export function validateColumn(
 function validateSizeAndScale(column: Record<string, unknown>): void {
   const name = column.name as string;
   const type = column.type as string;
-  if (supportsSize(type)) {
+  const baseType = getBaseType(type);
+  if (supportsSize(baseType)) {
     if (!Number.isInteger(column.size) || (column.size as number) <= 0)
       throw new Error(`Column "${name}" size must be a positive integer.`);
   } else if (column.size !== undefined)
     throw new Error(`Column "${name}" type "${type}" does not support size.`);
-  if (supportsScale(type)) {
+  if (supportsScale(baseType)) {
     if (!Number.isInteger(column.scale) || (column.scale as number) < 0)
       throw new Error(
         `Column "${name}" scale must be zero or a positive integer.`,

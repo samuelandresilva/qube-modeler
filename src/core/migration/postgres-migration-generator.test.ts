@@ -2013,4 +2013,53 @@ describe("postgres-migration-generator", () => {
       expect(sql).toContain("DROP TRIGGER IF EXISTS trg_view_old ON public.v_active_users;");
     });
   });
+
+  describe("Column array migrations", () => {
+    it("generates correct ALTER COLUMN TYPE when changed to array type", () => {
+      const diff: ProjectDiff = {
+        operations: [
+          {
+            kind: "ALTER_COLUMN_TYPE",
+            risk: "warning",
+            schemaId: "s1",
+            schemaName: "public",
+            tableId: "t1",
+            tableName: "items",
+            columnId: "col-tags",
+            columnName: "tags",
+            oldType: "varchar",
+            newType: "varchar",
+          },
+        ],
+        unsupportedOperations: [],
+      };
+
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t1",
+                name: "items",
+                columns: [
+                  createColumnFixture({
+                    id: "col-tags",
+                    name: "tags",
+                    type: "varchar",
+                    size: 50,
+                    isArray: true,
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const sql = generatePostgresMigrationSql(diff, project);
+      expect(sql).toContain("ALTER TABLE public.items ALTER COLUMN tags TYPE varchar(50)[];");
+    });
+  });
 });

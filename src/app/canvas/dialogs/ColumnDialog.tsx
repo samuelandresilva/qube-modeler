@@ -1,8 +1,10 @@
 import { useState } from "react";
 import type { DatabaseColumn, DatabaseColumnInput } from "@/core/model";
 import {
+  getBaseType,
   getDefaultScale,
   getDefaultSize,
+  isArrayType,
   POSTGRES_COLUMN_TYPES,
   supportsScale,
   supportsSize,
@@ -31,7 +33,10 @@ export function ColumnDialog({
   onDelete,
 }: ColumnDialogProps) {
   const [name, setName] = useState(column?.name ?? "");
-  const [type, setType] = useState(column?.type ?? "bigint");
+  const [type, setType] = useState(column ? getBaseType(column.type) : "bigint");
+  const [isArray, setIsArray] = useState(
+    column?.isArray ?? (column ? isArrayType(column.type) : false),
+  );
   const [size, setSize] = useState<number | undefined>(column?.size);
   const [scale, setScale] = useState<number | undefined>(column?.scale);
   const [nullable, setNullable] = useState(column?.nullable ?? true);
@@ -69,8 +74,9 @@ export function ColumnDialog({
     onSubmit({
       name: normalizedName,
       type,
-      size,
-      scale,
+      isArray,
+      size: supportsSize(type) ? size : undefined,
+      scale: supportsScale(type) ? scale : undefined,
       nullable,
       primaryKey,
       defaultValue:
@@ -95,24 +101,37 @@ export function ColumnDialog({
             placeholder="column_name"
           />
         </label>
-        <label>
-          <span>Type</span>
-          <select
-            value={type}
-            onChange={(event) => {
-              const next = event.target.value;
-              setType(next);
-              setSize(getDefaultSize(next));
-              setScale(getDefaultScale(next));
-            }}
-          >
-            {POSTGRES_COLUMN_TYPES.map((item) => (
-              <option value={item} key={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div
+          className="canvas-modal-form__row"
+          style={{ gridTemplateColumns: "1fr auto", alignItems: "flex-end" }}
+        >
+          <label>
+            <span>Type</span>
+            <select
+              value={type}
+              onChange={(event) => {
+                const next = event.target.value;
+                setType(next);
+                setSize(getDefaultSize(next));
+                setScale(getDefaultScale(next));
+              }}
+            >
+              {POSTGRES_COLUMN_TYPES.map((item) => (
+                <option value={item} key={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="canvas-modal-checkbox" style={{ minWidth: "90px" }}>
+            <span>Array</span>
+            <input
+              type="checkbox"
+              checked={isArray}
+              onChange={(event) => setIsArray(event.target.checked)}
+            />
+          </label>
+        </div>
         <div className="canvas-modal-form__row">
           <label>
             <span>Size</span>

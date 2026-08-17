@@ -206,6 +206,43 @@ describe("project-diff", () => {
     );
   });
 
+  it("detects altering column to array (isArray change)", () => {
+    const before = createProjectFixture({
+      schemas: [
+        createSchemaFixture({
+          id: "s1",
+          tables: [
+            createTableFixture({
+              id: "t1",
+              columns: [createColumnFixture({ id: "c1", type: "integer", isArray: false })]
+            })
+          ]
+        })
+      ]
+    });
+    const after = createProjectFixture({
+      schemas: [
+        createSchemaFixture({
+          id: "s1",
+          tables: [
+            createTableFixture({
+              id: "t1",
+              columns: [createColumnFixture({ id: "c1", type: "integer", isArray: true })]
+            })
+          ]
+        })
+      ]
+    });
+
+    const diff = diffProjects(before, after);
+    expect(diff.operations).toContainEqual(
+      expect.objectContaining({
+        kind: "ALTER_COLUMN_TYPE",
+        columnId: "c1",
+      })
+    );
+  });
+
   it("detects altering column size (varchar expansion)", () => {
     const before = createProjectFixture({
       schemas: [

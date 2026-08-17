@@ -11,6 +11,32 @@ describe("postgres-generator", () => {
     expect(sql).toContain("CREATE SCHEMA IF NOT EXISTS my_schema;");
   });
 
+  it("generates columns with array types correctly", () => {
+    const project = createProjectFixture({
+      schemas: [
+        createSchemaFixture({
+          name: "public",
+          tables: [
+            createTableFixture({
+              name: "items",
+              columns: [
+                createColumnFixture({ name: "tags", type: "varchar", size: 50, isArray: true }),
+                createColumnFixture({ name: "scores", type: "integer", isArray: true }),
+                createColumnFixture({ name: "rates", type: "numeric", size: 10, scale: 2, isArray: true }),
+                createColumnFixture({ name: "labels", type: "text[]" }),
+              ]
+            })
+          ]
+        })
+      ]
+    });
+    const sql = generatePostgresSql(project);
+    expect(sql).toContain("tags varchar(50)[]");
+    expect(sql).toContain("scores integer[]");
+    expect(sql).toContain("rates numeric(10,2)[]");
+    expect(sql).toContain("labels text[]");
+  });
+
   it("generates CREATE SEQUENCE IF NOT EXISTS", () => {
     const project = createProjectFixture({
       schemas: [

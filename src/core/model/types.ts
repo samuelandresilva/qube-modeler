@@ -130,6 +130,7 @@ export interface DatabaseColumn {
   scale?: number;
   nullable: boolean;
   primaryKey: boolean;
+  isArray?: boolean;
   defaultValue?: string;
   sequenceName?: string;
   comment?: string;

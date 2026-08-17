@@ -403,7 +403,10 @@ export function diffProjects(
             }
 
             // 2. ALTER_COLUMN_TYPE
-            if (currCol.type !== prevCol.type) {
+            if (
+              currCol.type !== prevCol.type ||
+              Boolean(currCol.isArray) !== Boolean(prevCol.isArray)
+            ) {
               operations.push({
                 kind: "ALTER_COLUMN_TYPE",
                 risk: "warning",
@@ -421,6 +424,7 @@ export function diffProjects(
             // 3. ALTER_COLUMN_SIZE
             if (
               currCol.type === prevCol.type &&
+              Boolean(currCol.isArray) === Boolean(prevCol.isArray) &&
               (currCol.size !== prevCol.size || currCol.scale !== prevCol.scale)
             ) {
               let risk: "safe" | "warning" = "warning";
