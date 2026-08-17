@@ -11,6 +11,7 @@ import {
   Scan,
   ScanEye,
   Layers,
+  Magnet,
   StickyNote,
   Undo2,
 } from "lucide-react";
@@ -23,6 +24,8 @@ export type CanvasToolbarProps = {
   onSaveProjectAs: () => void;
   isFileOperationLoading: boolean;
   onFitView: () => void;
+  snapToGrid?: boolean;
+  onToggleSnapToGrid?: () => void;
   onAddTable: () => void;
   isAddingTable: boolean;
   onAddView: () => void;
@@ -50,6 +53,8 @@ export function CanvasToolbar({
   onSaveProjectAs,
   isFileOperationLoading,
   onFitView,
+  snapToGrid = true,
+  onToggleSnapToGrid,
   onAddTable,
   isAddingTable,
   onAddView,
@@ -184,6 +189,18 @@ export function CanvasToolbar({
         >
           <Scan size={17} strokeWidth={2.4} />
         </button>
+
+        {onToggleSnapToGrid && (
+          <button
+            className={`canvas-toolbar__icon-button ${snapToGrid ? "canvas-toolbar__button--active" : ""}`}
+            type="button"
+            title={snapToGrid ? "Disable grid alignment (snap to grid)" : "Enable grid alignment (snap to grid)"}
+            aria-label="Toggle snap to grid"
+            onClick={onToggleSnapToGrid}
+          >
+            <Magnet size={18} strokeWidth={2.4} color={snapToGrid ? "oklch(78% 0.18 190)" : "currentColor"} />
+          </button>
+        )}
 
         <button
           className={`canvas-toolbar__icon-button ${isAddingTable ? "canvas-toolbar__button--active" : ""}`}

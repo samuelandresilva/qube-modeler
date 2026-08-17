@@ -120,6 +120,7 @@ function CanvasContent({
   const [isAddingView, setIsAddingView] = useState(false);
   const [isAddingSubjectArea, setIsAddingSubjectArea] = useState(false);
   const [isAddingTextNote, setIsAddingTextNote] = useState(false);
+  const [snapToGrid, setSnapToGrid] = useState(true);
   const [selectedSchemaId, setSelectedSchemaId] = useState<string | null>(null);
   const { confirm, requestConfirm, dismissConfirm, acceptConfirm } =
     useConfirm();
@@ -522,6 +523,8 @@ function CanvasContent({
           onAddView={toggleAddViewMode}
           isAddingView={isAddingView}
           onFitView={flow.fitView}
+          snapToGrid={snapToGrid}
+          onToggleSnapToGrid={() => setSnapToGrid((prev) => !prev)}
           onExportJson={() => void download("json")}
           onGenerateSql={() => void download("sql")}
           schemas={project.schemas}
@@ -797,12 +800,14 @@ function CanvasContent({
           onNodesChange={flow.onNodesChange}
           onEdgesChange={flow.onEdgesChange}
           deleteKeyCode={null}
+          snapToGrid={snapToGrid}
+          snapGrid={[20, 20]}
           nodesConnectable={false}
           elementsSelectable
           fitView
           fitViewOptions={{ padding: 0.35, maxZoom: 0.85 }}
         >
-          <Background />
+          <Background gap={20} size={1} />
           <Controls showFitView={false} />
         </ReactFlow>
       </main>
