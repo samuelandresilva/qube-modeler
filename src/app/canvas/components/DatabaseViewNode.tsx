@@ -51,16 +51,29 @@ export function DatabaseViewNode({ data }: NodeProps) {
             {viewData.isMaterialized ? "MAT_VIEW" : "VIEW"}
           </span>
         </div>
-        <div className="database-table-card__title-row" style={{ marginTop: "4px" }}>
-          <span className="database-table-card__icon" style={{ background: "rgba(168, 85, 247, 0.15)", color: "#c084fc" }}>🗔</span>
-          <strong>{viewData.viewName}</strong>
+        <div className="database-table-card__title-row" style={{ marginTop: "4px", minWidth: 0 }}>
+          <span className="database-table-card__icon" style={{ background: "rgba(168, 85, 247, 0.15)", color: "#c084fc", flexShrink: 0 }}>🗔</span>
+          <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }} title={viewData.viewName}>
+            {viewData.viewName}
+          </strong>
         </div>
       </div>
 
-      <div className="database-table-card__columns" style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: "8px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--color-text-muted)" }}>
-          <Code2 size={14} style={{ color: "#c084fc" }} />
-          <span style={{ fontSize: "12px", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "240px" }}>
+      <div className="database-table-card__columns" style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: "8px", minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--color-text-muted)", minWidth: 0 }}>
+          <Code2 size={14} style={{ color: "#c084fc", flexShrink: 0 }} />
+          <span
+            style={{
+              fontSize: "12px",
+              fontFamily: "monospace",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              minWidth: 0,
+              flex: 1,
+            }}
+            title={viewData.definition}
+          >
             {viewData.definition.substring(0, 45)}...
           </span>
         </div>

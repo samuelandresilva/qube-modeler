@@ -28,7 +28,7 @@ export const DatabaseTableNode = memo(function DatabaseTableNode({ id, data }: N
         </div>
         <div className="database-table-card__title-row">
           <span className="database-table-card__icon">▦</span>
-          <strong>{tableData.tableName}</strong>
+          <strong title={tableData.tableName}>{tableData.tableName}</strong>
         </div>
       </div>
 
@@ -56,12 +56,15 @@ export const DatabaseTableNode = memo(function DatabaseTableNode({ id, data }: N
               className="database-table-card__column-handle database-table-card__column-handle--left"
             />
 
-            <span className="database-table-card__column-name">
+            <span className="database-table-card__column-name" title={column.name}>
                {column.primaryKey ? "🔑 " : "🔹 "}
               {column.name}
             </span>
 
-            <span className="database-table-card__column-type">
+            <span
+              className="database-table-card__column-type"
+              title={`${column.type}${!column.nullable ? " not null" : ""}`}
+            >
               {column.type}
               {!column.nullable ? " not null" : ""}
             </span>
