@@ -73,12 +73,15 @@
 .canvas-modal__body {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 18px;
 }
 .canvas-modal-form {
   display: grid;
   gap: 14px;
+  min-width: 0;
+  max-width: 100%;
 }
 .canvas-modal-form__row {
   display: grid;

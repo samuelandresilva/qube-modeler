@@ -390,7 +390,16 @@ export function FunctionDialog({
           </div>
         )}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+            width: "100%",
+            minWidth: 0,
+            maxWidth: "100%",
+          }}
+        >
           <span style={{ fontWeight: "bold", fontSize: "14px", color: "#cbd5e1" }}>Body</span>
           <SqlEditor
             value={body}

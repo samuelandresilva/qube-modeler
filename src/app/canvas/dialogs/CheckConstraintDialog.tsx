@@ -79,7 +79,16 @@ export function CheckConstraintDialog({
             placeholder="chk_table_column"
           />
         </label>
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+            width: "100%",
+            minWidth: 0,
+            maxWidth: "100%",
+          }}
+        >
           <span style={{ color: "var(--color-text-muted)", fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>
             Expression
           </span>
