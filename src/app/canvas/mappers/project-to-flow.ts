@@ -48,7 +48,7 @@ export function mapProjectToFlow(
     };
   });
 
-  const edges: Edge[] = tables.flatMap(({ table }) =>
+  const rawEdges = tables.flatMap(({ schema, table }) =>
     table.foreignKeys.map((foreignKey) => {
       const targetTableId = findTableIdByName(
         project,
@@ -61,18 +61,56 @@ export function mapProjectToFlow(
       return {
         id: foreignKey.id,
         source: table.id,
-        sourceHandle: `${foreignKey.sourceColumns[0]}-source-right`,
+        sourceSchema: schema.name,
+        sourceTable: table.name,
+        sourceColumn: foreignKey.sourceColumns[0] ?? "",
         target: targetTableId,
-        targetHandle: `${foreignKey.targetColumns[0]}-target-right`,
-        label: `${foreignKey.sourceColumns[0]} → ${foreignKey.targetColumns[0]}`,
-        animated: false,
-        type: "smart",
-        data: {
-          ...existingEdge?.data,
-        },
+        targetSchema: foreignKey.targetSchema,
+        targetTable: foreignKey.targetTable,
+        targetColumn: foreignKey.targetColumns[0] ?? "",
+        fkName: foreignKey.name,
+        existingData: existingEdge?.data,
       };
     }),
   );
+
+  const pairCounts = new Map<string, number>();
+  const pairIndices = new Map<string, number>();
+
+  rawEdges.forEach((e) => {
+    const key = [e.source, e.target].sort().join("::");
+    pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
+  });
+
+  const edges: Edge[] = rawEdges.map((e) => {
+    const key = [e.source, e.target].sort().join("::");
+    const edgeIndex = pairIndices.get(key) ?? 0;
+    pairIndices.set(key, edgeIndex + 1);
+    const totalInGroup = pairCounts.get(key) ?? 1;
+
+    return {
+      id: e.id,
+      source: e.source,
+      sourceHandle: `${e.sourceColumn}-source-right`,
+      target: e.target,
+      targetHandle: `${e.targetColumn}-target-right`,
+      label: `${e.sourceColumn} → ${e.targetColumn}`,
+      animated: false,
+      type: "smart",
+      data: {
+        ...e.existingData,
+        sourceSchema: e.sourceSchema,
+        sourceTable: e.sourceTable,
+        sourceColumn: e.sourceColumn,
+        targetSchema: e.targetSchema,
+        targetTable: e.targetTable,
+        targetColumn: e.targetColumn,
+        fkName: e.fkName,
+        edgeIndex,
+        totalInGroup,
+      },
+    };
+  });
 
   const viewNodes: Node[] = (project.views ?? []).map((view, index) => {
     const schema = project.schemas.find((s) => s.id === view.schemaId);
