@@ -2,7 +2,14 @@ import type { Edge, Node } from "@xyflow/react";
 import type { DatabaseProject } from "@/core/model";
 import { generatePostgresColumnTypeSql } from "@/core/sql/postgres-column-type-sql";
 
-export function mapProjectToFlow(project: DatabaseProject): {
+export function mapProjectToFlow(
+  project: DatabaseProject,
+  onDoubleClickColumn?: (tableId: string, columnId: string) => void,
+  currentEdges?: Edge[],
+  onUpdateSubjectAreaDimensions?: (id: string, width: number, height: number) => void,
+  onUpdateTextNoteContent?: (id: string, content: string) => void,
+  onUpdateTextNoteDimensions?: (id: string, width: number, height: number) => void,
+): {
   nodes: Node[];
   edges: Edge[];
 } {
@@ -13,7 +20,7 @@ export function mapProjectToFlow(project: DatabaseProject): {
     })),
   );
 
-  const nodes: Node[] = tables.map(({ table }, index) => {
+  const nodes: Node[] = tables.map(({ schema, table }, index) => {
     const tableNode = project.diagram.tableNodes.find(
       (currentTableNode) => currentTableNode.tableId === table.id,
     );
@@ -21,13 +28,17 @@ export function mapProjectToFlow(project: DatabaseProject): {
     return {
       id: table.id,
       type: "databaseTable",
+      parentId: table.subjectAreaId,
       position: tableNode?.position ?? {
         x: 120 + index * 360,
         y: 120,
       },
       data: {
         tableName: table.name,
+        schemaName: schema.name,
+        onDoubleClickColumn: onDoubleClickColumn,
         columns: table.columns.map((column) => ({
+          id: column.id,
           name: column.name,
           type: generatePostgresColumnTypeSql(column),
           primaryKey: column.primaryKey,
@@ -37,50 +48,149 @@ export function mapProjectToFlow(project: DatabaseProject): {
     };
   });
 
-  const edges: Edge[] = tables.flatMap(({ table }) =>
+  const rawEdges = tables.flatMap(({ schema, table }) =>
     table.foreignKeys.map((foreignKey) => {
-      const sourceTableNode = project.diagram.tableNodes.find(
-        (tableNode) => tableNode.tableId === table.id,
-      );
-
       const targetTableId = findTableIdByName(
         project,
         foreignKey.targetSchema,
         foreignKey.targetTable,
       );
 
-      const targetTableNode = project.diagram.tableNodes.find(
-        (tableNode) => tableNode.tableId === targetTableId,
-      );
+      const existingEdge = currentEdges?.find((e) => e.id === foreignKey.id);
 
-      const sourceIsLeftOfTarget =
-        (sourceTableNode?.position.x ?? 0) <=
-        (targetTableNode?.position.x ?? 0);
-
-      const sourceSide = sourceIsLeftOfTarget ? "right" : "left";
-      const targetSide = sourceIsLeftOfTarget ? "left" : "right";
+      const sourceColStr =
+        foreignKey.sourceColumns.length > 1
+          ? `(${foreignKey.sourceColumns.join(", ")})`
+          : foreignKey.sourceColumns[0] ?? "";
+      const targetColStr =
+        foreignKey.targetColumns.length > 1
+          ? `(${foreignKey.targetColumns.join(", ")})`
+          : foreignKey.targetColumns[0] ?? "";
 
       return {
         id: foreignKey.id,
         source: table.id,
-        sourceHandle: `${foreignKey.sourceColumns[0]}-source-${sourceSide}`,
+        sourceSchema: schema.name,
+        sourceTable: table.name,
+        sourceColumn: foreignKey.sourceColumns[0] ?? "",
+        sourceColumns: foreignKey.sourceColumns,
+        sourceColStr,
         target: targetTableId,
-        targetHandle: `${foreignKey.targetColumns[0]}-target-${targetSide}`,
-        label: `${foreignKey.sourceColumns[0]} → ${foreignKey.targetColumns[0]}`,
-        animated: false,
+        targetSchema: foreignKey.targetSchema,
+        targetTable: foreignKey.targetTable,
+        targetColumn: foreignKey.targetColumns[0] ?? "",
+        targetColumns: foreignKey.targetColumns,
+        targetColStr,
+        fkName: foreignKey.name,
+        existingData: existingEdge?.data,
       };
     }),
   );
 
+  const pairCounts = new Map<string, number>();
+  const pairIndices = new Map<string, number>();
+
+  rawEdges.forEach((e) => {
+    const key = [e.source, e.target].sort().join("::");
+    pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
+  });
+
+  const edges: Edge[] = rawEdges.map((e) => {
+    const key = [e.source, e.target].sort().join("::");
+    const edgeIndex = pairIndices.get(key) ?? 0;
+    pairIndices.set(key, edgeIndex + 1);
+    const totalInGroup = pairCounts.get(key) ?? 1;
+
+    return {
+      id: e.id,
+      source: e.source,
+      sourceHandle: `${e.sourceColumn}-source-right`,
+      target: e.target,
+      targetHandle: `${e.targetColumn}-target-right`,
+      label: `${e.sourceColStr} → ${e.targetColStr}`,
+      animated: false,
+      type: "smart",
+      data: {
+        ...e.existingData,
+        sourceSchema: e.sourceSchema,
+        sourceTable: e.sourceTable,
+        sourceColumn: e.sourceColumn,
+        sourceColumns: e.sourceColumns,
+        sourceColStr: e.sourceColStr,
+        targetSchema: e.targetSchema,
+        targetTable: e.targetTable,
+        targetColumn: e.targetColumn,
+        targetColumns: e.targetColumns,
+        targetColStr: e.targetColStr,
+        fkName: e.fkName,
+        edgeIndex,
+        totalInGroup,
+      },
+    };
+  });
+
+  const viewNodes: Node[] = (project.views ?? []).map((view, index) => {
+    const schema = project.schemas.find((s) => s.id === view.schemaId);
+    return {
+      id: view.id,
+      type: "databaseView",
+      position: {
+        x: view.x ?? (120 + index * 360),
+        y: view.y ?? 240,
+      },
+      data: {
+        viewId: view.id,
+        viewName: view.name,
+        schemaName: schema?.name ?? "public",
+        definition: view.definition ?? "",
+        isMaterialized: view.isMaterialized,
+        triggerCount: view.triggers?.length ?? 0,
+        triggersCount: view.triggers?.length ?? 0,
+      },
+    };
+  });
+
+  const subjectAreaNodes: Node[] = (project.subjectAreas ?? []).map((area) => ({
+    id: area.id,
+    type: "subjectArea",
+    position: area.position,
+    style: { width: area.width, height: area.height },
+    zIndex: -1,
+    data: {
+      id: area.id,
+      label: area.name,
+      color: area.color,
+      width: area.width,
+      height: area.height,
+      onChangeDimensions: onUpdateSubjectAreaDimensions,
+    },
+  }));
+
+  const textNoteNodes: Node[] = (project.textNotes ?? []).map((note) => ({
+    id: note.id,
+    type: "textNote",
+    position: note.position,
+    style: { width: note.width, height: note.height },
+    data: {
+      id: note.id,
+      content: note.content,
+      color: note.color,
+      width: note.width,
+      height: note.height,
+      onChangeContent: onUpdateTextNoteContent,
+      onChangeDimensions: onUpdateTextNoteDimensions,
+    },
+  }));
+
   return {
-    nodes,
+    nodes: [...nodes, ...viewNodes, ...subjectAreaNodes, ...textNoteNodes],
     edges,
   };
 }
 
 export function mapProjectToFlowEdges(
   project: DatabaseProject,
-  nodes: Node[],
+  currentEdges?: Edge[],
 ): Edge[] {
   const tables = project.schemas.flatMap((schema) =>
     schema.tables.map((table) => ({
@@ -91,30 +201,26 @@ export function mapProjectToFlowEdges(
 
   return tables.flatMap(({ table }) =>
     table.foreignKeys.map((foreignKey) => {
-      const sourceNode = nodes.find((node) => node.id === table.id);
-
       const targetTableId = findTableIdByName(
         project,
         foreignKey.targetSchema,
         foreignKey.targetTable,
       );
 
-      const targetNode = nodes.find((node) => node.id === targetTableId);
-
-      const sourceIsLeftOfTarget =
-        (sourceNode?.position.x ?? 0) <= (targetNode?.position.x ?? 0);
-
-      const sourceSide = sourceIsLeftOfTarget ? "right" : "left";
-      const targetSide = sourceIsLeftOfTarget ? "left" : "right";
+      const existingEdge = currentEdges?.find((e) => e.id === foreignKey.id);
 
       return {
         id: foreignKey.id,
         source: table.id,
-        sourceHandle: `${foreignKey.sourceColumns[0]}-source-${sourceSide}`,
+        sourceHandle: `${foreignKey.sourceColumns[0]}-source-right`,
         target: targetTableId,
-        targetHandle: `${foreignKey.targetColumns[0]}-target-${targetSide}`,
+        targetHandle: `${foreignKey.targetColumns[0]}-target-right`,
         label: `${foreignKey.sourceColumns[0]} → ${foreignKey.targetColumns[0]}`,
         animated: false,
+        type: "smart",
+        data: {
+          ...existingEdge?.data,
+        },
       };
     }),
   );

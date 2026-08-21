@@ -7,3 +7,6 @@ export * from "./commands/table";
 export * from "./commands/column";
 export * from "./commands/constraints";
 export * from "./commands/diagram";
+export * from "./commands/function";
+export * from "./commands/view";
+export * from "./commands/subject-area-and-note";

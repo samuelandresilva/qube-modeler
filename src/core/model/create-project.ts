@@ -14,5 +14,9 @@ export function createEmptyProject(): DatabaseProject {
       },
     ],
     diagram: { tableNodes: [] },
+    functions: [],
+    views: [],
+    subjectAreas: [],
+    textNotes: [],
   };
 }

@@ -18,6 +18,14 @@ export const POSTGRES_COLUMN_TYPES = [
 
 export type PostgresColumnType = (typeof POSTGRES_COLUMN_TYPES)[number];
 
+export function isArrayType(columnType: string): boolean {
+  return /\[\]$/.test(columnType.trim());
+}
+
+export function getBaseType(columnType: string): string {
+  return columnType.replace(/(\s*\[\s*\])+$/, "").trim();
+}
+
 const SIZE_COLUMN_TYPES: readonly string[] = [
   "varchar",
   "char",
@@ -29,31 +37,31 @@ const SCALE_COLUMN_TYPES: readonly string[] = ["numeric", "decimal"];
 
 export function isPostgresColumnType(
   value: unknown,
-): value is PostgresColumnType {
-  return (
-    typeof value === "string" &&
-    (POSTGRES_COLUMN_TYPES as readonly string[]).includes(value)
-  );
+): value is PostgresColumnType | `${PostgresColumnType}[]` {
+  if (typeof value !== "string") return false;
+  const baseType = getBaseType(value);
+  return (POSTGRES_COLUMN_TYPES as readonly string[]).includes(baseType);
 }
 
 export function supportsSize(columnType: string): boolean {
-  return SIZE_COLUMN_TYPES.includes(columnType);
+  return SIZE_COLUMN_TYPES.includes(getBaseType(columnType));
 }
 
 export function supportsScale(columnType: string): boolean {
-  return SCALE_COLUMN_TYPES.includes(columnType);
+  return SCALE_COLUMN_TYPES.includes(getBaseType(columnType));
 }
 
 export function getDefaultSize(columnType: string): number | undefined {
-  if (columnType === "varchar") {
+  const baseType = getBaseType(columnType);
+  if (baseType === "varchar") {
     return 255;
   }
 
-  if (columnType === "char") {
+  if (baseType === "char") {
     return 1;
   }
 
-  if (columnType === "numeric" || columnType === "decimal") {
+  if (baseType === "numeric" || baseType === "decimal") {
     return 10;
   }
 
@@ -61,7 +69,8 @@ export function getDefaultSize(columnType: string): number | undefined {
 }
 
 export function getDefaultScale(columnType: string): number | undefined {
-  if (supportsScale(columnType)) {
+  const baseType = getBaseType(columnType);
+  if (supportsScale(baseType)) {
     return 2;
   }
 

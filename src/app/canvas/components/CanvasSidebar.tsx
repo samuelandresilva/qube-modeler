@@ -1,12 +1,13 @@
-import { ChevronDown, FolderTree, Plus } from "lucide-react";
+import { ChevronDown, Database, FolderTree, Plus } from "lucide-react";
 import { useState } from "react";
 import type { DatabaseProject } from "@/core/model";
+import { getProjectDisplayName } from "@/core/qbm/qbm-file";
 import { SchemaTreeItem } from "./SchemaTreeItem";
 import { SidebarContextMenu } from "./SidebarContextMenu";
 
 type Props = {
   project: DatabaseProject;
-  onRenameProject: (name: string) => void;
+  filePath: string | null;
   onAddSchema: () => void;
   onEditSchema: (schemaId: string) => void;
   onDeleteSchema: (schemaId: string) => void;
@@ -14,54 +15,88 @@ type Props = {
   onEditSequence: (schemaId: string, sequenceId: string) => void;
   onDeleteSequence: (schemaId: string, sequenceId: string) => void;
   onSeeTableOnDiagram: (schemaId: string, tableId: string) => void;
+  onDeleteTable: (schemaId: string, tableId: string) => void;
+  onAddFunction: (schemaId: string) => void;
+  onEditFunction: (schemaId: string, functionId: string) => void;
+  onDeleteFunction: (schemaId: string, functionId: string) => void;
+  onDeleteView?: (schemaId: string, viewId: string) => void;
+  onViewFlyway?: () => void;
 };
 
 export function CanvasSidebar({
   project,
-  onRenameProject,
+  filePath,
   onAddSchema,
+  onViewFlyway,
   ...actions
 }: Props) {
-  const [expanded, setExpanded] = useState(true);
+  const [projectExpanded, setProjectExpanded] = useState(true);
+  const [schemasExpanded, setSchemasExpanded] = useState(true);
   return (
     <aside className="canvas-sidebar">
       <div className="canvas-sidebar__header">
-        <span className="canvas-sidebar__label">Project</span>
-        <input
-          className="canvas-sidebar__project-name"
-          value={project.name}
-          onChange={(event) => onRenameProject(event.target.value)}
-          placeholder="Project name"
-        />
+        <button
+          className="canvas-sidebar__flyway-button"
+          type="button"
+          onClick={onViewFlyway}
+        >
+          <Database size={14} />
+          <span>Migrations</span>
+        </button>
       </div>
       <div className="canvas-sidebar__tree">
-        <SidebarContextMenu
-          actions={[
-            {
-              label: "Add schema",
-              icon: <Plus size={14} />,
-              onSelect: onAddSchema,
-            },
-          ]}
+        <div
+          className="canvas-sidebar__tree-item canvas-sidebar__tree-item--project-root"
+          onClick={() => setProjectExpanded((value) => !value)}
         >
-          <div
-            className="canvas-sidebar__tree-item canvas-sidebar__tree-item--schema-root"
-            onClick={() => setExpanded((value) => !value)}
-          >
-            <ChevronDown
-              size={13}
-              className="canvas-sidebar__chevron"
-              data-expanded={expanded}
-            />
-            <FolderTree size={15} className="canvas-sidebar__item-icon" />
-            <span>schemas</span>
-          </div>
-        </SidebarContextMenu>
-        {expanded && (
+          <ChevronDown
+            size={13}
+            className="canvas-sidebar__chevron"
+            data-expanded={projectExpanded}
+          />
+          <Database size={15} className="canvas-sidebar__item-icon" />
+          <span title={filePath || undefined} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {getProjectDisplayName(filePath)}
+          </span>
+        </div>
+
+        {projectExpanded && (
           <div className="canvas-sidebar__tree-group">
-            {project.schemas.map((schema) => (
-              <SchemaTreeItem key={schema.id} schema={schema} {...actions} />
-            ))}
+            <SidebarContextMenu
+              actions={[
+                {
+                  label: "Add schema",
+                  icon: <Plus size={14} />,
+                  onSelect: onAddSchema,
+                },
+              ]}
+            >
+              <div
+                className="canvas-sidebar__tree-item canvas-sidebar__tree-item--schema-root"
+                onClick={() => setSchemasExpanded((value) => !value)}
+              >
+                <ChevronDown
+                  size={13}
+                  className="canvas-sidebar__chevron"
+                  data-expanded={schemasExpanded}
+                />
+                <FolderTree size={15} className="canvas-sidebar__item-icon" />
+                <span>schemas</span>
+              </div>
+            </SidebarContextMenu>
+            {schemasExpanded && (
+              <div className="canvas-sidebar__tree-group">
+                {project.schemas.map((schema) => (
+                  <SchemaTreeItem
+                    key={schema.id}
+                    schema={schema}
+                    projectFunctions={project.functions ?? []}
+                    projectViews={project.views ?? []}
+                    {...actions}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

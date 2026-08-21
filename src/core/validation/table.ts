@@ -1,9 +1,12 @@
+import type { DatabaseTable } from "@/core/model";
 import { validateColumn } from "./column";
 import {
   validateNamedColumnList,
   validateNoDuplicateColumnLists,
+  validateCheckConstraint,
 } from "./constraints";
 import { validateForeignKey } from "./foreign-key";
+import { validateTrigger } from "./trigger";
 import {
   isObject,
   validateNoDuplicateDefinitions,
@@ -17,11 +20,17 @@ export function validateTable(
   schemaName: unknown,
   sequences: unknown[],
   projectSchemas: unknown[],
-): void {
+): DatabaseTable {
   if (!isObject(table))
     throw new Error(`Invalid table in schema "${schemaName}".`);
   validateRequiredString(table.id, `Table id in schema "${schemaName}"`);
   validateSqlIdentifier(table.name, `Table name in schema "${schemaName}"`);
+
+  const checkConstraints = Array.isArray(table.checkConstraints)
+    ? table.checkConstraints
+    : [];
+  const triggers = Array.isArray(table.triggers) ? table.triggers : [];
+
   const columns = requireArray(
     table.columns,
     `Table "${table.name}" columns are required.`,
@@ -59,6 +68,16 @@ export function validateTable(
     `Table "${table.name}" indexes`,
     (item) => item.name,
   );
+  validateUniqueNames(
+    checkConstraints,
+    `Table "${table.name}" check constraints`,
+    (item) => item.name,
+  );
+  validateUniqueNames(
+    triggers,
+    `Table "${table.name}" triggers`,
+    (item) => item.name,
+  );
   validateNoDuplicateDefinitions(
     foreignKeys,
     `Table "${table.name}" foreign keys`,
@@ -90,6 +109,14 @@ export function validateTable(
     validateNamedColumnList(item, table, "Unique constraint"),
   );
   indexes.forEach((item) => validateNamedColumnList(item, table, "Index"));
+  checkConstraints.forEach((item) => validateCheckConstraint(item, table));
+  triggers.forEach((item) => validateTrigger(item, String(table.name)));
+
+  return {
+    ...table,
+    checkConstraints,
+    triggers,
+  } as unknown as DatabaseTable;
 }
 
 function requireArray(value: unknown, message: string): unknown[] {

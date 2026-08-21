@@ -24,6 +24,7 @@ export function SequenceDialog({
   const [name, setName] = useState(sequence?.name ?? "");
   const [startWith, setStartWith] = useState(sequence?.startWith ?? 1);
   const [incrementBy, setIncrementBy] = useState(sequence?.incrementBy ?? 1);
+  const [comment, setComment] = useState(sequence?.comment ?? "");
   const normalized = name.trim();
   const duplicate = existingNames.some(
     (item) => item !== sequence?.name && item === normalized,
@@ -72,6 +73,16 @@ export function SequenceDialog({
             onChange={(event) => setIncrementBy(Number(event.target.value))}
           />
         </label>
+        <label>
+          <span>Comment / Documentation</span>
+          <textarea
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            placeholder="Describe the sequence's purpose..."
+            rows={3}
+            style={{ width: "100%", resize: "vertical" }}
+          />
+        </label>
         {duplicate && (
           <p className="canvas-modal-error">
             A sequence with this name already exists.
@@ -98,7 +109,7 @@ export function SequenceDialog({
             type="button"
             disabled={!canSubmit}
             onClick={() =>
-              onSubmit({ name: normalized, startWith, incrementBy })
+              onSubmit({ name: normalized, startWith, incrementBy, comment: comment.trim() })
             }
           >
             Save sequence

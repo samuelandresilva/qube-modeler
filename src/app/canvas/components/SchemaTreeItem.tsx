@@ -8,33 +8,57 @@ import {
   Search,
   Table2,
   Trash2,
+  Cpu,
+  ScanEye,
 } from "lucide-react";
 import { useState } from "react";
-import type { DatabaseSchema } from "@/core/model";
+import type { DatabaseSchema, DatabaseFunction, DatabaseView } from "@/core/model";
 import { SidebarContextMenu } from "./SidebarContextMenu";
 
 type Props = {
   schema: DatabaseSchema;
+  projectFunctions: DatabaseFunction[];
+  projectViews?: DatabaseView[];
   onEditSchema: (schemaId: string) => void;
   onDeleteSchema: (schemaId: string) => void;
   onAddSequence: (schemaId: string) => void;
   onEditSequence: (schemaId: string, sequenceId: string) => void;
   onDeleteSequence: (schemaId: string, sequenceId: string) => void;
   onSeeTableOnDiagram: (schemaId: string, tableId: string) => void;
+  onDeleteTable: (schemaId: string, tableId: string) => void;
+  onAddFunction: (schemaId: string) => void;
+  onEditFunction: (schemaId: string, functionId: string) => void;
+  onDeleteFunction: (schemaId: string, functionId: string) => void;
+  onDeleteView?: (schemaId: string, viewId: string) => void;
 };
 
 export function SchemaTreeItem({
   schema,
+  projectFunctions,
+  projectViews,
   onEditSchema,
   onDeleteSchema,
   onAddSequence,
   onEditSequence,
   onDeleteSequence,
   onSeeTableOnDiagram,
+  onDeleteTable,
+  onAddFunction,
+  onEditFunction,
+  onDeleteFunction,
+  onDeleteView,
 }: Props) {
-  const [expanded, setExpanded] = useState(true);
-  const [sequencesExpanded, setSequencesExpanded] = useState(true);
-  const [tablesExpanded, setTablesExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [sequencesExpanded, setSequencesExpanded] = useState(false);
+  const [functionsExpanded, setFunctionsExpanded] = useState(false);
+  const [viewsExpanded, setViewsExpanded] = useState(false);
+  const [tablesExpanded, setTablesExpanded] = useState(false);
+  const schemaFunctions = (projectFunctions ?? []).filter(
+    (fn) => fn.schemaId === schema.id
+  );
+  const schemaViews = (projectViews ?? []).filter(
+    (view) => view.schemaId === schema.id
+  );
   return (
     <div className="canvas-sidebar__schema">
       <SidebarContextMenu
@@ -124,6 +148,123 @@ export function SchemaTreeItem({
               )}
             </div>
           )}
+          <SidebarContextMenu
+            actions={[
+              {
+                label: "Add function",
+                icon: <Plus size={14} />,
+                onSelect: () => onAddFunction(schema.id),
+              },
+            ]}
+          >
+            <div
+              className="canvas-sidebar__tree-item canvas-sidebar__tree-item--folder"
+              onClick={() => setFunctionsExpanded((value) => !value)}
+            >
+              <ChevronDown
+                size={13}
+                className="canvas-sidebar__chevron"
+                data-expanded={functionsExpanded}
+              />
+              <Cpu size={15} className="canvas-sidebar__item-icon" />
+              <span>functions</span>
+            </div>
+          </SidebarContextMenu>
+          {functionsExpanded && (
+            <div className="canvas-sidebar__tree-group">
+              {schemaFunctions.length === 0 ? (
+                <div className="canvas-sidebar__empty">No functions</div>
+              ) : (
+                schemaFunctions.map((fn) => (
+                  <SidebarContextMenu
+                    key={fn.id}
+                    actions={[
+                      {
+                        label: "Edit function",
+                        icon: <Pen size={14} />,
+                        onSelect: () => onEditFunction(schema.id, fn.id),
+                      },
+                      {
+                        label: "Delete function",
+                        icon: <Trash2 size={14} />,
+                        danger: true,
+                        onSelect: () => onDeleteFunction(schema.id, fn.id),
+                      },
+                    ]}
+                  >
+                    <div
+                      className="canvas-sidebar__tree-item canvas-sidebar__tree-item--leaf"
+                      onClick={() => onEditFunction(schema.id, fn.id)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <Cpu
+                        size={14}
+                        className="canvas-sidebar__item-icon canvas-sidebar__item-icon--muted"
+                      />
+                      <span>{fn.name}</span>
+                    </div>
+                  </SidebarContextMenu>
+                ))
+              )}
+            </div>
+          )}
+
+          <div
+            className="canvas-sidebar__tree-item canvas-sidebar__tree-item--folder"
+            onClick={() => setViewsExpanded((value) => !value)}
+          >
+            <ChevronDown
+              size={13}
+              className="canvas-sidebar__chevron"
+              data-expanded={viewsExpanded}
+            />
+            <ScanEye size={15} className="canvas-sidebar__item-icon" />
+            <span>views</span>
+          </div>
+          {viewsExpanded && (
+            <div className="canvas-sidebar__tree-group">
+              {schemaViews.length === 0 ? (
+                <div className="canvas-sidebar__empty">No views</div>
+              ) : (
+                schemaViews.map((view) => (
+                  <SidebarContextMenu
+                    key={view.id}
+                    actions={[
+                      {
+                        label: "Find in diagram",
+                        icon: <Search size={14} />,
+                        onSelect: () =>
+                          onSeeTableOnDiagram(schema.id, view.id),
+                      },
+                      ...(onDeleteView
+                        ? [
+                            {
+                              label: "Delete view",
+                              icon: <Trash2 size={14} />,
+                              danger: true,
+                              onSelect: () => onDeleteView(schema.id, view.id),
+                            },
+                          ]
+                        : []),
+                    ]}
+                  >
+                    <div
+                      className="canvas-sidebar__tree-item canvas-sidebar__tree-item--leaf"
+                      onClick={() => onSeeTableOnDiagram(schema.id, view.id)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <ScanEye
+                        size={14}
+                        className="canvas-sidebar__item-icon canvas-sidebar__item-icon--muted"
+                      />
+                      <span>{view.name}</span>
+                    </div>
+                  </SidebarContextMenu>
+                ))
+              )}
+            </div>
+          )}
+
           <div
             className="canvas-sidebar__tree-item canvas-sidebar__tree-item--folder"
             onClick={() => setTablesExpanded((value) => !value)}
@@ -150,6 +291,12 @@ export function SchemaTreeItem({
                         icon: <Search size={14} />,
                         onSelect: () =>
                           onSeeTableOnDiagram(schema.id, table.id),
+                      },
+                      {
+                        label: "Delete table",
+                        icon: <Trash2 size={14} />,
+                        danger: true,
+                        onSelect: () => onDeleteTable(schema.id, table.id),
                       },
                     ]}
                   >

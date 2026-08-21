@@ -72,11 +72,13 @@
   background: rgba(15, 23, 42, 0.85);
   color: var(--color-text-strong);
 }
+.canvas-sidebar__tree-item--project-root,
 .canvas-sidebar__tree-item--schema-root,
 .canvas-sidebar__tree-item--schema {
   color: var(--color-text-strong);
   font-weight: 900;
 }
+.canvas-sidebar__tree-item--project-root,
 .canvas-sidebar__tree-item--schema-root {
   letter-spacing: 0.01em;
 }
@@ -156,3 +158,29 @@
   flex: 0 0 auto;
   margin-right: 8px;
 }
+
+.canvas-sidebar__flyway-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.canvas-sidebar__flyway-button:hover {
+  background: var(--color-surface-raised);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-strong);
+}
+

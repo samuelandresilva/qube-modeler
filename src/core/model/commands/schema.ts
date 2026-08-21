@@ -9,6 +9,7 @@ import type {
 export function createSchema(
   project: DatabaseProject,
   name: string,
+  comment?: string,
 ): CreateResult {
   const id = crypto.randomUUID();
 
@@ -16,7 +17,7 @@ export function createSchema(
     id,
     project: {
       ...project,
-      schemas: [...project.schemas, { id, name, sequences: [], tables: [] }],
+      schemas: [...project.schemas, { id, name, sequences: [], tables: [], comment }],
     },
   };
 }
@@ -43,19 +44,30 @@ export function updateSchema(
 
   return {
     ...nextProject,
-    schemas: nextProject.schemas.map((schema) => ({
-      ...schema,
-      tables: schema.tables.map(
-        (table): DatabaseTable => ({
-          ...table,
-          foreignKeys: table.foreignKeys.map((foreignKey) =>
-            foreignKey.targetSchema === currentSchema.name
-              ? { ...foreignKey, targetSchema: updatedSchema.name }
-              : foreignKey,
-          ),
-        }),
-      ),
-    })),
+    schemas: nextProject.schemas.map((schema) => {
+      let schemaChanged = false;
+      const tables = schema.tables.map((table): DatabaseTable => {
+        let tableChanged = false;
+        const foreignKeys = table.foreignKeys.map((foreignKey) => {
+          if (foreignKey.targetSchema === currentSchema.name) {
+            tableChanged = true;
+            return { ...foreignKey, targetSchema: updatedSchema.name };
+          }
+          return foreignKey;
+        });
+
+        if (tableChanged) {
+          schemaChanged = true;
+          return { ...table, foreignKeys };
+        }
+        return table;
+      });
+
+      if (schemaChanged) {
+        return { ...schema, tables };
+      }
+      return schema;
+    }),
   };
 }
 
@@ -72,15 +84,25 @@ export function removeSchema(
     ...project,
     schemas: project.schemas
       .filter((candidate) => candidate.id !== schemaId)
-      .map((candidate) => ({
-        ...candidate,
-        tables: candidate.tables.map((table) => ({
-          ...table,
-          foreignKeys: table.foreignKeys.filter(
+      .map((candidate) => {
+        let schemaChanged = false;
+        const tables = candidate.tables.map((table) => {
+          const filteredFks = table.foreignKeys.filter(
             (foreignKey) => foreignKey.targetSchema !== schema.name,
-          ),
-        })),
-      })),
+          );
+
+          if (filteredFks.length !== table.foreignKeys.length) {
+            schemaChanged = true;
+            return { ...table, foreignKeys: filteredFks };
+          }
+          return table;
+        });
+
+        if (schemaChanged) {
+          return { ...candidate, tables };
+        }
+        return candidate;
+      }),
     diagram: {
       ...project.diagram,
       tableNodes: project.diagram.tableNodes.filter(
