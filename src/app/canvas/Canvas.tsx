@@ -28,7 +28,6 @@ import {
   createTextNote,
   updateTextNote,
   removeTextNote,
-  setTableSubjectArea,
   type DatabaseProject,
 } from "@/core/model";
 import { generatePostgresSql } from "@/core/sql/postgres-generator";
@@ -545,17 +544,6 @@ function CanvasContent({
             onClose={() => setSelectedTableId(null)}
             schemas={project.schemas}
             currentSchemaId={context.schema.id}
-            subjectAreas={project.subjectAreas}
-            onSetSubjectArea={(subjectAreaId) =>
-              setProject((current) =>
-                setTableSubjectArea(
-                  current,
-                  context.schema.id,
-                  context.table.id,
-                  subjectAreaId,
-                ),
-              )
-            }
             onChangeSchema={(schemaId) =>
               setProject((current) =>
                 moveTableSchema(current, context.table.id, schemaId),
@@ -775,18 +763,17 @@ function CanvasContent({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onNodeDragStop={flow.onNodeDragStop}
-          onNodeClick={(_, node) => {
-            if (isAddingTable) {
+          onNodeClick={(event, node) => {
+            if (isAddingTable || isAddingView || isAddingSubjectArea || isAddingTextNote) {
+              if (node.type === "subjectArea") {
+                handlePaneClick(event as unknown as React.MouseEvent);
+                return;
+              }
               setIsAddingTable(false);
-            }
-            if (isAddingView) {
               setIsAddingView(false);
-            }
-            if (isAddingSubjectArea) {
               setIsAddingSubjectArea(false);
-            }
-            if (isAddingTextNote) {
               setIsAddingTextNote(false);
+              return;
             }
             setSelectedTableId(node.id);
           }}

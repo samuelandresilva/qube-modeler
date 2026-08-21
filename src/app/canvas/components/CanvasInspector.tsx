@@ -39,8 +39,6 @@ type Props = {
   onChangePrimaryKeyComment?: (comment: string) => void;
   onChangeViewComment?: (comment: string) => void;
   onMoveColumn?: (id: string, direction: "up" | "down") => void;
-  subjectAreas?: SubjectArea[];
-  onSetSubjectArea?: (subjectAreaId?: string) => void;
   subjectArea?: SubjectArea;
   textNote?: TextNote;
   onRenameSubjectArea?: (name: string) => void;
@@ -81,8 +79,6 @@ export function CanvasInspector({
   onChangePrimaryKeyComment,
   onChangeViewComment,
   onMoveColumn,
-  subjectAreas,
-  onSetSubjectArea,
   subjectArea,
   textNote,
   onRenameSubjectArea,
@@ -372,24 +368,6 @@ export function CanvasInspector({
           )}
         </select>
       </div>
-
-      {subjectAreas && subjectAreas.length > 0 && (
-        <div className="canvas-inspector__field-group" style={{ marginTop: "12px" }}>
-          <label className="canvas-inspector__field-label">Subject Area</label>
-          <select
-            className="canvas-inspector__select"
-            value={table.subjectAreaId || ""}
-            onChange={(event) => onSetSubjectArea?.(event.target.value || undefined)}
-          >
-            <option value="">None</option>
-            {subjectAreas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
 
       <div className="canvas-inspector__field-group" style={{ marginTop: "12px" }}>
         <label className="canvas-inspector__field-label">Comment / Documentation</label>

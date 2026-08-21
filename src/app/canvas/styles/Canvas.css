@@ -51,15 +51,24 @@
     0 0 0 2px rgba(56, 189, 248, 0.55),
     0 18px 40px rgba(56, 189, 248, 0.16);
 }
-.canvas-flow--adding-table .react-flow__pane {
+.canvas-flow--adding-table,
+.canvas-flow--adding-table .react-flow__pane,
+.canvas-flow--adding-table .react-flow__node,
+.canvas-flow--adding-view,
+.canvas-flow--adding-view .react-flow__pane,
+.canvas-flow--adding-view .react-flow__node,
+.canvas-flow--adding-subject-area,
+.canvas-flow--adding-subject-area .react-flow__pane,
+.canvas-flow--adding-subject-area .react-flow__node,
+.canvas-flow--adding-text-note,
+.canvas-flow--adding-text-note .react-flow__pane,
+.canvas-flow--adding-text-note .react-flow__node {
   cursor: crosshair !important;
 }
-.canvas-flow--adding-view .react-flow__pane {
-  cursor: crosshair !important;
-}
-.canvas-flow--adding-subject-area .react-flow__pane {
-  cursor: crosshair !important;
-}
-.canvas-flow--adding-text-note .react-flow__pane {
-  cursor: crosshair !important;
+
+.canvas-flow--adding-table .react-flow__node-subjectArea,
+.canvas-flow--adding-view .react-flow__node-subjectArea,
+.canvas-flow--adding-subject-area .react-flow__node-subjectArea,
+.canvas-flow--adding-text-note .react-flow__node-subjectArea {
+  pointer-events: none !important;
 }
