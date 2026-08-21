@@ -135,13 +135,28 @@ export function SmartRelationEdge({
 
   const sourceTable = (edgeData.sourceTable as string) || "";
   const targetTable = (edgeData.targetTable as string) || "";
-  const sourceCol = (edgeData.sourceColumn as string) || "";
-  const targetCol = (edgeData.targetColumn as string) || "";
+  const sourceColumns =
+    (edgeData.sourceColumns as string[]) ||
+    ((edgeData.sourceColumn as string) ? [edgeData.sourceColumn as string] : []);
+  const targetColumns =
+    (edgeData.targetColumns as string[]) ||
+    ((edgeData.targetColumn as string) ? [edgeData.targetColumn as string] : []);
+
+  const sourceColStr =
+    (edgeData.sourceColStr as string) ||
+    (sourceColumns.length > 1
+      ? `(${sourceColumns.join(", ")})`
+      : sourceColumns[0] || "");
+  const targetColStr =
+    (edgeData.targetColStr as string) ||
+    (targetColumns.length > 1
+      ? `(${targetColumns.join(", ")})`
+      : targetColumns[0] || "");
 
   const detailedLabel =
     sourceTable && targetTable
-      ? `${sourceTable}.${sourceCol} → ${targetTable}.${targetCol}`
-      : (label as string) || `${sourceCol} → ${targetCol}`;
+      ? `${sourceTable}.${sourceColStr} → ${targetTable}.${targetColStr}`
+      : (label as string) || `${sourceColStr} → ${targetColStr}`;
 
   return (
     <>

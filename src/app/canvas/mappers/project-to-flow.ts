@@ -58,16 +58,29 @@ export function mapProjectToFlow(
 
       const existingEdge = currentEdges?.find((e) => e.id === foreignKey.id);
 
+      const sourceColStr =
+        foreignKey.sourceColumns.length > 1
+          ? `(${foreignKey.sourceColumns.join(", ")})`
+          : foreignKey.sourceColumns[0] ?? "";
+      const targetColStr =
+        foreignKey.targetColumns.length > 1
+          ? `(${foreignKey.targetColumns.join(", ")})`
+          : foreignKey.targetColumns[0] ?? "";
+
       return {
         id: foreignKey.id,
         source: table.id,
         sourceSchema: schema.name,
         sourceTable: table.name,
         sourceColumn: foreignKey.sourceColumns[0] ?? "",
+        sourceColumns: foreignKey.sourceColumns,
+        sourceColStr,
         target: targetTableId,
         targetSchema: foreignKey.targetSchema,
         targetTable: foreignKey.targetTable,
         targetColumn: foreignKey.targetColumns[0] ?? "",
+        targetColumns: foreignKey.targetColumns,
+        targetColStr,
         fkName: foreignKey.name,
         existingData: existingEdge?.data,
       };
@@ -94,7 +107,7 @@ export function mapProjectToFlow(
       sourceHandle: `${e.sourceColumn}-source-right`,
       target: e.target,
       targetHandle: `${e.targetColumn}-target-right`,
-      label: `${e.sourceColumn} → ${e.targetColumn}`,
+      label: `${e.sourceColStr} → ${e.targetColStr}`,
       animated: false,
       type: "smart",
       data: {
@@ -102,9 +115,13 @@ export function mapProjectToFlow(
         sourceSchema: e.sourceSchema,
         sourceTable: e.sourceTable,
         sourceColumn: e.sourceColumn,
+        sourceColumns: e.sourceColumns,
+        sourceColStr: e.sourceColStr,
         targetSchema: e.targetSchema,
         targetTable: e.targetTable,
         targetColumn: e.targetColumn,
+        targetColumns: e.targetColumns,
+        targetColStr: e.targetColStr,
         fkName: e.fkName,
         edgeIndex,
         totalInGroup,

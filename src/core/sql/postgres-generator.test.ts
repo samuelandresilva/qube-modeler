@@ -84,6 +84,42 @@ describe("postgres-generator", () => {
     expect(sql).toContain("ALTER TABLE public.orders ADD CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES public.users (id);");
   });
 
+  it("generates composite foreign key SQL with multiple columns", () => {
+    const project = createProjectFixture({
+      schemas: [
+        createSchemaFixture({
+          name: "public",
+          tables: [
+            createTableFixture({
+              name: "order_items",
+              columns: [
+                createColumnFixture({ name: "tenant_id", type: "integer" }),
+                createColumnFixture({ name: "order_id", type: "integer" }),
+                createColumnFixture({ name: "item_id", type: "integer" }),
+              ],
+              foreignKeys: [
+                {
+                  id: "fk_composite",
+                  name: "fk_order_items_orders",
+                  sourceColumns: ["tenant_id", "order_id"],
+                  targetSchema: "public",
+                  targetTable: "orders",
+                  targetColumns: ["tenant_id", "id"],
+                  onUpdate: "CASCADE",
+                  onDelete: "RESTRICT",
+                },
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+    const sql = generatePostgresSql(project);
+    expect(sql).toContain(
+      "ALTER TABLE public.order_items ADD CONSTRAINT fk_order_items_orders FOREIGN KEY (tenant_id, order_id) REFERENCES public.orders (tenant_id, id) ON UPDATE CASCADE ON DELETE RESTRICT;",
+    );
+  });
+
   it("handles safe order for initial migration: schema, seq, table, constraint, index", () => {
     const project = createProjectFixture({
       schemas: [
