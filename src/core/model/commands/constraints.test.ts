@@ -6,6 +6,9 @@ import {
   createTrigger,
   updateTrigger,
   removeTrigger,
+  createIndex,
+  updateIndex,
+  removeIndex,
 } from "./constraints";
 import {
   createProjectFixture,
@@ -178,3 +181,83 @@ describe("PostgreSQL trigger model commands", () => {
     expect(updatedTable.triggers).toHaveLength(0);
   });
 });
+
+describe("Database index model commands", () => {
+  const table = createTableFixture({
+    id: "t1",
+    name: "tb_songs",
+    indexes: [],
+  });
+  const schema = createSchemaFixture({
+    id: "s1",
+    name: "public",
+    tables: [table],
+  });
+  const initialProject = createProjectFixture({
+    schemas: [schema],
+  });
+
+  it("adds a new index with method (e.g. GIN) to the table", () => {
+    const { id, project } = createIndex(initialProject, "s1", "t1", {
+      name: "idx_tb_songs_tags_gin",
+      columns: ["tags"],
+      method: "gin",
+    });
+
+    expect(id).toBeDefined();
+    const updatedTable = project.schemas[0].tables[0];
+    expect(updatedTable.indexes).toHaveLength(1);
+    expect(updatedTable.indexes[0]).toEqual({
+      id,
+      name: "idx_tb_songs_tags_gin",
+      columns: ["tags"],
+      method: "gin",
+    });
+  });
+
+  it("updates an existing index method and columns", () => {
+    const { id, project: projectWithIdx } = createIndex(
+      initialProject,
+      "s1",
+      "t1",
+      {
+        name: "idx_tb_songs_tags",
+        columns: ["tags"],
+        method: "btree",
+      },
+    );
+
+    const updatedProject = updateIndex(
+      projectWithIdx,
+      "s1",
+      "t1",
+      id,
+      (idx) => ({
+        ...idx,
+        method: "gin",
+      }),
+    );
+
+    const updatedTable = updatedProject.schemas[0].tables[0];
+    expect(updatedTable.indexes).toHaveLength(1);
+    expect(updatedTable.indexes[0].method).toBe("gin");
+  });
+
+  it("removes an index from the table", () => {
+    const { id, project: projectWithIdx } = createIndex(
+      initialProject,
+      "s1",
+      "t1",
+      {
+        name: "idx_tb_songs_tags_gin",
+        columns: ["tags"],
+        method: "gin",
+      },
+    );
+
+    const cleanedProject = removeIndex(projectWithIdx, "s1", "t1", id);
+    const updatedTable = cleanedProject.schemas[0].tables[0];
+    expect(updatedTable.indexes).toHaveLength(0);
+  });
+});
+

@@ -3,6 +3,7 @@ import { validateColumn } from "./column";
 import {
   validateNamedColumnList,
   validateNoDuplicateColumnLists,
+  validateNoDuplicateIndexDefinitions,
   validateCheckConstraint,
 } from "./constraints";
 import { validateForeignKey } from "./foreign-key";
@@ -99,7 +100,7 @@ export function validateTable(
     uniqueConstraints,
     `Table "${table.name}" unique constraints`,
   );
-  validateNoDuplicateColumnLists(indexes, `Table "${table.name}" indexes`);
+  validateNoDuplicateIndexDefinitions(indexes, `Table "${table.name}" indexes`);
 
   columns.forEach((column) => validateColumn(column, table.name, sequences));
   foreignKeys.forEach((foreignKey) =>

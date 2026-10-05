@@ -475,7 +475,10 @@ export function CanvasInspector({
         items={table.indexes.map((item) => ({
           id: item.id,
           label: item.name,
-          detail: item.columns.join(", "),
+          detail:
+            item.method && item.method !== "btree"
+              ? `${item.columns.join(", ")} (${item.method.toUpperCase()})`
+              : item.columns.join(", "),
         }))}
         onAdd={onAddIndex}
         onEdit={onEditIndex}

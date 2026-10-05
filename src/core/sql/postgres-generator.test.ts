@@ -1320,5 +1320,48 @@ describe("postgres-generator", () => {
       expect(sql).toContain("EXECUTE FUNCTION app.audit_log();");
       expect(sql).toContain("COMMENT ON TRIGGER trg_view_audit ON app.active_users IS 'View trigger comment';");
     });
+
+    it("generates CREATE INDEX with USING clause for non-btree access methods (e.g. GIN)", () => {
+      const project = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            name: "public",
+            tables: [
+              createTableFixture({
+                name: "tb_songs",
+                columns: [
+                  createColumnFixture({ id: "c1", name: "id", type: "uuid", primaryKey: true }),
+                  createColumnFixture({ id: "c2", name: "tags", type: "text", isArray: true }),
+                ],
+                indexes: [
+                  {
+                    id: "idx1",
+                    name: "idx_tb_songs_tags_gin",
+                    columns: ["tags"],
+                    method: "gin",
+                  },
+                  {
+                    id: "idx2",
+                    name: "idx_tb_songs_id_btree",
+                    columns: ["id"],
+                    method: "btree",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const sql = generatePostgresSql(project);
+
+      expect(sql).toContain(
+        "CREATE INDEX IF NOT EXISTS idx_tb_songs_tags_gin ON public.tb_songs USING gin (tags);",
+      );
+      // btree should not have USING clause for standard output
+      expect(sql).toContain(
+        "CREATE INDEX IF NOT EXISTS idx_tb_songs_id_btree ON public.tb_songs (id);",
+      );
+    });
   });
 });
