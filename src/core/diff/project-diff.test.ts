@@ -2557,5 +2557,66 @@ describe("project-diff", () => {
       const hasDropTable = diff.operations.some((op) => op.kind === "DROP_TABLE" && op.tableName === "users");
       expect(hasDropTable).toBe(true);
     });
+
+    it("detects ALTER_INDEX when index method changes (e.g. from btree to gin)", () => {
+      const before = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t1",
+                name: "tb_songs",
+                indexes: [
+                  {
+                    id: "idx-1",
+                    name: "idx_tb_songs_tags",
+                    columns: ["tags"],
+                    method: "btree",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const after = createProjectFixture({
+        schemas: [
+          createSchemaFixture({
+            id: "s1",
+            name: "public",
+            tables: [
+              createTableFixture({
+                id: "t1",
+                name: "tb_songs",
+                indexes: [
+                  {
+                    id: "idx-1",
+                    name: "idx_tb_songs_tags",
+                    columns: ["tags"],
+                    method: "gin",
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const diff = diffProjects(before, after);
+      expect(diff.operations).toContainEqual({
+        kind: "ALTER_INDEX",
+        risk: "warning",
+        schemaId: "s1",
+        schemaName: "public",
+        tableId: "t1",
+        tableName: "tb_songs",
+        indexId: "idx-1",
+        oldName: "idx_tb_songs_tags",
+        newName: "idx_tb_songs_tags",
+      });
+    });
   });
 });

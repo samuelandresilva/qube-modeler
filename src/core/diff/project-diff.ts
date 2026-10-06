@@ -53,6 +53,9 @@ function didIndexChange(prevIdx: DatabaseIndex, currIdx: DatabaseIndex): boolean
   for (let i = 0; i < prevIdx.columns.length; i++) {
     if (prevIdx.columns[i] !== currIdx.columns[i]) return true;
   }
+  const prevMethod = prevIdx.method ?? "btree";
+  const currMethod = currIdx.method ?? "btree";
+  if (prevMethod !== currMethod) return true;
   return false;
 }
 

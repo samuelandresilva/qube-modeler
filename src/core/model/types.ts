@@ -156,10 +156,19 @@ export interface DatabaseUniqueConstraint {
   comment?: string;
 }
 
+export type IndexMethod =
+  | "btree"
+  | "hash"
+  | "gist"
+  | "spgist"
+  | "gin"
+  | "brin";
+
 export interface DatabaseIndex {
   id: string;
   name: string;
   columns: string[];
+  method?: IndexMethod;
   comment?: string;
 }
 

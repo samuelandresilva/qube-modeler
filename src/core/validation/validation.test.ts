@@ -829,6 +829,90 @@ describe("Project validation and backward compatibility", () => {
         'Column "scores" isArray must be boolean.',
       );
     });
+
+    it("accepts valid index method (e.g. gin)", () => {
+      const table = createTableFixture({
+        name: "tb_songs",
+        columns: [createColumnFixture({ name: "tags" })],
+        indexes: [
+          {
+            id: "idx-1",
+            name: "idx_tb_songs_tags_gin",
+            columns: ["tags"],
+            method: "gin",
+          },
+        ],
+      });
+
+      expect(() => validateTable(table, "public", [], [])).not.toThrow();
+    });
+
+    it("allows indexes on the same column with different methods (e.g. btree and gin)", () => {
+      const table = createTableFixture({
+        name: "tb_songs",
+        columns: [createColumnFixture({ name: "tags" })],
+        indexes: [
+          {
+            id: "idx-1",
+            name: "idx_tb_songs_tags_btree",
+            columns: ["tags"],
+            method: "btree",
+          },
+          {
+            id: "idx-2",
+            name: "idx_tb_songs_tags_gin",
+            columns: ["tags"],
+            method: "gin",
+          },
+        ],
+      });
+
+      expect(() => validateTable(table, "public", [], [])).not.toThrow();
+    });
+
+    it("rejects indexes on the same column with the same method", () => {
+      const table = createTableFixture({
+        name: "tb_songs",
+        columns: [createColumnFixture({ name: "tags" })],
+        indexes: [
+          {
+            id: "idx-1",
+            name: "idx_tb_songs_tags_1",
+            columns: ["tags"],
+            method: "gin",
+          },
+          {
+            id: "idx-2",
+            name: "idx_tb_songs_tags_2",
+            columns: ["tags"],
+            method: "gin",
+          },
+        ],
+      });
+
+      expect(() => validateTable(table, "public", [], [])).toThrow(
+        'Table "tb_songs" indexes has duplicated definition.',
+      );
+    });
+
+    it("rejects invalid index method identifier", () => {
+      const table = createTableFixture({
+        name: "tb_songs",
+        columns: [createColumnFixture({ name: "tags" })],
+        indexes: [
+          {
+            id: "idx-1",
+            name: "idx_tb_songs_tags",
+            columns: ["tags"],
+            method: "invalid method with spaces" as any,
+          },
+        ],
+      });
+
+      expect(() => validateTable(table, "public", [], [])).toThrow(
+        'Index "idx_tb_songs_tags" method must start with a letter or underscore and contain only letters, numbers, and underscores.',
+      );
+    });
   });
 });
 

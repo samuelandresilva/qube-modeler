@@ -31,6 +31,26 @@ export function validateNamedColumnList(
         `${kind} "${item.name}" references missing column "${columnName}" in table "${table.name}".`,
       );
   }
+  if (kind === "Index" && item.method !== undefined) {
+    if (typeof item.method !== "string" || item.method.trim() === "") {
+      throw new Error(`Index "${item.name}" method must be a non-empty string.`);
+    }
+    validateSqlIdentifier(item.method, `Index "${item.name}" method`);
+  }
+}
+
+export function validateNoDuplicateIndexDefinitions(
+  items: unknown[],
+  context: string,
+): void {
+  validateNoDuplicateDefinitions(items, context, (item) => {
+    if (!isObject(item) || !Array.isArray(item.columns)) return undefined;
+    const method =
+      typeof item.method === "string" && item.method.trim() !== ""
+        ? item.method.trim().toLowerCase()
+        : "btree";
+    return `${method}:${item.columns.join(",")}`;
+  });
 }
 
 export function validateNoDuplicateColumnLists(

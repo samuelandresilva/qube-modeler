@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { MultiColumnSelect } from "@/app/shared/components/MultiColumnSelect";
-import type { DatabaseTable } from "@/core/model";
+import type { DatabaseTable, IndexMethod } from "@/core/model";
 import {
   isPostgresReservedWord,
   isValidSqlIdentifier,
@@ -11,9 +11,21 @@ type Entity = "index" | "unique constraint";
 type Props = {
   entity: Entity;
   table: DatabaseTable;
-  current?: { name: string; columns: string[]; condition?: string; comment?: string };
+  current?: {
+    name: string;
+    columns: string[];
+    method?: IndexMethod;
+    condition?: string;
+    comment?: string;
+  };
   onClose: () => void;
-  onSubmit: (input: { name: string; columns: string[]; condition?: string; comment?: string }) => void;
+  onSubmit: (input: {
+    name: string;
+    columns: string[];
+    method?: IndexMethod;
+    condition?: string;
+    comment?: string;
+  }) => void;
   onDelete?: () => void;
 };
 
@@ -30,6 +42,7 @@ export function NamedColumnsDialog({
   const prefix = entity === "index" ? "idx" : "uk";
   const [name, setName] = useState(current?.name ?? `${prefix}_${table.name}_`);
   const [columns, setColumns] = useState(current?.columns ?? []);
+  const [method, setMethod] = useState<IndexMethod>(current?.method ?? "btree");
   const [condition, setCondition] = useState(current?.condition ?? "");
   const [comment, setComment] = useState(current?.comment ?? "");
   const normalizedName = name.trim();
@@ -69,6 +82,22 @@ export function NamedColumnsDialog({
             onChange={setColumns}
           />
         </label>
+        {entity === "index" && (
+          <label>
+            <span>Access Method (USING)</span>
+            <select
+              value={method}
+              onChange={(event) => setMethod(event.target.value as IndexMethod)}
+            >
+              <option value="btree">btree (default - scalar data & sorting)</option>
+              <option value="gin">gin (arrays, jsonb, full-text search)</option>
+              <option value="gist">gist (geometric, range types, full-text)</option>
+              <option value="brin">brin (large sequential datasets)</option>
+              <option value="spgist">spgist (space-partitioned data)</option>
+              <option value="hash">hash (equality only)</option>
+            </select>
+          </label>
+        )}
         {entity === "unique constraint" && (
           <label>
             <span>Condition (WHERE)</span>
@@ -123,6 +152,7 @@ export function NamedColumnsDialog({
             onClick={() => onSubmit({
               name: normalizedName,
               columns,
+              method: entity === "index" ? method : undefined,
               condition: entity === "unique constraint" ? condition.trim() : undefined,
               comment: comment.trim() === "" ? undefined : comment.trim(),
             })}

@@ -374,8 +374,12 @@ export function generateIndexSql(
   index: DatabaseIndex,
 ): string {
   const columns = index.columns.join(", ");
+  const methodClause =
+    index.method && index.method.toLowerCase() !== "btree"
+      ? ` USING ${index.method.toLowerCase()}`
+      : "";
 
-  let sql = `CREATE INDEX IF NOT EXISTS ${index.name} ON ${schema.name}.${table.name} (${columns});`;
+  let sql = `CREATE INDEX IF NOT EXISTS ${index.name} ON ${schema.name}.${table.name}${methodClause} (${columns});`;
   if (index.comment) {
     sql += `\nCOMMENT ON INDEX ${schema.name}.${index.name} IS '${escapeComment(index.comment)}';`;
   }

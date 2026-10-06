@@ -174,16 +174,20 @@ export function removeColumn(
 
         let tableChanged = filteredColumns.length !== table.columns.length;
 
-        const filteredUniqueConstraints = table.uniqueConstraints.filter(
-          (constraint) => !constraint.columns.includes(removed.name),
-        );
+        const filteredUniqueConstraints = isSource
+          ? table.uniqueConstraints.filter(
+              (constraint) => !constraint.columns.includes(removed.name),
+            )
+          : table.uniqueConstraints;
         if (filteredUniqueConstraints.length !== table.uniqueConstraints.length) {
           tableChanged = true;
         }
 
-        const filteredIndexes = table.indexes.filter(
-          (index) => !index.columns.includes(removed.name),
-        );
+        const filteredIndexes = isSource
+          ? table.indexes.filter(
+              (index) => !index.columns.includes(removed.name),
+            )
+          : table.indexes;
         if (filteredIndexes.length !== table.indexes.length) {
           tableChanged = true;
         }
@@ -201,6 +205,23 @@ export function removeColumn(
           tableChanged = true;
         }
 
+        let chkChanged = false;
+        const checkConstraints = isSource
+          ? (table.checkConstraints ?? []).map((chk) => {
+              if (chk.columnIds?.includes(columnId)) {
+                chkChanged = true;
+                return {
+                  ...chk,
+                  columnIds: chk.columnIds.filter((id) => id !== columnId),
+                };
+              }
+              return chk;
+            })
+          : (table.checkConstraints ?? []);
+        if (chkChanged) {
+          tableChanged = true;
+        }
+
         if (tableChanged) {
           schemaChanged = true;
           return {
@@ -209,6 +230,7 @@ export function removeColumn(
             uniqueConstraints: filteredUniqueConstraints,
             indexes: filteredIndexes,
             foreignKeys: filteredForeignKeys,
+            checkConstraints,
           };
         }
         return table;
