@@ -232,6 +232,64 @@ export function generateTablePostCreateSql(
   ];
 }
 
+export function generateSingleTableSql(
+  schema: DatabaseSchema,
+  table: DatabaseTable,
+  project?: DatabaseProject,
+): string {
+  const parts: string[] = [];
+
+  // Table DDL (CREATE TABLE + comments on table and columns)
+  parts.push(generateTableSql(schema, table, { includeConstraints: false }));
+
+  // Primary Key
+  const primaryKeySql = generateAddPrimaryKeySql(schema, table);
+  if (primaryKeySql) {
+    parts.push("-- Primary Key", primaryKeySql);
+  }
+
+  // Unique Constraints
+  if (table.uniqueConstraints.length > 0) {
+    const uniqueConstraintSql = table.uniqueConstraints.map((constraint) =>
+      generateAddUniqueConstraintSql(schema, table, constraint),
+    );
+    parts.push("-- Unique Constraints", ...uniqueConstraintSql);
+  }
+
+  // Foreign Keys
+  if (table.foreignKeys.length > 0) {
+    const foreignKeySql = table.foreignKeys.map((foreignKey) =>
+      generateAddForeignKeySql(schema, table, foreignKey),
+    );
+    parts.push("-- Foreign Keys", ...foreignKeySql);
+  }
+
+  // Indexes
+  if (table.indexes.length > 0) {
+    const indexSql = table.indexes.map((index) =>
+      generateIndexSql(schema, table, index),
+    );
+    parts.push("-- Indexes", ...indexSql);
+  }
+
+  // Triggers
+  if (project && table.triggers && table.triggers.length > 0) {
+    const triggerSqls: string[] = [];
+    for (const trg of table.triggers) {
+      try {
+        triggerSqls.push(generateTriggerSql(schema, table, trg, project));
+      } catch {
+        // Skip triggers with missing function references
+      }
+    }
+    if (triggerSqls.length > 0) {
+      parts.push("-- Triggers", ...triggerSqls);
+    }
+  }
+
+  return parts.filter(Boolean).join("\n\n");
+}
+
 function generateInlineTableConstraintSql(table: DatabaseTable): string[] {
   const primaryKeyColumns = table.columns
     .filter((column) => column.primaryKey)

@@ -10,6 +10,7 @@ import {
   Trash2,
   Cpu,
   ScanEye,
+  FileCode2,
 } from "lucide-react";
 import { useState } from "react";
 import type { DatabaseSchema, DatabaseFunction, DatabaseView } from "@/core/model";
@@ -26,6 +27,7 @@ type Props = {
   onDeleteSequence: (schemaId: string, sequenceId: string) => void;
   onSeeTableOnDiagram: (schemaId: string, tableId: string) => void;
   onDeleteTable: (schemaId: string, tableId: string) => void;
+  onViewTableSql?: (schemaId: string, tableId: string) => void;
   onAddFunction: (schemaId: string) => void;
   onEditFunction: (schemaId: string, functionId: string) => void;
   onDeleteFunction: (schemaId: string, functionId: string) => void;
@@ -43,6 +45,7 @@ export function SchemaTreeItem({
   onDeleteSequence,
   onSeeTableOnDiagram,
   onDeleteTable,
+  onViewTableSql,
   onAddFunction,
   onEditFunction,
   onDeleteFunction,
@@ -292,6 +295,15 @@ export function SchemaTreeItem({
                         onSelect: () =>
                           onSeeTableOnDiagram(schema.id, table.id),
                       },
+                      ...(onViewTableSql
+                        ? [
+                            {
+                              label: "View SQL",
+                              icon: <FileCode2 size={14} />,
+                              onSelect: () => onViewTableSql(schema.id, table.id),
+                            },
+                          ]
+                        : []),
                       {
                         label: "Delete table",
                         icon: <Trash2 size={14} />,

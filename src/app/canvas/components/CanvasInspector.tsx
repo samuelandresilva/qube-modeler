@@ -1,4 +1,4 @@
-import { Trash2, X } from "lucide-react";
+import { FileCode2, Trash2, X } from "lucide-react";
 import type {
   DatabaseSchema,
   DatabaseTable,
@@ -15,6 +15,7 @@ type Props = {
   onClose: () => void;
   onRenameTable?: (name: string) => void;
   onDeleteTable?: () => void;
+  onViewTableSql?: () => void;
   onAddColumn?: () => void;
   onEditColumn?: (id: string) => void;
   onAddForeignKey?: () => void;
@@ -55,6 +56,7 @@ export function CanvasInspector({
   onClose,
   onRenameTable = () => {},
   onDeleteTable = () => {},
+  onViewTableSql,
   onAddColumn = () => {},
   onEditColumn = () => {},
   onAddForeignKey = () => {},
@@ -335,9 +337,30 @@ export function CanvasInspector({
     <aside className="canvas-inspector">
       <div className="canvas-inspector__header">
         <span>Table</span>
-        <button type="button" onClick={onClose}>
-          <X size={16} />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          {onViewTableSql && (
+            <button
+              type="button"
+              onClick={onViewTableSql}
+              title="View Table SQL"
+              aria-label="View Table SQL"
+            >
+              <FileCode2 size={16} />
+            </button>
+          )}
+          <button
+            type="button"
+            className="canvas-inspector__header-delete-btn"
+            onClick={onDeleteTable}
+            title="Delete table"
+            aria-label="Delete table"
+          >
+            <Trash2 size={16} />
+          </button>
+          <button type="button" onClick={onClose} title="Close" aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="canvas-inspector__field-group">
@@ -398,15 +421,7 @@ export function CanvasInspector({
         </details>
       )}
 
-      <button
-        className="canvas-inspector__danger-button"
-        type="button"
-        onClick={onDeleteTable}
-        style={{ marginTop: "16px" }}
-      >
-        <Trash2 size={15} strokeWidth={2.4} />
-        <span>Delete table</span>
-      </button>
+
       <InspectorSection
         title="Columns"
         addLabel="Add column"

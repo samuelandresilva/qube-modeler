@@ -9,4 +9,5 @@ export type CanvasDialogState =
   | { kind: "function"; schemaId: string; functionId?: string }
   | { kind: "trigger"; triggerId?: string; parentId?: string; parentType?: "table" | "view" }
   | { kind: "view-definition"; viewId: string }
+  | { kind: "table-sql"; tableId: string }
   | null;

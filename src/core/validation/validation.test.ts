@@ -904,7 +904,7 @@ describe("Project validation and backward compatibility", () => {
             id: "idx-1",
             name: "idx_tb_songs_tags",
             columns: ["tags"],
-            method: "invalid method with spaces" as any,
+            method: "invalid method with spaces" as unknown as "btree",
           },
         ],
       });

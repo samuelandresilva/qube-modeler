@@ -44,6 +44,8 @@ import { CheckConstraintDialog } from "./CheckConstraintDialog";
 import { FunctionDialog } from "./FunctionDialog";
 import { TriggerDialog } from "./TriggerDialog";
 import { ViewDefinitionDialog } from "./ViewDefinitionDialog";
+import { TableSqlDialog } from "./TableSqlDialog";
+import { generateSingleTableSql } from "@/core/sql";
 
 type Props = {
   dialog: CanvasDialogState;
@@ -69,6 +71,21 @@ export function CanvasDialogs({
   const context = selectedTableId
     ? findTableContext(project, selectedTableId)
     : undefined;
+
+  if (dialog.kind === "table-sql") {
+    const tableCtx = findTableContext(project, dialog.tableId);
+    if (!tableCtx) return null;
+    const sql = generateSingleTableSql(tableCtx.schema, tableCtx.table, project);
+    return (
+      <TableSqlDialog
+        key={`table_sql_${tableCtx.table.id}`}
+        tableName={tableCtx.table.name}
+        schemaName={tableCtx.schema.name}
+        sql={sql}
+        onClose={close}
+      />
+    );
+  }
 
   if (dialog.kind === "schema") {
     const schema = project.schemas.find((item) => item.id === dialog.schemaId);

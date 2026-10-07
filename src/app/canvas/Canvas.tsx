@@ -1,6 +1,7 @@
 import {
   Background,
   Controls,
+  PanOnScrollMode,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
@@ -506,6 +507,9 @@ function CanvasContent({
         onDeleteFunction={deleteFunction}
         onSeeTableOnDiagram={(_schemaId, tableId) => flow.focusTable(tableId)}
         onDeleteTable={deleteTable}
+        onViewTableSql={(_schemaId, tableId) =>
+          setDialog({ kind: "table-sql", tableId })
+        }
         onDeleteView={deleteView}
         onViewFlyway={onViewFlyway}
       />
@@ -581,6 +585,9 @@ function CanvasContent({
             }
             onDeleteTable={() =>
               deleteTable(context.schema.id, context.table.id)
+            }
+            onViewTableSql={() =>
+              setDialog({ kind: "table-sql", tableId: context.table.id })
             }
             onAddColumn={() => setDialog({ kind: "column" })}
             onEditColumn={(columnId) => setDialog({ kind: "column", columnId })}
@@ -787,6 +794,10 @@ function CanvasContent({
           onNodesChange={flow.onNodesChange}
           onEdgesChange={flow.onEdgesChange}
           deleteKeyCode={null}
+          panOnScroll={true}
+          panOnScrollMode={PanOnScrollMode.Free}
+          zoomOnScroll={false}
+          zoomActivationKeyCode={["Control", "Meta"]}
           snapToGrid={snapToGrid}
           snapGrid={[20, 20]}
           nodesConnectable={false}

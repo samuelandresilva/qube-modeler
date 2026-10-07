@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generatePostgresSql } from "./postgres-generator";
+import { generatePostgresSql, generateSingleTableSql } from "./postgres-generator";
 import { createProjectFixture, createSchemaFixture, createTableFixture, createColumnFixture } from "../test-utils/project-fixtures";
 
 describe("postgres-generator", () => {
@@ -1362,6 +1362,182 @@ describe("postgres-generator", () => {
       expect(sql).toContain(
         "CREATE INDEX IF NOT EXISTS idx_tb_songs_id_btree ON public.tb_songs (id);",
       );
+    });
+  });
+
+  describe("generateSingleTableSql", () => {
+    it("generates CREATE TABLE, comments, PK, UK, FK, indexes and triggers for a single table", () => {
+      const table = createTableFixture({
+        id: "t1",
+        name: "tb_songs",
+        comment: "Songs table documentation",
+        primaryKeyComment: "Primary key documentation",
+        columns: [
+          createColumnFixture({
+            id: "c1",
+            name: "id",
+            type: "uuid",
+            primaryKey: true,
+            comment: "Song UUID",
+          }),
+          createColumnFixture({
+            id: "c2",
+            name: "title",
+            type: "varchar",
+            size: 200,
+            nullable: false,
+          }),
+          createColumnFixture({
+            id: "c3",
+            name: "artist_id",
+            type: "uuid",
+            nullable: false,
+          }),
+          createColumnFixture({
+            id: "c4",
+            name: "tags",
+            type: "text",
+            isArray: true,
+          }),
+        ],
+        uniqueConstraints: [
+          {
+            id: "uk1",
+            name: "uk_songs_title_artist",
+            columns: ["title", "artist_id"],
+            comment: "Unique title per artist",
+          },
+          {
+            id: "uk2",
+            name: "uk_songs_active",
+            columns: ["title"],
+            condition: "deleted_at IS NULL",
+          },
+        ],
+        foreignKeys: [
+          {
+            id: "fk1",
+            name: "fk_songs_artist",
+            sourceColumns: ["artist_id"],
+            targetTable: "tb_artists",
+            targetSchema: "public",
+            targetColumns: ["id"],
+            onDelete: "CASCADE",
+          },
+        ],
+        indexes: [
+          {
+            id: "idx1",
+            name: "idx_songs_tags_gin",
+            columns: ["tags"],
+            method: "gin",
+          },
+        ],
+        checkConstraints: [
+          {
+            id: "chk1",
+            name: "chk_title_not_empty",
+            expression: "length(title) > 0",
+          },
+        ],
+        triggers: [
+          {
+            id: "trg1",
+            name: "trg_songs_audit",
+            eventTiming: "AFTER",
+            events: ["INSERT", "UPDATE"],
+            functionId: "fn1",
+            forEach: "ROW",
+            comment: "Audit trigger",
+          },
+        ],
+      });
+
+      const schema = createSchemaFixture({
+        id: "s1",
+        name: "public",
+        tables: [table],
+      });
+
+      const project = createProjectFixture({
+        schemas: [schema],
+        functions: [
+          {
+            id: "fn1",
+            schemaId: "s1",
+            name: "fn_audit_log",
+            arguments: [],
+            returnType: "trigger",
+            language: "plpgsql",
+            body: "BEGIN RETURN NEW; END;",
+          },
+        ],
+      });
+
+      const sql = generateSingleTableSql(schema, table, project);
+
+      // Verify CREATE TABLE
+      expect(sql).toContain("CREATE TABLE IF NOT EXISTS public.tb_songs");
+      expect(sql).toContain("id uuid NOT NULL");
+      expect(sql).toContain("title varchar(200) NOT NULL");
+      expect(sql).toContain("tags text[]");
+      expect(sql).toContain("CONSTRAINT chk_title_not_empty CHECK (length(title) > 0)");
+
+      // Verify Comments
+      expect(sql).toContain("COMMENT ON TABLE public.tb_songs IS 'Songs table documentation';");
+      expect(sql).toContain("COMMENT ON COLUMN public.tb_songs.id IS 'Song UUID';");
+
+      // Verify Primary Key
+      expect(sql).toContain("-- Primary Key");
+      expect(sql).toContain("ALTER TABLE public.tb_songs ADD CONSTRAINT pk_tb_songs PRIMARY KEY (id);");
+      expect(sql).toContain("COMMENT ON CONSTRAINT pk_tb_songs ON public.tb_songs IS 'Primary key documentation';");
+
+      // Verify Unique Constraints
+      expect(sql).toContain("-- Unique Constraints");
+      expect(sql).toContain("ALTER TABLE public.tb_songs ADD CONSTRAINT uk_songs_title_artist UNIQUE (title, artist_id);");
+      expect(sql).toContain("CREATE UNIQUE INDEX uk_songs_active ON public.tb_songs (title) WHERE deleted_at IS NULL;");
+
+      // Verify Foreign Key
+      expect(sql).toContain("-- Foreign Keys");
+      expect(sql).toContain("ALTER TABLE public.tb_songs ADD CONSTRAINT fk_songs_artist FOREIGN KEY (artist_id) REFERENCES public.tb_artists (id) ON DELETE CASCADE;");
+
+      // Verify Index
+      expect(sql).toContain("-- Indexes");
+      expect(sql).toContain("CREATE INDEX IF NOT EXISTS idx_songs_tags_gin ON public.tb_songs USING gin (tags);");
+
+      // Verify Trigger
+      expect(sql).toContain("-- Triggers");
+      expect(sql).toContain("CREATE TRIGGER trg_songs_audit");
+      expect(sql).toContain("EXECUTE FUNCTION public.fn_audit_log();");
+    });
+
+    it("generates minimal CREATE TABLE for a table with no constraints or comments", () => {
+      const table = createTableFixture({
+        name: "simple_table",
+        columns: [
+          createColumnFixture({ name: "col_a", type: "integer", nullable: true }),
+        ],
+        uniqueConstraints: [],
+        foreignKeys: [],
+        indexes: [],
+        checkConstraints: [],
+        triggers: [],
+      });
+
+      const schema = createSchemaFixture({
+        name: "public",
+        tables: [table],
+      });
+
+      const sql = generateSingleTableSql(schema, table);
+
+      expect(sql).toContain("CREATE TABLE IF NOT EXISTS public.simple_table");
+      expect(sql).toContain("col_a integer");
+      expect(sql).not.toContain("-- Primary Key");
+      expect(sql).not.toContain("-- Unique Constraints");
+      expect(sql).not.toContain("-- Foreign Keys");
+      expect(sql).not.toContain("-- Indexes");
+      expect(sql).not.toContain("-- Triggers");
     });
   });
 });
