@@ -62,6 +62,29 @@ export type OpenProjectFileResult =
       savedAt?: string;
     };
 
+export type SelectDirectoryResult =
+  | { canceled: true }
+  | { canceled: false; directoryPath: string }
+  | { canceled: false; error: string };
+
+export type ExportMigrationsBatchFile = {
+  fileName: string;
+  sql: string;
+};
+
+export type ExportMigrationsBatchPayload = {
+  directoryPath: string;
+  files: ExportMigrationsBatchFile[];
+};
+
+export type ExportMigrationsBatchResult =
+  | { canceled: false; count: number; exportedFiles: string[] }
+  | { canceled: false; error: string };
+
+export type GetDirectoryFilesResult =
+  | { files: string[] }
+  | { error: string };
+
 export type QubeModelerApi = {
   openProject(): Promise<OpenProjectResult>;
   saveProject(payload: SaveProjectPayload): Promise<SaveProjectResult>;
@@ -69,6 +92,9 @@ export type QubeModelerApi = {
   onCloseRequested(callback: () => void): () => void;
   confirmClose(): void;
   exportMigrationSql(payload: ExportMigrationSqlPayload): Promise<ExportMigrationSqlResult>;
+  selectDirectory(): Promise<SelectDirectoryResult>;
+  getDirectoryFiles(directoryPath: string): Promise<GetDirectoryFilesResult>;
+  exportMigrationsBatch(payload: ExportMigrationsBatchPayload): Promise<ExportMigrationsBatchResult>;
   getRecentProjects(): Promise<RecentProject[]>;
   addRecentProject(filePath: string): Promise<RecentProject[]>;
   removeRecentProject(filePath: string): Promise<RecentProject[]>;
@@ -77,4 +103,5 @@ export type QubeModelerApi = {
   getAppVersion(): Promise<string>;
   onOpenFileRequested(callback: (filePath: string) => void): () => void;
 };
+
 

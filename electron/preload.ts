@@ -20,6 +20,11 @@ const api: QubeModelerApi = {
   confirmClose: () => ipcRenderer.send("qbm:confirm-close"),
   exportMigrationSql: (payload: ExportMigrationSqlPayload) =>
     ipcRenderer.invoke("qbm:export-migration-sql", payload),
+  selectDirectory: () => ipcRenderer.invoke("qbm:select-directory"),
+  getDirectoryFiles: (directoryPath: string) =>
+    ipcRenderer.invoke("qbm:get-directory-files", directoryPath),
+  exportMigrationsBatch: (payload: import("../src/core/qbm/ipc-types").ExportMigrationsBatchPayload) =>
+    ipcRenderer.invoke("qbm:export-migrations-batch", payload),
   getRecentProjects: () => ipcRenderer.invoke("qbm:get-recent-projects"),
   addRecentProject: (filePath: string) =>
     ipcRenderer.invoke("qbm:add-recent-project", filePath),

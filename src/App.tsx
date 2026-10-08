@@ -470,6 +470,32 @@ export default function App() {
     }));
   }, []);
 
+  const handleUpdateMigrationsDirectory = useCallback((directoryPath: string | undefined) => {
+    setOpenedProject((current) => ({
+      ...current,
+      flyway: {
+        ...current.flyway,
+        migrationsDirectory: directoryPath,
+      },
+      isDirty: true,
+    }));
+  }, []);
+
+  const handleDeleteLastMigration = useCallback(() => {
+    setOpenedProject((current) => {
+      const versions = current.flyway.versions;
+      if (versions.length === 0) return current;
+      return {
+        ...current,
+        flyway: {
+          ...current.flyway,
+          versions: versions.slice(0, -1),
+        },
+        isDirty: true,
+      };
+    });
+  }, []);
+
 
 
   const windowTitle = view === "welcome"
@@ -527,6 +553,8 @@ export default function App() {
             } as QbmFile}
             onBack={() => setView("canvas")}
             onConfirmMigration={handleConfirmMigration}
+            onUpdateMigrationsDirectory={handleUpdateMigrationsDirectory}
+            onDeleteLastMigration={handleDeleteLastMigration}
           />
         )}
       </div>

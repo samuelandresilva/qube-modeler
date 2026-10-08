@@ -272,6 +272,16 @@
   color: var(--color-accent);
 }
 
+.flyway-badge--synced {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.flyway-badge--pending {
+  background-color: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+}
+
 .flyway-cell-version {
   font-family: monospace;
   font-weight: 600;
@@ -385,9 +395,84 @@
   border-color: var(--color-border-strong);
 }
 
+.flyway-button--danger {
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+.flyway-button--danger:hover:not(:disabled) {
+  background-color: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #f87171;
+}
+
 .flyway-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Directory management bar */
+.flyway-directory-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.flyway-directory-bar__info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.flyway-directory-bar__icon {
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.flyway-directory-bar__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.flyway-directory-bar__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  letter-spacing: 0.5px;
+}
+
+.flyway-directory-bar__path {
+  font-size: 13px;
+  font-family: monospace;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flyway-directory-bar__path--empty {
+  color: var(--color-text-subtle);
+  font-style: italic;
+  font-family: inherit;
+}
+
+.flyway-directory-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 /* SQL Preview and Migration verification styles */

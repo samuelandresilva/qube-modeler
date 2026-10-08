@@ -9,6 +9,11 @@ type FlywayMigrationsDetailsProps = {
   hasContent?: boolean;
   onViewSql?: () => void;
   onExportSql?: () => void;
+  onSaveToDirectory?: () => void;
+  onDeleteLastVersion?: () => void;
+  isLastVersion?: boolean;
+  hasMigrationsDirectory?: boolean;
+  isSavedInDirectory?: boolean;
 };
 
 export function FlywayMigrationsDetails({
@@ -20,6 +25,11 @@ export function FlywayMigrationsDetails({
   hasContent = false,
   onViewSql,
   onExportSql,
+  onSaveToDirectory,
+  onDeleteLastVersion,
+  isLastVersion = false,
+  hasMigrationsDirectory = false,
+  isSavedInDirectory = false,
 }: FlywayMigrationsDetailsProps) {
   if (totalCount === 0) {
     return (
@@ -92,15 +102,29 @@ export function FlywayMigrationsDetails({
             onClick={onExportSql}
             disabled={!selectedVersion.generatedSql}
           >
-            Export SQL
+            Export As...
           </button>
-          <button
-            className="flyway-button flyway-button--secondary"
-            type="button"
-            disabled
-          >
-            View snapshot
-          </button>
+          {hasMigrationsDirectory && onSaveToDirectory && (
+            <button
+              className="flyway-button flyway-button--secondary"
+              type="button"
+              onClick={onSaveToDirectory}
+              disabled={!selectedVersion.generatedSql}
+              title="Save this migration into the configured directory"
+            >
+              {isSavedInDirectory ? "Overwrite in folder" : "Save to folder"}
+            </button>
+          )}
+          {isLastVersion && onDeleteLastVersion && (
+            <button
+              className="flyway-button flyway-button--danger"
+              type="button"
+              onClick={onDeleteLastVersion}
+              title="Delete the last migration and restore the previous snapshot"
+            >
+              Delete migration
+            </button>
+          )}
         </div>
 
         {/* Seção Manual Scripts (Apenas Leitura) */}

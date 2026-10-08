@@ -5,12 +5,14 @@ import type { QbmFlywayVersion } from "@/core/qbm/qbm-file";
 type FlywayMigrationsTableProps = {
   versions: QbmFlywayVersion[];
   selectedVersion: QbmFlywayVersion | null;
+  diskFiles?: Set<string>;
   onSelectVersion: (version: QbmFlywayVersion | null) => void;
 };
 
 export function FlywayMigrationsTable({
   versions,
   selectedVersion,
+  diskFiles,
   onSelectVersion,
 }: FlywayMigrationsTableProps) {
   const [search, setSearch] = useState("");
@@ -50,7 +52,7 @@ export function FlywayMigrationsTable({
         <table className="flyway-table">
           <thead>
             <tr>
-              <th>Category</th>
+              <th>Status</th>
               <th>Version</th>
               <th>Description</th>
               <th>File Name</th>
@@ -81,7 +83,19 @@ export function FlywayMigrationsTable({
                     }
                   >
                     <td>
-                      <span className="flyway-badge flyway-badge--versioned">Versioned</span>
+                      {diskFiles ? (
+                        diskFiles.has(v.fileName) ? (
+                          <span className="flyway-badge flyway-badge--synced" title="File exists in migrations directory">
+                            Saved
+                          </span>
+                        ) : (
+                          <span className="flyway-badge flyway-badge--pending" title="File not yet saved in directory">
+                            Pending
+                          </span>
+                        )
+                      ) : (
+                        <span className="flyway-badge flyway-badge--versioned">Versioned</span>
+                      )}
                     </td>
                     <td className="flyway-cell-version">{v.version}</td>
                     <td className="flyway-cell-description">{v.description}</td>

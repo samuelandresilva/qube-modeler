@@ -60,6 +60,21 @@ describe("qbm-file", () => {
       expect(parsed.flyway.versions[0].projectSnapshot).toEqual(validProject);
     });
 
+    it("preserves flyway.migrationsDirectory during parse", () => {
+      const qbm = createQbmFile(
+        validProject,
+        {
+          migrationsDirectory: "C:/my-project/db/migrations",
+          versions: [],
+        },
+        "1.0.0"
+      );
+      const json = JSON.stringify(qbm);
+
+      const parsed = parseQbmFile(json);
+      expect(parsed.flyway.migrationsDirectory).toBe("C:/my-project/db/migrations");
+    });
+
     it("fails when format is not qube-modeler-project", () => {
       const qbm = createQbmFile(validProject, { versions: [] }, "1.0.0");
       const json = JSON.stringify({ ...qbm, format: "invalid-format" });

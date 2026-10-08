@@ -9,7 +9,7 @@ import {
   shell,
   type WebContents,
 } from "electron";
-import { open, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { open, readFile, rename, unlink, writeFile, readdir, mkdir } from "node:fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createQbmFile, parseQbmFile, type QbmFlywayConfig } from "../src/core/qbm/qbm-file";
@@ -21,6 +21,9 @@ import type {
   ExportMigrationSqlResult,
   RecentProject,
   OpenProjectFileResult,
+  SelectDirectoryResult,
+  GetDirectoryFilesResult,
+  ExportMigrationsBatchResult,
 } from "../src/core/qbm/ipc-types";
 
 
@@ -361,6 +364,90 @@ function configureProjectIpc() {
         return {
           canceled: false,
           error: `Could not export migration SQL: ${getErrorMessage(error)}`,
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "qbm:select-directory",
+    async (event): Promise<SelectDirectoryResult> => {
+      try {
+        const owner = getOwnerWindow(event.sender);
+        const options: OpenDialogOptions = {
+          title: "Select Migrations Directory",
+          properties: ["openDirectory", "createDirectory"],
+        };
+        const result = owner
+          ? await dialog.showOpenDialog(owner, options)
+          : await dialog.showOpenDialog(options);
+
+        if (result.canceled || result.filePaths.length === 0) {
+          return { canceled: true };
+        }
+
+        return { canceled: false, directoryPath: result.filePaths[0] };
+      } catch (error) {
+        return {
+          canceled: false,
+          error: `Could not select directory: ${getErrorMessage(error)}`,
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "qbm:get-directory-files",
+    async (_event, directoryPath: unknown): Promise<GetDirectoryFilesResult> => {
+      try {
+        if (typeof directoryPath !== "string" || !directoryPath.trim()) {
+          return { files: [] };
+        }
+        const entries = await readdir(directoryPath, { withFileTypes: true });
+        const files = entries
+          .filter((entry) => entry.isFile())
+          .map((entry) => entry.name);
+        return { files };
+      } catch (error) {
+        return { error: `Could not read directory files: ${getErrorMessage(error)}` };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "qbm:export-migrations-batch",
+    async (_event, payload: unknown): Promise<ExportMigrationsBatchResult> => {
+      try {
+        if (
+          !isRecord(payload) ||
+          typeof payload.directoryPath !== "string" ||
+          !Array.isArray(payload.files)
+        ) {
+          throw new Error("Invalid batch export request.");
+        }
+
+        const dir = payload.directoryPath;
+        await mkdir(dir, { recursive: true });
+
+        const exportedFiles: string[] = [];
+
+        for (const item of payload.files) {
+          if (
+            isRecord(item) &&
+            typeof item.fileName === "string" &&
+            typeof item.sql === "string"
+          ) {
+            const targetPath = path.join(dir, item.fileName);
+            await writeFile(targetPath, item.sql, "utf8");
+            exportedFiles.push(item.fileName);
+          }
+        }
+
+        return { canceled: false, count: exportedFiles.length, exportedFiles };
+      } catch (error) {
+        return {
+          canceled: false,
+          error: `Could not export migrations batch: ${getErrorMessage(error)}`,
         };
       }
     },

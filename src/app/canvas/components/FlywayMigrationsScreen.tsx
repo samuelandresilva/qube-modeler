@@ -9,19 +9,22 @@ import {
   getLastFlywayVersion,
 } from "@/core/qbm/qbm-flyway";
 import { generatePostgresSql } from "@/core/sql/postgres-generator";
-import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, Folder, FolderOpen, RefreshCw } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import "../styles/FlywayMigrationsScreen.css";
 import { CanvasModal } from "./CanvasModal";
 import { FlywayMigrationsDetails } from "./FlywayMigrationsDetails";
 import { FlywayMigrationsTable } from "./FlywayMigrationsTable";
 import { MessageDialog } from "./MessageDialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { SqlEditor } from "@/app/shared/components/SqlEditor";
 
 type FlywayMigrationsScreenProps = {
   qbmFile: QbmFile;
   onBack: () => void;
   onConfirmMigration: (newVersion: QbmFlywayVersion) => void;
+  onUpdateMigrationsDirectory?: (directoryPath: string | undefined) => void;
+  onDeleteLastMigration?: () => void;
 };
 
 type PreviewState = {
@@ -63,9 +66,9 @@ export function FlywayMigrationsScreen({
   qbmFile,
   onBack,
   onConfirmMigration,
+  onUpdateMigrationsDirectory,
+  onDeleteLastMigration,
 }: FlywayMigrationsScreenProps) {
-
-
   const [selectedVersion, setSelectedVersion] = useState<QbmFlywayVersion | null>(null);
   const [previewData, setPreviewData] = useState<PreviewState | null>(null);
   const [destructiveChangesAccepted, setDestructiveChangesAccepted] = useState(false);
@@ -76,10 +79,145 @@ export function FlywayMigrationsScreen({
   const [descriptionInput, setDescriptionInput] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [exportErrorMessage, setExportErrorMessage] = useState<string | null>(null);
+  const [exportSuccessMessage, setExportSuccessMessage] = useState<string | null>(null);
+
+  // Directory & synchronization state
+  const migrationsDirectory = qbmFile.flyway.migrationsDirectory;
+  const [diskFileNames, setDiskFileNames] = useState<Set<string>>(new Set());
+  const [isLoadingDiskFiles, setIsLoadingDiskFiles] = useState(false);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
 
   const versions = getFlywayVersions(qbmFile);
   const lastVersion = getLastFlywayVersion(qbmFile);
   const totalCount = versions.length;
+
+  const refreshDiskFiles = useCallback(async () => {
+    if (!migrationsDirectory) {
+      setDiskFileNames(new Set());
+      return;
+    }
+    const api = window.qubeModeler;
+    if (!api) return;
+
+    setIsLoadingDiskFiles(true);
+    try {
+      const res = await api.getDirectoryFiles(migrationsDirectory);
+      if ("files" in res && Array.isArray(res.files)) {
+        setDiskFileNames(new Set(res.files));
+      }
+    } catch (err) {
+      console.error("Failed to read directory files:", err);
+    } finally {
+      setIsLoadingDiskFiles(false);
+    }
+  }, [migrationsDirectory]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!migrationsDirectory) {
+      return;
+    }
+    const api = window.qubeModeler;
+    if (!api) return;
+
+    api.getDirectoryFiles(migrationsDirectory).then((res) => {
+      if (cancelled) return;
+      if ("files" in res && Array.isArray(res.files)) {
+        setDiskFileNames(new Set(res.files));
+      }
+    }).catch((err) => {
+      if (!cancelled) console.error("Failed to read directory files:", err);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [migrationsDirectory]);
+
+  const pendingVersions = useMemo(() => {
+    if (!migrationsDirectory) return [];
+    return versions.filter((v) => !diskFileNames.has(v.fileName));
+  }, [versions, diskFileNames, migrationsDirectory]);
+
+  const handleSelectDirectory = async () => {
+    const api = window.qubeModeler;
+    if (!api) {
+      setExportErrorMessage("Electron API is not available.");
+      return;
+    }
+    try {
+      const result = await api.selectDirectory();
+      if (!result.canceled && "directoryPath" in result) {
+        onUpdateMigrationsDirectory?.(result.directoryPath);
+      } else if (!result.canceled && "error" in result) {
+        setExportErrorMessage(result.error);
+      }
+    } catch (err) {
+      setExportErrorMessage(`Error selecting directory: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handleExportBatch = async (versionsToExport: QbmFlywayVersion[]) => {
+    if (!migrationsDirectory) {
+      setExportErrorMessage("No migrations directory configured.");
+      return;
+    }
+    if (versionsToExport.length === 0) return;
+
+    const api = window.qubeModeler;
+    if (!api) {
+      setExportErrorMessage("Electron API is not available.");
+      return;
+    }
+
+    try {
+      const files = versionsToExport.map((v) => ({
+        fileName: v.fileName,
+        sql: buildFlywayVersionSql(v),
+      }));
+
+      const res = await api.exportMigrationsBatch({
+        directoryPath: migrationsDirectory,
+        files,
+      });
+
+      if ("error" in res && res.error) {
+        setExportErrorMessage(res.error);
+      } else if ("count" in res) {
+        setExportSuccessMessage(
+          res.count === 1
+            ? `1 migration saved to folder successfully.`
+            : `${res.count} migrations saved to folder successfully.`
+        );
+        await refreshDiskFiles();
+      }
+    } catch (err) {
+      setExportErrorMessage(`Error saving migrations to folder: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handleSaveSelectedToDirectory = async () => {
+    if (!selectedVersion) return;
+    await handleExportBatch([selectedVersion]);
+  };
+
+  const handleExportAllToDirectory = async () => {
+    await handleExportBatch(versions);
+  };
+
+  const handleExportPendingToDirectory = async () => {
+    await handleExportBatch(pendingVersions);
+  };
+
+  const handleDeleteLastMigrationClick = () => {
+    setIsConfirmDeleteOpen(true);
+  };
+
+  const handleConfirmDeleteLastMigration = () => {
+    setIsConfirmDeleteOpen(false);
+    onDeleteLastMigration?.();
+    setSelectedVersion(null);
+  };
 
   const hasContent = qbmFile.project.schemas.some(
     (s) => s.tables.length > 0 || s.sequences.length > 0
@@ -385,6 +523,67 @@ export function FlywayMigrationsScreen({
       </header>
 
       <main className="flyway-main-content">
+        <div className="flyway-directory-bar">
+          <div className="flyway-directory-bar__info">
+            <Folder className="flyway-directory-bar__icon" size={20} />
+            <div className="flyway-directory-bar__text">
+              <span className="flyway-directory-bar__label">Target Migrations Directory</span>
+              {migrationsDirectory ? (
+                <span className="flyway-directory-bar__path" title={migrationsDirectory}>
+                  {migrationsDirectory}
+                </span>
+              ) : (
+                <span className="flyway-directory-bar__path flyway-directory-bar__path--empty">
+                  No directory configured. Select a folder to track and sync migrations directly.
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flyway-directory-bar__actions">
+            {migrationsDirectory && (
+              <>
+                <button
+                  type="button"
+                  className="flyway-button flyway-button--secondary"
+                  onClick={() => void refreshDiskFiles()}
+                  disabled={isLoadingDiskFiles}
+                  title="Check files in directory"
+                >
+                  <RefreshCw size={14} className={isLoadingDiskFiles ? "animate-spin" : ""} style={{ marginRight: 6 }} />
+                  Refresh
+                </button>
+                {pendingVersions.length > 0 && (
+                  <button
+                    type="button"
+                    className="flyway-button flyway-button--primary"
+                    onClick={() => void handleExportPendingToDirectory()}
+                    title="Export pending migrations to directory"
+                  >
+                    Save Pending ({pendingVersions.length})
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="flyway-button flyway-button--secondary"
+                  onClick={() => void handleExportAllToDirectory()}
+                  title="Export all migrations to directory"
+                  disabled={versions.length === 0}
+                >
+                  Save All
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              className="flyway-button flyway-button--secondary"
+              onClick={() => void handleSelectDirectory()}
+            >
+              <FolderOpen size={14} style={{ marginRight: 6 }} />
+              {migrationsDirectory ? "Change Folder" : "Select Folder"}
+            </button>
+          </div>
+        </div>
+
         <div className="flyway-layout-container">
           <div className="flyway-layout-grid">
             <div className="flyway-column-left">
@@ -392,6 +591,7 @@ export function FlywayMigrationsScreen({
                 <FlywayMigrationsTable
                   versions={versions}
                   selectedVersion={selectedVersion}
+                  diskFiles={migrationsDirectory ? diskFileNames : undefined}
                   onSelectVersion={setSelectedVersion}
                 />
               </div>
@@ -403,6 +603,11 @@ export function FlywayMigrationsScreen({
                     selectedVersion={selectedVersion}
                     onViewSql={() => setIsSqlModalOpen(true)}
                     onExportSql={handleExportSql}
+                    onSaveToDirectory={migrationsDirectory ? handleSaveSelectedToDirectory : undefined}
+                    onDeleteLastVersion={handleDeleteLastMigrationClick}
+                    isLastVersion={lastVersion?.id === selectedVersion.id}
+                    hasMigrationsDirectory={!!migrationsDirectory}
+                    isSavedInDirectory={diskFileNames.has(selectedVersion.fileName)}
                   />
                 ) : (
                   <div className="flyway-selected-details-panel flyway-selected-details-panel--empty">
@@ -825,6 +1030,31 @@ export function FlywayMigrationsScreen({
             </div>
           </form>
         </CanvasModal>
+      )}
+
+      {exportErrorMessage && (
+        <MessageDialog
+          title="Export error"
+          message={exportErrorMessage}
+          onClose={() => setExportErrorMessage(null)}
+        />
+      )}
+
+      {exportSuccessMessage && (
+        <MessageDialog
+          title="Export completed"
+          message={exportSuccessMessage}
+          onClose={() => setExportSuccessMessage(null)}
+        />
+      )}
+
+      {isConfirmDeleteOpen && lastVersion && (
+        <ConfirmDialog
+          message={`Are you sure you want to delete the last migration "${lastVersion.fileName}"? This will revert the snapshot to the previous version and allow generating changes again.`}
+          confirmLabel="Delete migration"
+          onConfirm={handleConfirmDeleteLastMigration}
+          onCancel={() => setIsConfirmDeleteOpen(false)}
+        />
       )}
     </div>
   );

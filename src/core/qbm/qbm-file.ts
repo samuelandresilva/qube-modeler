@@ -24,6 +24,7 @@ export type QbmFlywayVersion = {
 };
 
 export type QbmFlywayConfig = {
+  migrationsDirectory?: string;
   versions: QbmFlywayVersion[];
 };
 
@@ -134,7 +135,16 @@ export function validateQbmFlywayConfig(flyway: unknown): QbmFlywayConfig {
   const versions = new Set<string>();
   const fileNames = new Set<string>();
 
+  let migrationsDirectory: string | undefined;
+  if ("migrationsDirectory" in flyway && flyway.migrationsDirectory !== undefined && flyway.migrationsDirectory !== null) {
+    if (typeof flyway.migrationsDirectory !== "string") {
+      throw new Error("Flyway migrationsDirectory must be a string.");
+    }
+    migrationsDirectory = flyway.migrationsDirectory.trim() || undefined;
+  }
+
   return {
+    ...(migrationsDirectory ? { migrationsDirectory } : {}),
     versions: flyway.versions.map((version, index) =>
       validateQbmFlywayVersion(version, index, ids, versions, fileNames),
     ),
