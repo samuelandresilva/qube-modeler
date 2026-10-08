@@ -85,6 +85,32 @@ export type GetDirectoryFilesResult =
   | { files: string[] }
   | { error: string };
 
+export type FlywayHistoryRecord = {
+  installedRank: number;
+  version: string | null;
+  description: string;
+  type: string;
+  script: string;
+  checksum: number | null;
+  installedBy: string;
+  installedOn: string;
+  executionTime: number;
+  success: boolean;
+};
+
+export type TestDbConnectionResult =
+  | { success: true; serverVersion: string }
+  | { success: false; error: string };
+
+export type FetchFlywayHistoryResult =
+  | { success: true; history: FlywayHistoryRecord[] }
+  | { success: false; error: string };
+
+export type RepairFlywayResult =
+  | { success: true; message: string }
+  | { success: false; error: string };
+
+
 export type QubeModelerApi = {
   openProject(): Promise<OpenProjectResult>;
   saveProject(payload: SaveProjectPayload): Promise<SaveProjectResult>;
@@ -95,6 +121,9 @@ export type QubeModelerApi = {
   selectDirectory(): Promise<SelectDirectoryResult>;
   getDirectoryFiles(directoryPath: string): Promise<GetDirectoryFilesResult>;
   exportMigrationsBatch(payload: ExportMigrationsBatchPayload): Promise<ExportMigrationsBatchResult>;
+  testDbConnection(config: import("./qbm-file").QbmDatabaseConnectionConfig): Promise<TestDbConnectionResult>;
+  fetchFlywayHistory(config: import("./qbm-file").QbmDatabaseConnectionConfig): Promise<FetchFlywayHistoryResult>;
+  repairFlywayFailedMigrations(config: import("./qbm-file").QbmDatabaseConnectionConfig): Promise<RepairFlywayResult>;
   getRecentProjects(): Promise<RecentProject[]>;
   addRecentProject(filePath: string): Promise<RecentProject[]>;
   removeRecentProject(filePath: string): Promise<RecentProject[]>;

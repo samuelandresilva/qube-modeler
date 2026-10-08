@@ -2,10 +2,14 @@ import { useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { QbmFlywayVersion } from "@/core/qbm/qbm-file";
 
+import type { FlywayHistoryRecord } from "@/core/qbm/ipc-types";
+
 type FlywayMigrationsTableProps = {
   versions: QbmFlywayVersion[];
   selectedVersion: QbmFlywayVersion | null;
   diskFiles?: Set<string>;
+  dbHistoryMap?: Map<string, FlywayHistoryRecord>;
+  hasDbConnection?: boolean;
   onSelectVersion: (version: QbmFlywayVersion | null) => void;
 };
 
@@ -13,6 +17,8 @@ export function FlywayMigrationsTable({
   versions,
   selectedVersion,
   diskFiles,
+  dbHistoryMap,
+  hasDbConnection = false,
   onSelectVersion,
 }: FlywayMigrationsTableProps) {
   const [search, setSearch] = useState("");
@@ -52,7 +58,8 @@ export function FlywayMigrationsTable({
         <table className="flyway-table">
           <thead>
             <tr>
-              <th>Status</th>
+              <th>File</th>
+              {hasDbConnection && <th>Database</th>}
               <th>Version</th>
               <th>Description</th>
               <th>File Name</th>
@@ -62,7 +69,7 @@ export function FlywayMigrationsTable({
           <tbody>
             {filteredVersions.length === 0 ? (
               <tr>
-                <td colSpan={5} className="flyway-table-empty">
+                <td colSpan={hasDbConnection ? 6 : 5} className="flyway-table-empty">
                   {search ? "No migrations match the filter." : "No migrations available."}
                 </td>
               </tr>
@@ -70,6 +77,8 @@ export function FlywayMigrationsTable({
               filteredVersions.map((v) => {
                 const isSelected = selectedVersion?.id === v.id;
                 const formattedDate = new Date(v.createdAt).toLocaleString();
+                const dbRecord = dbHistoryMap?.get(v.version);
+
                 return (
                   <tr
                     key={v.id}
@@ -94,9 +103,28 @@ export function FlywayMigrationsTable({
                           </span>
                         )
                       ) : (
-                        <span className="flyway-badge flyway-badge--versioned">Versioned</span>
+                        <span className="flyway-badge flyway-badge--versioned">Ready</span>
                       )}
                     </td>
+                    {hasDbConnection && (
+                      <td>
+                        {dbRecord ? (
+                          dbRecord.success ? (
+                            <span className="flyway-badge flyway-badge--applied" title={`Applied on ${dbRecord.installedOn} by ${dbRecord.installedBy}`}>
+                              Applied
+                            </span>
+                          ) : (
+                            <span className="flyway-badge flyway-badge--failed" title="Failed during migration execution">
+                              Failed
+                            </span>
+                          )
+                        ) : (
+                          <span className="flyway-badge flyway-badge--not-applied" title="Not applied on target database">
+                            Not Applied
+                          </span>
+                        )}
+                      </td>
+                    )}
                     <td className="flyway-cell-version">{v.version}</td>
                     <td className="flyway-cell-description">{v.description}</td>
                     <td className="flyway-cell-filename">{v.fileName}</td>

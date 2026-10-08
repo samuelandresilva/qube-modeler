@@ -1,4 +1,4 @@
-import CodeMirror from '@uiw/react-codemirror';
+import CodeMirror, { oneDark } from '@uiw/react-codemirror';
 import { sql, PostgreSQL } from '@codemirror/lang-sql';
 
 const sqlExtensions = [sql({ dialect: PostgreSQL })];
@@ -28,7 +28,7 @@ export function SqlEditor({ value, onChange, readOnly = false, height = '400px',
       <CodeMirror
         value={value}
         height={height}
-        theme="dark"
+        theme={oneDark}
         extensions={sqlExtensions}
         onChange={onChange}
         readOnly={readOnly}

@@ -282,6 +282,21 @@
   color: #eab308;
 }
 
+.flyway-badge--applied {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.flyway-badge--failed {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.flyway-badge--not-applied {
+  background-color: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+}
+
 .flyway-cell-version {
   font-family: monospace;
   font-weight: 600;

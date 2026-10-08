@@ -25,6 +25,12 @@ const api: QubeModelerApi = {
     ipcRenderer.invoke("qbm:get-directory-files", directoryPath),
   exportMigrationsBatch: (payload: import("../src/core/qbm/ipc-types").ExportMigrationsBatchPayload) =>
     ipcRenderer.invoke("qbm:export-migrations-batch", payload),
+  testDbConnection: (config: import("../src/core/qbm/qbm-file").QbmDatabaseConnectionConfig) =>
+    ipcRenderer.invoke("qbm:test-db-connection", config),
+  fetchFlywayHistory: (config: import("../src/core/qbm/qbm-file").QbmDatabaseConnectionConfig) =>
+    ipcRenderer.invoke("qbm:fetch-flyway-history", config),
+  repairFlywayFailedMigrations: (config: import("../src/core/qbm/qbm-file").QbmDatabaseConnectionConfig) =>
+    ipcRenderer.invoke("qbm:repair-flyway-failed-migrations", config),
   getRecentProjects: () => ipcRenderer.invoke("qbm:get-recent-projects"),
   addRecentProject: (filePath: string) =>
     ipcRenderer.invoke("qbm:add-recent-project", filePath),

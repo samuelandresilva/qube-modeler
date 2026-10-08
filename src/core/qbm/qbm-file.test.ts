@@ -75,6 +75,35 @@ describe("qbm-file", () => {
       expect(parsed.flyway.migrationsDirectory).toBe("C:/my-project/db/migrations");
     });
 
+    it("preserves flyway.connection during parse", () => {
+      const qbm = createQbmFile(
+        validProject,
+        {
+          connection: {
+            host: "localhost",
+            port: 5432,
+            database: "mydb",
+            user: "postgres",
+            schema: "public",
+            ssl: false,
+          },
+          versions: [],
+        },
+        "1.0.0"
+      );
+      const json = JSON.stringify(qbm);
+
+      const parsed = parseQbmFile(json);
+      expect(parsed.flyway.connection).toEqual({
+        host: "localhost",
+        port: 5432,
+        database: "mydb",
+        user: "postgres",
+        schema: "public",
+        ssl: false,
+      });
+    });
+
     it("fails when format is not qube-modeler-project", () => {
       const qbm = createQbmFile(validProject, { versions: [] }, "1.0.0");
       const json = JSON.stringify({ ...qbm, format: "invalid-format" });

@@ -12,6 +12,8 @@ import {
 import { open, readFile, rename, unlink, writeFile, readdir, mkdir } from "node:fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import pg from "pg";
+const { Client } = pg;
 import { createQbmFile, parseQbmFile, type QbmFlywayConfig } from "../src/core/qbm/qbm-file";
 import { loadWindowState, trackWindowState } from "./window-state";
 import type { DatabaseProject } from "../src/core/model/types";
@@ -24,6 +26,10 @@ import type {
   SelectDirectoryResult,
   GetDirectoryFilesResult,
   ExportMigrationsBatchResult,
+  TestDbConnectionResult,
+  FetchFlywayHistoryResult,
+  RepairFlywayResult,
+  FlywayHistoryRecord,
 } from "../src/core/qbm/ipc-types";
 
 
@@ -449,6 +455,134 @@ function configureProjectIpc() {
           canceled: false,
           error: `Could not export migrations batch: ${getErrorMessage(error)}`,
         };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "qbm:test-db-connection",
+    async (_event, config: unknown): Promise<TestDbConnectionResult> => {
+      if (!isRecord(config) || typeof config.host !== "string" || typeof config.database !== "string" || typeof config.user !== "string") {
+        return { success: false, error: "Invalid database connection parameters." };
+      }
+
+      const client = new Client({
+        host: String(config.host),
+        port: Number(config.port) || 5432,
+        database: String(config.database),
+        user: String(config.user),
+        password: typeof config.password === "string" ? config.password : undefined,
+        ssl: config.ssl ? { rejectUnauthorized: false } : false,
+        connectionTimeoutMillis: 5000,
+      });
+
+      try {
+        await client.connect();
+        const res = await client.query<{ version: string }>("SELECT version()");
+        await client.end();
+        const serverVersion = res.rows[0]?.version || "PostgreSQL";
+        return { success: true, serverVersion };
+      } catch (error) {
+        await client.end().catch(() => {});
+        return { success: false, error: getErrorMessage(error) };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "qbm:fetch-flyway-history",
+    async (_event, config: unknown): Promise<FetchFlywayHistoryResult> => {
+      if (!isRecord(config) || typeof config.host !== "string" || typeof config.database !== "string" || typeof config.user !== "string") {
+        return { success: false, error: "Invalid database connection parameters." };
+      }
+
+      const schema = typeof config.schema === "string" && config.schema.trim() ? config.schema.trim() : "public";
+      const client = new Client({
+        host: String(config.host),
+        port: Number(config.port) || 5432,
+        database: String(config.database),
+        user: String(config.user),
+        password: typeof config.password === "string" ? config.password : undefined,
+        ssl: config.ssl ? { rejectUnauthorized: false } : false,
+        connectionTimeoutMillis: 5000,
+      });
+
+      try {
+        await client.connect();
+        // Check if flyway table exists
+        const tableCheck = await client.query<{ exists: boolean }>(
+          `SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = $1 AND table_name = 'flyway_schema_history'
+          ) as exists`,
+          [schema]
+        );
+
+        if (!tableCheck.rows[0]?.exists) {
+          await client.end();
+          return { success: true, history: [] };
+        }
+
+        const query = `
+          SELECT 
+            installed_rank as "installedRank",
+            version,
+            description,
+            type,
+            script,
+            checksum,
+            installed_by as "installedBy",
+            installed_on::text as "installedOn",
+            execution_time as "executionTime",
+            success
+          FROM "${schema}"."flyway_schema_history"
+          ORDER BY installed_rank ASC
+        `;
+
+        const res = await client.query<FlywayHistoryRecord>(query);
+        await client.end();
+        return { success: true, history: res.rows };
+      } catch (error) {
+        await client.end().catch(() => {});
+        return { success: false, error: getErrorMessage(error) };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "qbm:repair-flyway-failed-migrations",
+    async (_event, config: unknown): Promise<RepairFlywayResult> => {
+      if (!isRecord(config) || typeof config.host !== "string" || typeof config.database !== "string" || typeof config.user !== "string") {
+        return { success: false, error: "Invalid database connection parameters." };
+      }
+
+      const schema = typeof config.schema === "string" && config.schema.trim() ? config.schema.trim() : "public";
+      const client = new Client({
+        host: String(config.host),
+        port: Number(config.port) || 5432,
+        database: String(config.database),
+        user: String(config.user),
+        password: typeof config.password === "string" ? config.password : undefined,
+        ssl: config.ssl ? { rejectUnauthorized: false } : false,
+        connectionTimeoutMillis: 5000,
+      });
+
+      try {
+        await client.connect();
+        const deleteRes = await client.query(
+          `DELETE FROM "${schema}"."flyway_schema_history" WHERE success = false`
+        );
+        await client.end();
+        const deletedCount = deleteRes.rowCount ?? 0;
+        return {
+          success: true,
+          message: deletedCount === 0
+            ? "No failed migrations found to repair."
+            : `Successfully repaired ${deletedCount} failed migration record(s).`,
+        };
+      } catch (error) {
+        await client.end().catch(() => {});
+        return { success: false, error: getErrorMessage(error) };
       }
     },
   );

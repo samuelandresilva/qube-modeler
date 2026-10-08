@@ -1,4 +1,5 @@
 import type { QbmFlywayVersion } from "@/core/qbm/qbm-file";
+import type { FlywayHistoryRecord } from "@/core/qbm/ipc-types";
 
 type FlywayMigrationsDetailsProps = {
   totalCount: number;
@@ -14,6 +15,7 @@ type FlywayMigrationsDetailsProps = {
   isLastVersion?: boolean;
   hasMigrationsDirectory?: boolean;
   isSavedInDirectory?: boolean;
+  dbRecord?: FlywayHistoryRecord;
 };
 
 export function FlywayMigrationsDetails({
@@ -30,6 +32,7 @@ export function FlywayMigrationsDetails({
   isLastVersion = false,
   hasMigrationsDirectory = false,
   isSavedInDirectory = false,
+  dbRecord,
 }: FlywayMigrationsDetailsProps) {
   if (totalCount === 0) {
     return (
@@ -85,6 +88,20 @@ export function FlywayMigrationsDetails({
             <span className="flyway-details-label">Created At</span>
             <span className="flyway-details-value">{formattedDate}</span>
           </div>
+          {dbRecord && (
+            <div className="flyway-details-field">
+              <span className="flyway-details-label">Database Status</span>
+              <span className="flyway-details-value">
+                {dbRecord.success ? (
+                  <span style={{ color: "#10b981", fontWeight: 600 }}>
+                    Applied ({new Date(dbRecord.installedOn).toLocaleString()})
+                  </span>
+                ) : (
+                  <span style={{ color: "#ef4444", fontWeight: 600 }}>Execution Failed</span>
+                )}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flyway-selected-details-actions">
@@ -120,7 +137,12 @@ export function FlywayMigrationsDetails({
               className="flyway-button flyway-button--danger"
               type="button"
               onClick={onDeleteLastVersion}
-              title="Delete the last migration and restore the previous snapshot"
+              disabled={dbRecord?.success}
+              title={
+                dbRecord?.success
+                  ? "Cannot delete a migration that has already been applied to the database"
+                  : "Delete the last migration and restore the previous snapshot"
+              }
             >
               Delete migration
             </button>

@@ -39,6 +39,10 @@ export default function App() {
     flyway: { versions: [] },
     isDirty: false,
   }));
+  const openedProjectRef = useRef(openedProject);
+  useEffect(() => {
+    openedProjectRef.current = openedProject;
+  }, [openedProject]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fileOperationMessage, setFileOperationMessage] = useState<
     string | null
@@ -163,108 +167,108 @@ export default function App() {
     );
   }, [openProject, openedProject.isDirty, requestConfirm]);
 
-  const handleSaveProjectAs = useCallback(async (): Promise<boolean> => {
-    const projectBeingSaved = openedProject.project;
-    const api = getQubeModelerApi();
-    if (!api) {
-      setErrorMessage(
-        "The Electron preload is unavailable. Fully restart Qube Modeler and try again.",
-      );
-      return false;
-    }
-    if (!beginFileOperation("Saving project as...")) return false;
+  const persistProject = useCallback(
+    async (overrides?: {
+      project?: DatabaseProject;
+      flyway?: QbmFlywayConfig;
+      filePath?: string | null;
+    }): Promise<boolean> => {
+      const current = openedProjectRef.current;
+      const projectBeingSaved = overrides?.project ?? current.project;
+      const flywayBeingSaved = overrides?.flyway ?? current.flyway;
+      const targetFilePath =
+        overrides?.filePath !== undefined ? overrides.filePath : current.filePath;
 
-    try {
-      const result = await api.saveProjectAs({
-        project: projectBeingSaved,
-        flyway: openedProject.flyway,
-        suggestedFileName: getProjectDisplayName(openedProject.filePath),
-      });
-      if (result.canceled) return false;
-      if ("error" in result) {
-        setErrorMessage(result.error);
+      const api = getQubeModelerApi();
+      if (!api) {
+        setErrorMessage(
+          "The Electron preload is unavailable. Fully restart Qube Modeler and try again.",
+        );
         return false;
       }
-      const nameWithoutExtension = getProjectDisplayName(result.filePath);
-      setOpenedProject((current) => ({
-        ...current,
-        filePath: result.filePath,
-        project: {
-          ...current.project,
-          name: nameWithoutExtension,
-        },
-        isDirty:
-          current.project === projectBeingSaved ? false : current.isDirty,
-      }));
-      const updated = await api.addRecentProject(result.filePath).catch(() => null);
-      if (updated) setRecentProjects(updated);
-      return true;
-    } catch (error) {
-      setErrorMessage(
-        `Could not save the project: ${getErrorMessage(error)}`,
-      );
-      return false;
-    } finally {
-      finishFileOperation();
-    }
-  }, [beginFileOperation, finishFileOperation, openedProject.project, openedProject.flyway, openedProject.filePath]);
+
+      if (!targetFilePath) {
+        if (!beginFileOperation("Saving project as...")) return false;
+        try {
+          const result = await api.saveProjectAs({
+            project: projectBeingSaved,
+            flyway: flywayBeingSaved,
+            suggestedFileName: getProjectDisplayName(targetFilePath),
+          });
+          if (result.canceled) return false;
+          if ("error" in result) {
+            setErrorMessage(result.error);
+            return false;
+          }
+          const nameWithoutExtension = getProjectDisplayName(result.filePath);
+          setOpenedProject((prev) => ({
+            ...prev,
+            filePath: result.filePath,
+            project: {
+              ...(overrides?.project ?? prev.project),
+              name: nameWithoutExtension,
+            },
+            flyway: overrides?.flyway ?? prev.flyway,
+            isDirty: false,
+          }));
+          const updated = await api.addRecentProject(result.filePath).catch(() => null);
+          if (updated) setRecentProjects(updated);
+          return true;
+        } catch (error) {
+          setErrorMessage(
+            `Could not save the project: ${getErrorMessage(error)}`,
+          );
+          return false;
+        } finally {
+          finishFileOperation();
+        }
+      }
+
+      if (!beginFileOperation("Saving project...")) return false;
+      try {
+        const result = await api.saveProject({
+          filePath: targetFilePath,
+          project: projectBeingSaved,
+          flyway: flywayBeingSaved,
+        });
+        if (result.canceled) return false;
+        if ("error" in result) {
+          setErrorMessage(result.error);
+          return false;
+        }
+        const nameWithoutExtension = getProjectDisplayName(result.filePath);
+        setOpenedProject((prev) => ({
+          ...prev,
+          filePath: result.filePath,
+          project: {
+            ...(overrides?.project ?? prev.project),
+            name: nameWithoutExtension,
+          },
+          flyway: overrides?.flyway ?? prev.flyway,
+          isDirty: false,
+        }));
+        const updated = await api.addRecentProject(result.filePath).catch(() => null);
+        if (updated) setRecentProjects(updated);
+        return true;
+      } catch (error) {
+        setErrorMessage(
+          `Could not save the project: ${getErrorMessage(error)}`,
+        );
+        return false;
+      } finally {
+        finishFileOperation();
+      }
+    },
+    [beginFileOperation, finishFileOperation],
+  );
+
+  const handleSaveProjectAs = useCallback(async (): Promise<boolean> => {
+    return persistProject({ filePath: null });
+  }, [persistProject]);
 
   const handleSaveProject = useCallback(async (): Promise<boolean> => {
-    if (!openedProject.filePath) {
-      return handleSaveProjectAs();
-    }
-
-    const projectBeingSaved = openedProject.project;
-    const api = getQubeModelerApi();
-    if (!api) {
-      setErrorMessage(
-        "The Electron preload is unavailable. Fully restart Qube Modeler and try again.",
-      );
-      return false;
-    }
-    if (!beginFileOperation("Saving project...")) return false;
-
-    try {
-      const result = await api.saveProject({
-        filePath: openedProject.filePath,
-        project: projectBeingSaved,
-        flyway: openedProject.flyway,
-      });
-      if (result.canceled) return false;
-      if ("error" in result) {
-        setErrorMessage(result.error);
-        return false;
-      }
-      const nameWithoutExtension = getProjectDisplayName(result.filePath);
-      setOpenedProject((current) => ({
-        ...current,
-        filePath: result.filePath,
-        project: {
-          ...current.project,
-          name: nameWithoutExtension,
-        },
-        isDirty:
-          current.project === projectBeingSaved ? false : current.isDirty,
-      }));
-      const updated = await api.addRecentProject(result.filePath).catch(() => null);
-      if (updated) setRecentProjects(updated);
-      return true;
-    } catch (error) {
-      setErrorMessage(
-        `Could not save the project: ${getErrorMessage(error)}`,
-      );
-      return false;
-    } finally {
-      finishFileOperation();
-    }
-  }, [
-    beginFileOperation,
-    finishFileOperation,
-    handleSaveProjectAs,
-    openedProject.filePath,
-    openedProject.project,
-    openedProject.flyway,
-  ]);
+    return persistProject();
+  }, [persistProject]);
 
   const handlersRef = useRef({
     handleOpenProject,
@@ -459,44 +463,88 @@ export default function App() {
     }
   }, [openedProject.isDirty, requestConfirm, clearHistory]);
 
-  const handleConfirmMigration = useCallback((newVersion: QbmFlywayVersion) => {
-    setOpenedProject((current) => ({
-      ...current,
-      flyway: {
+  const handleConfirmMigration = useCallback(
+    async (newVersion: QbmFlywayVersion) => {
+      const current = openedProjectRef.current;
+      const updatedFlyway: QbmFlywayConfig = {
         ...current.flyway,
         versions: [...current.flyway.versions, newVersion],
-      },
-      isDirty: true,
-    }));
-  }, []);
+      };
 
-  const handleUpdateMigrationsDirectory = useCallback((directoryPath: string | undefined) => {
-    setOpenedProject((current) => ({
-      ...current,
-      flyway: {
+      if (current.filePath) {
+        await persistProject({ flyway: updatedFlyway });
+      } else {
+        setOpenedProject((prev) => ({
+          ...prev,
+          flyway: updatedFlyway,
+          isDirty: true,
+        }));
+      }
+    },
+    [persistProject],
+  );
+
+  const handleUpdateMigrationsDirectory = useCallback(
+    async (directoryPath: string | undefined) => {
+      const current = openedProjectRef.current;
+      const updatedFlyway: QbmFlywayConfig = {
         ...current.flyway,
         migrationsDirectory: directoryPath,
-      },
-      isDirty: true,
-    }));
-  }, []);
-
-  const handleDeleteLastMigration = useCallback(() => {
-    setOpenedProject((current) => {
-      const versions = current.flyway.versions;
-      if (versions.length === 0) return current;
-      return {
-        ...current,
-        flyway: {
-          ...current.flyway,
-          versions: versions.slice(0, -1),
-        },
-        isDirty: true,
       };
-    });
-  }, []);
 
+      if (current.filePath) {
+        await persistProject({ flyway: updatedFlyway });
+      } else {
+        setOpenedProject((prev) => ({
+          ...prev,
+          flyway: updatedFlyway,
+          isDirty: true,
+        }));
+      }
+    },
+    [persistProject],
+  );
 
+  const handleUpdateDatabaseConnection = useCallback(
+    async (connection: import("@/core/qbm/qbm-file").QbmDatabaseConnectionConfig | undefined) => {
+      const current = openedProjectRef.current;
+      const updatedFlyway: QbmFlywayConfig = {
+        ...current.flyway,
+        connection,
+      };
+
+      if (current.filePath) {
+        await persistProject({ flyway: updatedFlyway });
+      } else {
+        setOpenedProject((prev) => ({
+          ...prev,
+          flyway: updatedFlyway,
+          isDirty: true,
+        }));
+      }
+    },
+    [persistProject],
+  );
+
+  const handleDeleteLastMigration = useCallback(async () => {
+    const current = openedProjectRef.current;
+    const versions = current.flyway.versions;
+    if (versions.length === 0) return;
+    const updatedFlyway: QbmFlywayConfig = {
+      ...current.flyway,
+      versions: versions.slice(0, -1),
+    };
+
+    if (current.filePath) {
+      await persistProject({ flyway: updatedFlyway });
+    } else {
+      setOpenedProject((prev) => ({
+        ...prev,
+        flyway: updatedFlyway,
+        isDirty: true,
+      }));
+    }
+  }, [persistProject]);
 
   const windowTitle = view === "welcome"
     ? "Qube Modeler"
@@ -554,7 +602,9 @@ export default function App() {
             onBack={() => setView("canvas")}
             onConfirmMigration={handleConfirmMigration}
             onUpdateMigrationsDirectory={handleUpdateMigrationsDirectory}
+            onUpdateDatabaseConnection={handleUpdateDatabaseConnection}
             onDeleteLastMigration={handleDeleteLastMigration}
+            onSaveProject={handleSaveProject}
           />
         )}
       </div>

@@ -9,7 +9,7 @@ import {
   getLastFlywayVersion,
 } from "@/core/qbm/qbm-flyway";
 import { generatePostgresSql } from "@/core/sql/postgres-generator";
-import { ArrowLeft, Folder, FolderOpen, RefreshCw } from "lucide-react";
+import { ArrowLeft, Folder, FolderOpen, RefreshCw, Database, Wrench } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import "../styles/FlywayMigrationsScreen.css";
 import { CanvasModal } from "./CanvasModal";
@@ -17,14 +17,18 @@ import { FlywayMigrationsDetails } from "./FlywayMigrationsDetails";
 import { FlywayMigrationsTable } from "./FlywayMigrationsTable";
 import { MessageDialog } from "./MessageDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { DatabaseConnectionModal } from "./DatabaseConnectionModal";
 import { SqlEditor } from "@/app/shared/components/SqlEditor";
+import type { FlywayHistoryRecord } from "@/core/qbm/ipc-types";
 
 type FlywayMigrationsScreenProps = {
   qbmFile: QbmFile;
   onBack: () => void;
   onConfirmMigration: (newVersion: QbmFlywayVersion) => void;
   onUpdateMigrationsDirectory?: (directoryPath: string | undefined) => void;
+  onUpdateDatabaseConnection?: (connection: import("@/core/qbm/qbm-file").QbmDatabaseConnectionConfig | undefined) => void;
   onDeleteLastMigration?: () => void;
+  onSaveProject?: () => Promise<boolean>;
 };
 
 type PreviewState = {
@@ -67,7 +71,9 @@ export function FlywayMigrationsScreen({
   onBack,
   onConfirmMigration,
   onUpdateMigrationsDirectory,
+  onUpdateDatabaseConnection,
   onDeleteLastMigration,
+  onSaveProject,
 }: FlywayMigrationsScreenProps) {
   const [selectedVersion, setSelectedVersion] = useState<QbmFlywayVersion | null>(null);
   const [previewData, setPreviewData] = useState<PreviewState | null>(null);
@@ -86,6 +92,14 @@ export function FlywayMigrationsScreen({
   const [diskFileNames, setDiskFileNames] = useState<Set<string>>(new Set());
   const [isLoadingDiskFiles, setIsLoadingDiskFiles] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+
+  // Database Connection & Flyway schema history state
+  const dbConfig = qbmFile.flyway.connection;
+  const [isDbModalOpen, setIsDbModalOpen] = useState(false);
+  const [dbHistory, setDbHistory] = useState<FlywayHistoryRecord[]>([]);
+  const [isLoadingDbHistory, setIsLoadingDbHistory] = useState(false);
+  const [dbErrorMessage, setDbErrorMessage] = useState<string | null>(null);
+  const [isRepairingDb, setIsRepairingDb] = useState(false);
 
   const versions = getFlywayVersions(qbmFile);
   const lastVersion = getLastFlywayVersion(qbmFile);
@@ -139,6 +153,85 @@ export function FlywayMigrationsScreen({
     return versions.filter((v) => !diskFileNames.has(v.fileName));
   }, [versions, diskFileNames, migrationsDirectory]);
 
+  const dbHistoryMap = useMemo(() => {
+    const map = new Map<string, FlywayHistoryRecord>();
+    for (const record of dbHistory) {
+      if (record.version) {
+        map.set(record.version, record);
+      }
+    }
+    return map;
+  }, [dbHistory]);
+
+  const refreshDbHistory = useCallback(async () => {
+    if (!dbConfig) {
+      setDbHistory([]);
+      return;
+    }
+    const api = window.qubeModeler;
+    if (!api) return;
+
+    setIsLoadingDbHistory(true);
+    setDbErrorMessage(null);
+    try {
+      const res = await api.fetchFlywayHistory(dbConfig);
+      if (res.success) {
+        setDbHistory(res.history);
+      } else {
+        setDbErrorMessage(res.error);
+      }
+    } catch (err) {
+      setDbErrorMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoadingDbHistory(false);
+    }
+  }, [dbConfig]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!dbConfig) {
+      return;
+    }
+    const api = window.qubeModeler;
+    if (!api) return;
+
+    api.fetchFlywayHistory(dbConfig).then((res) => {
+      if (cancelled) return;
+      if (res.success) {
+        setDbHistory(res.history);
+      } else {
+        setDbErrorMessage(res.error);
+      }
+    }).catch((err) => {
+      if (!cancelled) setDbErrorMessage(err instanceof Error ? err.message : String(err));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dbConfig]);
+
+  const handleRepairDb = async () => {
+    if (!dbConfig) return;
+    const api = window.qubeModeler;
+    if (!api) return;
+
+    setIsRepairingDb(true);
+    try {
+      const res = await api.repairFlywayFailedMigrations(dbConfig);
+      if (res.success) {
+        setExportSuccessMessage(res.message);
+        await refreshDbHistory();
+      } else {
+        setDbErrorMessage(res.error);
+      }
+    } catch (err) {
+      setDbErrorMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsRepairingDb(false);
+    }
+  };
+
   const handleSelectDirectory = async () => {
     const api = window.qubeModeler;
     if (!api) {
@@ -163,6 +256,14 @@ export function FlywayMigrationsScreen({
       return;
     }
     if (versionsToExport.length === 0) return;
+
+    if (onSaveProject) {
+      const saved = await onSaveProject();
+      if (!saved) {
+        setExportErrorMessage("The project file (.qbm) could not be saved. Migration files were not exported.");
+        return;
+      }
+    }
 
     const api = window.qubeModeler;
     if (!api) {
@@ -584,6 +685,66 @@ export function FlywayMigrationsScreen({
           </div>
         </div>
 
+        {/* Database Connection Bar */}
+        <div className="flyway-directory-bar" style={{ borderColor: dbConfig ? "rgba(16, 185, 129, 0.4)" : "var(--color-border)" }}>
+          <div className="flyway-directory-bar__info">
+            <Database className="flyway-directory-bar__icon" size={20} style={{ color: dbConfig ? "#10b981" : "var(--color-text-muted)" }} />
+            <div className="flyway-directory-bar__text">
+              <span className="flyway-directory-bar__label">Live Database (Flyway History)</span>
+              {dbConfig ? (
+                <span className="flyway-directory-bar__path" title={`${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`}>
+                  {dbConfig.user}@{dbConfig.host}:{dbConfig.port}/{dbConfig.database} (schema: {dbConfig.schema || "public"})
+                  {dbHistory.length > 0 && ` • ${dbHistory.length} migration(s) recorded in DB`}
+                </span>
+              ) : (
+                <span className="flyway-directory-bar__path flyway-directory-bar__path--empty">
+                  Optional: Connect to PostgreSQL to inspect applied migrations in flyway_schema_history and repair issues.
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flyway-directory-bar__actions">
+            {dbConfig && (
+              <>
+                <button
+                  type="button"
+                  className="flyway-button flyway-button--secondary"
+                  onClick={() => void refreshDbHistory()}
+                  disabled={isLoadingDbHistory}
+                  title="Check migrations in database"
+                >
+                  <RefreshCw size={14} className={isLoadingDbHistory ? "animate-spin" : ""} style={{ marginRight: 6 }} />
+                  Refresh DB
+                </button>
+                <button
+                  type="button"
+                  className="flyway-button flyway-button--secondary"
+                  onClick={() => void handleRepairDb()}
+                  disabled={isRepairingDb}
+                  title="Remove failed migration records from flyway_schema_history"
+                >
+                  <Wrench size={14} style={{ marginRight: 6 }} />
+                  Repair Failed
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              className="flyway-button flyway-button--secondary"
+              onClick={() => setIsDbModalOpen(true)}
+            >
+              <Database size={14} style={{ marginRight: 6 }} />
+              {dbConfig ? "Connection Settings" : "Connect to DB"}
+            </button>
+          </div>
+        </div>
+
+        {dbErrorMessage && (
+          <div style={{ margin: "-8px 0 16px 0", padding: "8px 14px", backgroundColor: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "var(--radius-sm)", color: "#ef4444", fontSize: 12 }}>
+            <strong>Database Error:</strong> {dbErrorMessage}
+          </div>
+        )}
+
         <div className="flyway-layout-container">
           <div className="flyway-layout-grid">
             <div className="flyway-column-left">
@@ -592,6 +753,8 @@ export function FlywayMigrationsScreen({
                   versions={versions}
                   selectedVersion={selectedVersion}
                   diskFiles={migrationsDirectory ? diskFileNames : undefined}
+                  dbHistoryMap={dbConfig ? dbHistoryMap : undefined}
+                  hasDbConnection={!!dbConfig}
                   onSelectVersion={setSelectedVersion}
                 />
               </div>
@@ -608,6 +771,7 @@ export function FlywayMigrationsScreen({
                     isLastVersion={lastVersion?.id === selectedVersion.id}
                     hasMigrationsDirectory={!!migrationsDirectory}
                     isSavedInDirectory={diskFileNames.has(selectedVersion.fileName)}
+                    dbRecord={selectedVersion ? dbHistoryMap.get(selectedVersion.version) : undefined}
                   />
                 ) : (
                   <div className="flyway-selected-details-panel flyway-selected-details-panel--empty">
@@ -1008,15 +1172,33 @@ export function FlywayMigrationsScreen({
               </label>
             </div>
 
-            <label>
-              <span>SQL script</span>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+                width: "100%",
+                minWidth: 0,
+                maxWidth: "100%",
+              }}
+            >
+              <span
+                style={{
+                  color: "var(--color-text-muted)",
+                  fontSize: "12px",
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                }}
+              >
+                SQL script
+              </span>
               <SqlEditor
                 value={formScriptSql}
                 onChange={(val) => setFormScriptSql(val)}
                 placeholder="CREATE INDEX ..."
-                height="150px"
+                height="180px"
               />
-            </label>
+            </div>
 
             {scriptFormError && <p className="canvas-modal-error">{scriptFormError}</p>}
 
@@ -1056,6 +1238,20 @@ export function FlywayMigrationsScreen({
           onCancel={() => setIsConfirmDeleteOpen(false)}
         />
       )}
+
+      <DatabaseConnectionModal
+        isOpen={isDbModalOpen}
+        currentConfig={dbConfig}
+        onClose={() => setIsDbModalOpen(false)}
+        onSave={(newConfig) => {
+          onUpdateDatabaseConnection?.(newConfig);
+          if (newConfig) {
+            void refreshDbHistory();
+          } else {
+            setDbHistory([]);
+          }
+        }}
+      />
     </div>
   );
 }
