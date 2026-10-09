@@ -100,6 +100,7 @@ export function DatabaseConnectionModal({
         <p style={{ margin: "0 0 16px 0", fontSize: 13, color: "var(--color-text-muted)" }}>
           Connect to your PostgreSQL database to inspect applied migrations in{" "}
           <code>flyway_schema_history</code>, check live status, and perform repairs.
+          Connection data is stored strictly on this device and never saved into the <code>.qbm</code> file.
         </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 100px", gap: "12px" }}>
@@ -166,6 +167,9 @@ export function DatabaseConnectionModal({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <span style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 400, textTransform: "none", marginTop: 2 }}>
+              🔒 Saved securely on this device only (Windows DPAPI). Never shared in the .qbm file.
+            </span>
           </label>
         </div>
 

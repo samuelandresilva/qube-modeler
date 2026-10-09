@@ -137,10 +137,14 @@ export default function App() {
         return;
       }
       clearHistory();
+      const localConnection = await api.getProjectDbConnection(result.filePath).catch(() => null);
       setOpenedProject({
         project: result.project,
         filePath: result.filePath,
-        flyway: result.flyway,
+        flyway: {
+          ...result.flyway,
+          connection: localConnection ?? undefined,
+        },
         isDirty: false,
       });
       const updated = await api.addRecentProject(result.filePath).catch(() => null);
@@ -213,6 +217,9 @@ export default function App() {
           }));
           const updated = await api.addRecentProject(result.filePath).catch(() => null);
           if (updated) setRecentProjects(updated);
+          if (flywayBeingSaved.connection) {
+            await api.saveProjectDbConnection(result.filePath, flywayBeingSaved.connection).catch(() => false);
+          }
           return true;
         } catch (error) {
           setErrorMessage(
@@ -377,10 +384,14 @@ export default function App() {
           return;
         }
         clearHistory();
+        const localConnection = await api.getProjectDbConnection(result.filePath).catch(() => null);
         setOpenedProject({
           project: result.project,
           filePath: result.filePath,
-          flyway: result.flyway,
+          flyway: {
+            ...result.flyway,
+            connection: localConnection ?? undefined,
+          },
           isDirty: false,
         });
         const updated = await api.addRecentProject(result.filePath).catch(() => null);
@@ -508,22 +519,22 @@ export default function App() {
   const handleUpdateDatabaseConnection = useCallback(
     async (connection: import("@/core/qbm/qbm-file").QbmDatabaseConnectionConfig | undefined) => {
       const current = openedProjectRef.current;
-      const updatedFlyway: QbmFlywayConfig = {
-        ...current.flyway,
-        connection,
-      };
+      setOpenedProject((prev) => ({
+        ...prev,
+        flyway: {
+          ...prev.flyway,
+          connection,
+        },
+      }));
 
       if (current.filePath) {
-        await persistProject({ flyway: updatedFlyway });
-      } else {
-        setOpenedProject((prev) => ({
-          ...prev,
-          flyway: updatedFlyway,
-          isDirty: true,
-        }));
+        const api = getQubeModelerApi();
+        if (api) {
+          await api.saveProjectDbConnection(current.filePath, connection).catch(() => false);
+        }
       }
     },
-    [persistProject],
+    [],
   );
 
   const handleDeleteLastMigration = useCallback(async () => {

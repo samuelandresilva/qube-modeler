@@ -154,33 +154,11 @@ export function validateQbmFlywayConfig(flyway: unknown): QbmFlywayConfig {
     migrationsDirectory = flyway.migrationsDirectory.trim() || undefined;
   }
 
-  let connection: QbmDatabaseConnectionConfig | undefined;
-  if ("connection" in flyway && flyway.connection !== undefined && flyway.connection !== null) {
-    if (!isObject(flyway.connection)) {
-      throw new Error("Flyway connection must be an object.");
-    }
-    const host = readRequiredString(flyway.connection.host, "Database host");
-    const port = typeof flyway.connection.port === "number" ? flyway.connection.port : 5432;
-    const database = readRequiredString(flyway.connection.database, "Database name");
-    const user = readRequiredString(flyway.connection.user, "Database user");
-    const password = typeof flyway.connection.password === "string" ? flyway.connection.password : undefined;
-    const ssl = typeof flyway.connection.ssl === "boolean" ? flyway.connection.ssl : undefined;
-    const schema = typeof flyway.connection.schema === "string" ? flyway.connection.schema.trim() : undefined;
-
-    connection = {
-      host,
-      port,
-      database,
-      user,
-      ...(password !== undefined ? { password } : {}),
-      ...(ssl !== undefined ? { ssl } : {}),
-      ...(schema ? { schema } : {}),
-    };
-  }
+  // Notice: connection configuration is strictly local-first and saved on the local user machine via DPAPI,
+  // NEVER persisted in the shared .qbm project file.
 
   return {
     ...(migrationsDirectory ? { migrationsDirectory } : {}),
-    ...(connection ? { connection } : {}),
     versions: flyway.versions.map((version, index) =>
       validateQbmFlywayVersion(version, index, ids, versions, fileNames),
     ),

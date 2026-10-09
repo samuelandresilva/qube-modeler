@@ -6,6 +6,7 @@ import {
   Menu,
   nativeImage,
   OpenDialogOptions,
+  safeStorage,
   shell,
   type WebContents,
 } from "electron";
@@ -14,7 +15,12 @@ import path from "path";
 import { fileURLToPath } from "url";
 import pg from "pg";
 const { Client } = pg;
-import { createQbmFile, parseQbmFile, type QbmFlywayConfig } from "../src/core/qbm/qbm-file";
+import {
+  createQbmFile,
+  parseQbmFile,
+  type QbmFlywayConfig,
+  type QbmDatabaseConnectionConfig,
+} from "../src/core/qbm/qbm-file";
 import { loadWindowState, trackWindowState } from "./window-state";
 import type { DatabaseProject } from "../src/core/model/types";
 import type {
@@ -586,6 +592,115 @@ function configureProjectIpc() {
       }
     },
   );
+
+  ipcMain.handle(
+    "qbm:get-project-db-connection",
+    async (_event, filePath: string): Promise<QbmDatabaseConnectionConfig | null> => {
+      if (typeof filePath !== "string" || !filePath.trim()) return null;
+      const key = path.normalize(filePath).toLowerCase();
+      const store = await readDbConnectionsStore();
+      const entry = store[key];
+      if (!entry) return null;
+
+      let password: string | undefined;
+      if (entry.encryptedPassword && safeStorage.isEncryptionAvailable()) {
+        try {
+          const buffer = Buffer.from(entry.encryptedPassword, "base64");
+          password = safeStorage.decryptString(buffer);
+        } catch (err) {
+          console.error("Failed to decrypt stored password:", err);
+        }
+      }
+
+      return {
+        host: entry.host,
+        port: entry.port,
+        database: entry.database,
+        user: entry.user,
+        schema: entry.schema,
+        ssl: entry.ssl,
+        password,
+      };
+    },
+  );
+
+  ipcMain.handle(
+    "qbm:save-project-db-connection",
+    async (_event, payload: unknown): Promise<boolean> => {
+      if (!isRecord(payload) || typeof payload.filePath !== "string" || !payload.filePath.trim()) {
+        return false;
+      }
+      const key = path.normalize(payload.filePath).toLowerCase();
+      const store = await readDbConnectionsStore();
+      const connection = payload.connection;
+
+      if (!connection || !isRecord(connection) || typeof connection.host !== "string") {
+        if (store[key]) {
+          delete store[key];
+          await writeDbConnectionsStore(store);
+        }
+        return true;
+      }
+
+      let encryptedPassword: string | undefined;
+      if (typeof connection.password === "string" && connection.password && safeStorage.isEncryptionAvailable()) {
+        try {
+          const encryptedBuffer = safeStorage.encryptString(connection.password);
+          encryptedPassword = encryptedBuffer.toString("base64");
+        } catch (err) {
+          console.error("Failed to encrypt password:", err);
+        }
+      }
+
+      store[key] = {
+        host: String(connection.host),
+        port: Number(connection.port) || 5432,
+        database: String(connection.database),
+        user: String(connection.user),
+        schema: typeof connection.schema === "string" && connection.schema.trim() ? connection.schema.trim() : undefined,
+        ssl: Boolean(connection.ssl),
+        encryptedPassword,
+      };
+
+      await writeDbConnectionsStore(store);
+      return true;
+    },
+  );
+}
+
+function getDbConnectionsFilePath(): string {
+  return path.join(app.getPath("userData"), "db-connections.json");
+}
+
+type StoredDbConnection = {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  schema?: string;
+  ssl?: boolean;
+  encryptedPassword?: string;
+};
+
+type DbConnectionsStore = Record<string, StoredDbConnection>;
+
+async function readDbConnectionsStore(): Promise<DbConnectionsStore> {
+  const storePath = getDbConnectionsFilePath();
+  try {
+    const data = await readFile(storePath, "utf8");
+    const parsed = JSON.parse(data);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as DbConnectionsStore;
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+async function writeDbConnectionsStore(store: DbConnectionsStore): Promise<void> {
+  const storePath = getDbConnectionsFilePath();
+  await writeFile(storePath, JSON.stringify(store, null, 2), "utf8");
 }
 
 async function writeProjectFile(
@@ -598,7 +713,11 @@ async function writeProjectFile(
     ...project,
     name: nameWithoutExtension,
   };
-  const qbmFile = createQbmFile(updatedProject, flyway, app.getVersion());
+  const sanitizedFlyway: QbmFlywayConfig = {
+    ...flyway,
+    connection: undefined, // Local-first: connection is strictly stored locally on user machine via DPAPI
+  };
+  const qbmFile = createQbmFile(updatedProject, sanitizedFlyway, app.getVersion());
   const serializedProject = JSON.stringify(qbmFile, null, 2);
   await writeFileAtomically(filePath, serializedProject);
 }

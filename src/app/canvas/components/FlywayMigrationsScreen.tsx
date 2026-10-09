@@ -311,6 +311,12 @@ export function FlywayMigrationsScreen({
   };
 
   const handleDeleteLastMigrationClick = () => {
+    if (lastVersion && dbHistoryMap.get(lastVersion.version)?.success) {
+      setExportErrorMessage(
+        `Cannot delete migration "${lastVersion.fileName}" because it has already been applied to the database.`
+      );
+      return;
+    }
     setIsConfirmDeleteOpen(true);
   };
 

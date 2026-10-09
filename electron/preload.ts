@@ -31,6 +31,10 @@ const api: QubeModelerApi = {
     ipcRenderer.invoke("qbm:fetch-flyway-history", config),
   repairFlywayFailedMigrations: (config: import("../src/core/qbm/qbm-file").QbmDatabaseConnectionConfig) =>
     ipcRenderer.invoke("qbm:repair-flyway-failed-migrations", config),
+  getProjectDbConnection: (filePath: string) =>
+    ipcRenderer.invoke("qbm:get-project-db-connection", filePath),
+  saveProjectDbConnection: (filePath: string, connection?: import("../src/core/qbm/qbm-file").QbmDatabaseConnectionConfig) =>
+    ipcRenderer.invoke("qbm:save-project-db-connection", { filePath, connection }),
   getRecentProjects: () => ipcRenderer.invoke("qbm:get-recent-projects"),
   addRecentProject: (filePath: string) =>
     ipcRenderer.invoke("qbm:add-recent-project", filePath),

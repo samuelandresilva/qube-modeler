@@ -75,7 +75,7 @@ describe("qbm-file", () => {
       expect(parsed.flyway.migrationsDirectory).toBe("C:/my-project/db/migrations");
     });
 
-    it("preserves flyway.connection during parse", () => {
+    it("never serializes database connection in the .qbm file (strictly local-first)", () => {
       const qbm = createQbmFile(
         validProject,
         {
@@ -84,6 +84,7 @@ describe("qbm-file", () => {
             port: 5432,
             database: "mydb",
             user: "postgres",
+            password: "super_secret_password",
             schema: "public",
             ssl: false,
           },
@@ -91,17 +92,14 @@ describe("qbm-file", () => {
         },
         "1.0.0"
       );
+
       const json = JSON.stringify(qbm);
+      expect(json).not.toContain("localhost");
+      expect(json).not.toContain("super_secret_password");
+      expect(json).not.toContain("mydb");
 
       const parsed = parseQbmFile(json);
-      expect(parsed.flyway.connection).toEqual({
-        host: "localhost",
-        port: 5432,
-        database: "mydb",
-        user: "postgres",
-        schema: "public",
-        ssl: false,
-      });
+      expect(parsed.flyway.connection).toBeUndefined();
     });
 
     it("fails when format is not qube-modeler-project", () => {

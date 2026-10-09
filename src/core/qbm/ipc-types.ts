@@ -124,6 +124,8 @@ export type QubeModelerApi = {
   testDbConnection(config: import("./qbm-file").QbmDatabaseConnectionConfig): Promise<TestDbConnectionResult>;
   fetchFlywayHistory(config: import("./qbm-file").QbmDatabaseConnectionConfig): Promise<FetchFlywayHistoryResult>;
   repairFlywayFailedMigrations(config: import("./qbm-file").QbmDatabaseConnectionConfig): Promise<RepairFlywayResult>;
+  getProjectDbConnection(filePath: string): Promise<import("./qbm-file").QbmDatabaseConnectionConfig | null>;
+  saveProjectDbConnection(filePath: string, connection?: import("./qbm-file").QbmDatabaseConnectionConfig): Promise<boolean>;
   getRecentProjects(): Promise<RecentProject[]>;
   addRecentProject(filePath: string): Promise<RecentProject[]>;
   removeRecentProject(filePath: string): Promise<RecentProject[]>;
