@@ -159,5 +159,50 @@ describe("qbm-file", () => {
       const malformedFlyway = { ...qbm, flyway: "not-an-object" };
       expect(() => parseQbmFile(JSON.stringify(malformedFlyway))).toThrowError("The flyway migration history cannot be loaded: Flyway data must be an object.");
     });
+
+    it("parses flyway manual scripts correctly", () => {
+      const qbm = createQbmFile(
+        validProject,
+        {
+          versions: [
+            {
+              id: "v1",
+              version: "001",
+              description: "Init",
+              fileName: "V001__Init.sql",
+              createdAt: new Date().toISOString(),
+              generatedSql: "CREATE TABLE test();",
+              manualScripts: [
+                {
+                  id: "s-1",
+                  name: "pre_seed",
+                  execution: "before",
+                  order: 1,
+                  sql: "SELECT 1;",
+                },
+              ],
+              projectSnapshot: validProject,
+            },
+          ],
+        },
+        "1.0.0",
+      );
+
+      const parsed = parseQbmFile(JSON.stringify(qbm));
+      expect(parsed.flyway.versions[0].manualScripts).toHaveLength(1);
+      expect(parsed.flyway.versions[0].manualScripts[0].name).toBe("pre_seed");
+    });
+  });
+
+  describe("getProjectDisplayName", () => {
+    it("returns project name from file path or Untitled if null", async () => {
+      const { getProjectDisplayName } = await import("./qbm-file");
+      expect(getProjectDisplayName(null)).toBe("Untitled");
+      expect(getProjectDisplayName("")).toBe("Untitled");
+      expect(getProjectDisplayName("/path/to/my-project.qbm")).toBe("my-project");
+      expect(getProjectDisplayName("C:\\Projects\\database.qbm")).toBe("database");
+      expect(getProjectDisplayName("/path/to/other-file.json")).toBe("other-file.json");
+    });
   });
 });
+

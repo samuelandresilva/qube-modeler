@@ -913,6 +913,50 @@ describe("Project validation and backward compatibility", () => {
         'Index "idx_tb_songs_tags" method must start with a letter or underscore and contain only letters, numbers, and underscores.',
       );
     });
+
+    it("rejects non-object table and duplicate FK definitions", () => {
+      expect(() => validateTable(null, "public", [], [])).toThrow(
+        'Invalid table in schema "public".',
+      );
+
+      const tableWithDuplicateFks = createTableFixture({
+        name: "orders",
+        columns: [createColumnFixture({ name: "user_id" })],
+        foreignKeys: [
+          {
+            id: "fk-1",
+            name: "fk_orders_user_1",
+            sourceColumns: ["user_id"],
+            targetSchema: "public",
+            targetTable: "users",
+            targetColumns: ["id"],
+          },
+          {
+            id: "fk-2",
+            name: "fk_orders_user_2",
+            sourceColumns: ["user_id"],
+            targetSchema: "public",
+            targetTable: "users",
+            targetColumns: ["id"],
+          },
+        ],
+      });
+
+      const schemas = [
+        {
+          name: "public",
+          tables: [
+            tableWithDuplicateFks,
+            { name: "users", columns: [{ name: "id" }] },
+          ],
+        },
+      ];
+
+      expect(() => validateTable(tableWithDuplicateFks, "public", [], schemas)).toThrow(
+        'Table "orders" foreign keys has duplicated definition.',
+      );
+    });
   });
 });
+
 

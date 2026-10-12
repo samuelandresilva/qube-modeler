@@ -40,6 +40,10 @@ describe("column model commands", () => {
     // Move c1 up (already at top, should do nothing)
     const projectNoOp = moveColumn(project, "s1", "t1", "c1", "up");
     expect(projectNoOp).toEqual(project);
+
+    // Move c3 down (already at bottom, should do nothing)
+    const projectNoOpDown = moveColumn(project, "s1", "t1", "c3", "down");
+    expect(projectNoOpDown).toEqual(project);
   });
 
   it("creates and updates column with isArray property", () => {
@@ -81,6 +85,127 @@ describe("column model commands", () => {
 
     const updatedCol = updatedProject.schemas[0].tables[0].columns[0];
     expect(updatedCol.isArray).toBe(false);
+  });
+
+  it("cascades column rename to uniqueConstraints, indexes, and foreignKeys", () => {
+    const colId = createColumnFixture({ id: "col-id", name: "user_code" });
+    const colName = createColumnFixture({ id: "col-name", name: "full_name" });
+    const usersTable = createTableFixture({
+      id: "t-users",
+      name: "users",
+      columns: [colId, colName],
+      uniqueConstraints: [
+        { id: "uk-1", name: "uk_user_code", columns: ["user_code"] },
+      ],
+      indexes: [
+        { id: "idx-1", name: "idx_user_code", columns: ["user_code"] },
+      ],
+      foreignKeys: [
+        {
+          id: "fk-self",
+          name: "fk_user_manager",
+          sourceColumns: ["user_code"],
+          targetSchema: "public",
+          targetTable: "users",
+          targetColumns: ["user_code"],
+        },
+      ],
+    });
+    const ordersTable = createTableFixture({
+      id: "t-orders",
+      name: "orders",
+      columns: [createColumnFixture({ id: "col-ref", name: "user_ref" })],
+      foreignKeys: [
+        {
+          id: "fk-orders-user",
+          name: "fk_orders_user",
+          sourceColumns: ["user_ref"],
+          targetSchema: "public",
+          targetTable: "users",
+          targetColumns: ["user_code"],
+        },
+      ],
+    });
+
+    const schema = createSchemaFixture({
+      id: "s-1",
+      name: "public",
+      tables: [usersTable, ordersTable],
+    });
+    const project = createProjectFixture({ schemas: [schema] });
+
+    const updated = updateColumn(project, "s-1", "t-users", "col-id", (col) => ({
+      ...col,
+      name: "employee_id",
+    }));
+
+    const updatedUsers = updated.schemas[0].tables.find((t) => t.id === "t-users")!;
+    const updatedOrders = updated.schemas[0].tables.find((t) => t.id === "t-orders")!;
+
+    expect(updatedUsers.columns[0].name).toBe("employee_id");
+    expect(updatedUsers.uniqueConstraints[0].columns).toEqual(["employee_id"]);
+    expect(updatedUsers.indexes[0].columns).toEqual(["employee_id"]);
+    expect(updatedUsers.foreignKeys[0].sourceColumns).toEqual(["employee_id"]);
+    expect(updatedUsers.foreignKeys[0].targetColumns).toEqual(["employee_id"]);
+    expect(updatedOrders.foreignKeys[0].targetColumns).toEqual(["employee_id"]);
+  });
+
+  it("cascades column removal to remove referencing uniqueConstraints, indexes, and foreignKeys", () => {
+    const colId = createColumnFixture({ id: "col-id", name: "user_code" });
+    const usersTable = createTableFixture({
+      id: "t-users",
+      name: "users",
+      columns: [colId],
+      uniqueConstraints: [
+        { id: "uk-1", name: "uk_user_code", columns: ["user_code"] },
+      ],
+      indexes: [
+        { id: "idx-1", name: "idx_user_code", columns: ["user_code"] },
+      ],
+      foreignKeys: [
+        {
+          id: "fk-self",
+          name: "fk_user_manager",
+          sourceColumns: ["user_code"],
+          targetSchema: "public",
+          targetTable: "users",
+          targetColumns: ["user_code"],
+        },
+      ],
+    });
+    const ordersTable = createTableFixture({
+      id: "t-orders",
+      name: "orders",
+      columns: [createColumnFixture({ id: "col-ref", name: "user_ref" })],
+      foreignKeys: [
+        {
+          id: "fk-orders-user",
+          name: "fk_orders_user",
+          sourceColumns: ["user_ref"],
+          targetSchema: "public",
+          targetTable: "users",
+          targetColumns: ["user_code"],
+        },
+      ],
+    });
+
+    const schema = createSchemaFixture({
+      id: "s-1",
+      name: "public",
+      tables: [usersTable, ordersTable],
+    });
+    const project = createProjectFixture({ schemas: [schema] });
+
+    const updated = removeColumn(project, "s-1", "t-users", "col-id");
+
+    const updatedUsers = updated.schemas[0].tables.find((t) => t.id === "t-users")!;
+    const updatedOrders = updated.schemas[0].tables.find((t) => t.id === "t-orders")!;
+
+    expect(updatedUsers.columns).toHaveLength(0);
+    expect(updatedUsers.uniqueConstraints).toHaveLength(0);
+    expect(updatedUsers.indexes).toHaveLength(0);
+    expect(updatedUsers.foreignKeys).toHaveLength(0);
+    expect(updatedOrders.foreignKeys).toHaveLength(0);
   });
 
   it("does not remove indexes or unique constraints from other tables when removing a column with the same name", () => {
