@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { CanvasModal } from "./CanvasModal";
 
 type ConfirmDialogProps = {
@@ -9,20 +10,22 @@ type ConfirmDialogProps = {
 
 export function ConfirmDialog({
   message,
-  confirmLabel = "Remove",
+  confirmLabel,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation("common");
+
   return (
-    <CanvasModal title="Confirm" onClose={onCancel} elevated>
+    <CanvasModal title={t("dialogs.confirmTitle")} onClose={onCancel} elevated>
       <div className="canvas-confirm">
         <p className="canvas-confirm__message">{message}</p>
         <div className="canvas-modal-actions canvas-modal-actions--confirm">
           <button type="button" onClick={onCancel}>
-            Cancel
+            {t("actions.cancel")}
           </button>
           <button type="button" onClick={onConfirm}>
-            {confirmLabel}
+            {confirmLabel ?? t("actions.remove")}
           </button>
         </div>
       </div>

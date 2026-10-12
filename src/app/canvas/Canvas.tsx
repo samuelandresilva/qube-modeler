@@ -63,6 +63,7 @@ type CanvasProps = {
   finishFileOperation: () => void;
   onFileOperationError: (message: string) => void;
   onViewFlyway?: () => void;
+  onOpenSettings?: () => void;
   onCommitHistory: (currentProject: DatabaseProject) => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -107,6 +108,7 @@ function CanvasContent({
   finishFileOperation,
   onFileOperationError,
   onViewFlyway,
+  onOpenSettings,
   onCommitHistory,
   onUndo,
   onRedo,
@@ -512,6 +514,7 @@ function CanvasContent({
         }
         onDeleteView={deleteView}
         onViewFlyway={onViewFlyway}
+        onOpenSettings={onOpenSettings}
       />
       <main className="canvas-main">
         <CanvasToolbar

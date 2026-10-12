@@ -1,0 +1,87 @@
+{
+  "actions": {
+    "save": "Salvar",
+    "saveAs": "Salvar Como...",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "confirm": "Confirmar",
+    "close": "Fechar",
+    "edit": "Editar",
+    "discard": "Descartar",
+    "remove": "Remover",
+    "open": "Abrir",
+    "new": "Novo",
+    "back": "Voltar",
+    "export": "Exportar",
+    "view": "Visualizar",
+    "connect": "Conectar",
+    "disconnect": "Desconectar",
+    "test": "Testar",
+    "repair": "Reparar",
+    "refresh": "Atualizar",
+    "copy": "Copiar",
+    "undo": "Desfazer",
+    "redo": "Refazer"
+  },
+  "dialogs": {
+    "errorTitle": "Erro",
+    "confirmTitle": "Confirmar Ação",
+    "unsavedChangesTitle": "Alterações Não Salvas",
+    "unsavedChangesMessage": "Você possui alterações não salvas. Deseja salvá-las antes de fechar?",
+    "discardChanges": "Descartar Alterações",
+    "saveAndClose": "Salvar e Fechar",
+    "keepEditing": "Continuar Editando"
+  },
+  "status": {
+    "loading": "Carregando...",
+    "saved": "Salvo",
+    "pending": "Pendente",
+    "success": "Sucesso",
+    "failed": "Falha",
+    "applied": "Aplicada",
+    "notApplied": "Não Aplicada"
+  },
+  "language": {
+    "selector": "Idioma",
+    "en": "English",
+    "ptBR": "Português (Brasil)"
+  },
+  "firstRun": {
+    "title": "Bem-vindo ao Qube Modeler",
+    "subtitle": "Escolha o idioma de interface de sua preferência para começar:",
+    "languageLabel": "Idioma da interface",
+    "englishOption": "English",
+    "portugueseOption": "Português (Brasil)",
+    "getStarted": "Começar"
+  },
+  "settings": {
+    "title": "Configurações",
+    "general": "Geral",
+    "language": "Idioma da Interface",
+    "languageDescription": "Selecione o idioma utilizado em todo o aplicativo.",
+    "storageLocation": "Armazenamento de Preferências",
+    "storageDescription": "As configurações ficam salvas no seu perfil de usuário neste computador (APPDATA).",
+    "shortcut": "Pressione Ctrl+, a qualquer momento para abrir as configurações",
+    "close": "Fechar"
+  },
+  "operations": {
+    "openingProject": "Abrindo projeto...",
+    "savingProject": "Salvando projeto...",
+    "savingProjectAs": "Salvando projeto como...",
+    "electronUnavailable": "O preload do Electron não está disponível. Reinicie o Qube Modeler completamente e tente novamente.",
+    "openProjectError": "Não foi possível abrir o projeto: {{error}}",
+    "saveProjectError": "Não foi possível salvar o projeto: {{error}}",
+    "discardPrompt": "Descartar as alterações não salvas no projeto atual?"
+  },
+  "about": {
+    "title": "Sobre",
+    "version": "Versão {{version}}",
+    "description": "Um modelador visual de banco de dados moderno e local-first desenvolvido para PostgreSQL. O Qube Modeler une perfeitamente o design entidade-relacionamento e migrações Flyway baseadas em estado, mantendo todo o histórico do seu banco em um único arquivo de projeto pronto para o Git.",
+    "projectFormat": "Formato do projeto",
+    "projectFormatDescription": "Arquivos de projeto locais desenvolvidos para controle de versão com Git.",
+    "credits": "Créditos",
+    "creditsCanvas": "Canvas interativo e diagramas fornecidos pelo",
+    "creditsSql": "Destaque de sintaxe SQL fornecido pelo",
+    "creditsDevelopedBy": "Desenvolvido por"
+  }
+}

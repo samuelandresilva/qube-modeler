@@ -111,6 +111,11 @@ export type RepairFlywayResult =
   | { success: false; error: string };
 
 
+export type AppSettings = {
+  language: "en" | "pt-BR";
+  hasCompletedFirstRun: boolean;
+};
+
 export type QubeModelerApi = {
   openProject(): Promise<OpenProjectResult>;
   saveProject(payload: SaveProjectPayload): Promise<SaveProjectResult>;
@@ -133,6 +138,8 @@ export type QubeModelerApi = {
   getPendingFile(): Promise<string | null>;
   getAppVersion(): Promise<string>;
   onOpenFileRequested(callback: (filePath: string) => void): () => void;
+  getAppSettings(): Promise<AppSettings>;
+  saveAppSettings(settings: Partial<AppSettings>): Promise<AppSettings>;
 };
 
 

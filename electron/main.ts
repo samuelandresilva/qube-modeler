@@ -36,6 +36,7 @@ import type {
   FetchFlywayHistoryResult,
   RepairFlywayResult,
   FlywayHistoryRecord,
+  AppSettings,
 } from "../src/core/qbm/ipc-types";
 
 
@@ -666,6 +667,61 @@ function configureProjectIpc() {
       return true;
     },
   );
+
+  ipcMain.handle("qbm:get-app-settings", async (): Promise<AppSettings> => {
+    return readAppSettings();
+  });
+
+  ipcMain.handle(
+    "qbm:save-app-settings",
+    async (_event, partial: unknown): Promise<AppSettings> => {
+      return updateAppSettings(partial);
+    },
+  );
+}
+
+
+function getSettingsFilePath(): string {
+  return path.join(app.getPath("userData"), "settings.json");
+}
+
+const DEFAULT_APP_SETTINGS: AppSettings = {
+  language: "en",
+  hasCompletedFirstRun: false,
+};
+
+async function readAppSettings(): Promise<AppSettings> {
+  const settingsPath = getSettingsFilePath();
+  try {
+    const data = await readFile(settingsPath, "utf8");
+    const parsed = JSON.parse(data);
+    if (parsed && typeof parsed === "object") {
+      const language = parsed.language === "pt-BR" ? "pt-BR" : "en";
+      const hasCompletedFirstRun = Boolean(parsed.hasCompletedFirstRun);
+      return { language, hasCompletedFirstRun };
+    }
+    return { ...DEFAULT_APP_SETTINGS };
+  } catch {
+    return { ...DEFAULT_APP_SETTINGS };
+  }
+}
+
+async function updateAppSettings(partial: unknown): Promise<AppSettings> {
+  const current = await readAppSettings();
+  const next: AppSettings = { ...current };
+
+  if (isRecord(partial)) {
+    if (partial.language === "en" || partial.language === "pt-BR") {
+      next.language = partial.language;
+    }
+    if (typeof partial.hasCompletedFirstRun === "boolean") {
+      next.hasCompletedFirstRun = partial.hasCompletedFirstRun;
+    }
+  }
+
+  const settingsPath = getSettingsFilePath();
+  await writeFile(settingsPath, JSON.stringify(next, null, 2), "utf8");
+  return next;
 }
 
 function getDbConnectionsFilePath(): string {

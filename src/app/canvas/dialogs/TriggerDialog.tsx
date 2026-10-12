@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import type { DatabaseTable, DatabaseTrigger, DatabaseProject, DatabaseView } from "@/core/model";
 import {
@@ -40,6 +41,7 @@ export function TriggerDialog({
   onSubmit,
   onDelete,
 }: Props) {
+  const { t } = useTranslation("canvas");
   const isView = entityType === "view";
   const [name, setName] = useState(current?.name ?? getSuggestedName(table));
   const [eventTiming, setEventTiming] = useState<DatabaseTrigger["eventTiming"]>(
@@ -123,24 +125,24 @@ export function TriggerDialog({
 
   return (
     <CanvasModal
-      title={current ? `Edit trigger · ${current.name}` : "Add trigger"}
+      title={current ? t("dialogs.trigger.editTitle", { name: current.name }) : t("dialogs.trigger.addTitle")}
       onClose={onClose}
     >
       <div className="canvas-modal-form">
         <div className="canvas-modal-form__row">
           <label>
-            <span>Name</span>
+            <span>{t("dialogs.trigger.name")}</span>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="trg_table_change"
+              placeholder={t("dialogs.trigger.namePlaceholder")}
             />
           </label>
           <label>
-            <span>Function</span>
+            <span>{t("dialogs.trigger.function")}</span>
             {triggerFunctions.length === 0 ? (
               <select disabled value="">
-                <option value="">No trigger functions found</option>
+                <option value="">{t("dialogs.trigger.noFunctions")}</option>
               </select>
             ) : (
               <select
@@ -163,13 +165,13 @@ export function TriggerDialog({
 
         {triggerFunctions.length === 0 && (
           <p className="canvas-modal-error">
-            No trigger functions found. Create a function that returns 'trigger' first.
+            {t("dialogs.trigger.noFunctionsError")}
           </p>
         )}
 
         <div className="canvas-modal-form__row">
           <label>
-            <span>Timing</span>
+            <span>{t("dialogs.trigger.timing")}</span>
             {isView ? (
               <select value="INSTEAD OF" disabled>
                 <option value="INSTEAD OF">INSTEAD OF</option>
@@ -186,20 +188,20 @@ export function TriggerDialog({
             )}
           </label>
           <label>
-            <span>For Each (Orientation)</span>
+            <span>{t("dialogs.trigger.forEach")}</span>
             <select
               value={isView ? "ROW" : (isConstraint ? "ROW" : forEach)}
               disabled={isView || isConstraint}
               onChange={(event) => handleForEachChange(event.target.value as DatabaseTrigger["forEach"])}
             >
-              <option value="ROW">ROW</option>
-              <option value="STATEMENT">STATEMENT</option>
+              <option value="ROW">{t("dialogs.trigger.row")}</option>
+              <option value="STATEMENT">{t("dialogs.trigger.statement")}</option>
             </select>
           </label>
         </div>
 
         <div>
-          <span style={{ color: "var(--color-text-muted)", fontSize: "12px", fontWeight: 800, display: "block", marginBottom: "6px", textTransform: "uppercase" }}>Events</span>
+          <span style={{ color: "var(--color-text-muted)", fontSize: "12px", fontWeight: 800, display: "block", marginBottom: "6px", textTransform: "uppercase" }}>{t("dialogs.trigger.events")}</span>
           <div className="canvas-modal-form__row" style={{ marginBottom: "8px" }}>
             <label className="canvas-modal-checkbox">
               <span>INSERT</span>
@@ -239,7 +241,7 @@ export function TriggerDialog({
         </div>
 
         <label>
-          <span>WHEN Condition (Optional)</span>
+          <span>{t("dialogs.trigger.whenCondition")}</span>
           <input
             value={condition}
             disabled={!isView && forEach === "STATEMENT"}
@@ -248,17 +250,17 @@ export function TriggerDialog({
           />
           {!isView && forEach === "STATEMENT" && (
             <span style={{ color: "#38bdf8", fontSize: "11px", marginTop: "2px" }}>
-              WHEN clause is not supported for STATEMENT
+              {t("dialogs.trigger.whenNotSupported")}
             </span>
           )}
         </label>
 
         <label>
-          <span>Comment / Documentation</span>
+          <span>{t("dialogs.trigger.comment")}</span>
           <textarea
             value={comment}
             onChange={(event) => setComment(event.target.value)}
-            placeholder="Describe the trigger's purpose..."
+            placeholder={t("dialogs.trigger.commentPlaceholder")}
             rows={2}
             style={{ width: "100%", resize: "vertical" }}
           />
@@ -267,7 +269,7 @@ export function TriggerDialog({
         {!isView && (
           <div className="canvas-modal-form__row" style={{ marginTop: "6px" }}>
             <label className="canvas-modal-checkbox">
-              <span>Constraint Trigger</span>
+              <span>{t("dialogs.trigger.constraintTrigger")}</span>
               <input
                 type="checkbox"
                 checked={isConstraint}
@@ -277,7 +279,7 @@ export function TriggerDialog({
             {isConstraint && (
               <div style={{ display: "flex", gap: "10px", width: "100%" }}>
                 <label className="canvas-modal-checkbox" style={{ flex: 1 }}>
-                  <span>DEFERRABLE</span>
+                  <span>{t("dialogs.trigger.deferrable")}</span>
                   <input
                     type="checkbox"
                     checked={deferrable}
@@ -285,7 +287,7 @@ export function TriggerDialog({
                   />
                 </label>
                 <label className="canvas-modal-checkbox" style={{ flex: 1 }}>
-                  <span>INITIALLY DEFERRED</span>
+                  <span>{t("dialogs.trigger.initiallyDeferred")}</span>
                   <input
                     type="checkbox"
                     checked={initiallyDeferred}
@@ -300,22 +302,22 @@ export function TriggerDialog({
 
         {duplicate && (
           <p className="canvas-modal-error">
-            A trigger with this name already exists on this {isView ? "view" : "table"}.
+            {t("dialogs.trigger.errors.duplicate", { entity: isView ? t("inspector.view") : t("inspector.table") })}
           </p>
         )}
         {!valid && (
           <p className="canvas-modal-error">
-            Name must be a valid SQL identifier.
+            {t("dialogs.trigger.errors.valid")}
           </p>
         )}
         {reserved && (
           <p className="canvas-modal-error">
-            Name cannot be a PostgreSQL reserved word.
+            {t("dialogs.trigger.errors.reserved")}
           </p>
         )}
         {events.length === 0 && (
           <p className="canvas-modal-error">
-            Select at least one event (INSERT, UPDATE, DELETE or TRUNCATE).
+            {t("dialogs.trigger.errors.events")}
           </p>
         )}
 
@@ -326,7 +328,7 @@ export function TriggerDialog({
               className="canvas-modal-actions__danger"
               onClick={onDelete}
             >
-              Delete trigger
+              {t("dialogs.trigger.delete")}
             </button>
           )}
           <button type="button" onClick={onClose}>
@@ -350,7 +352,7 @@ export function TriggerDialog({
               })
             }
           >
-            {current ? "Save" : "Create"} trigger
+            {current ? t("dialogs.trigger.save") : t("dialogs.trigger.create")}
           </button>
         </div>
       </div>

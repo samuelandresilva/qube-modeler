@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { MultiColumnSelect } from "@/app/shared/components/MultiColumnSelect";
 import type { DatabaseTable, IndexMethod } from "@/core/model";
@@ -37,6 +38,7 @@ export function NamedColumnsDialog({
   onSubmit,
   onDelete,
 }: Props) {
+  const { t } = useTranslation("canvas");
   const collection =
     entity === "index" ? table.indexes : table.uniqueConstraints;
   const prefix = entity === "index" ? "idx" : "uk";
@@ -58,16 +60,16 @@ export function NamedColumnsDialog({
     !reserved &&
     !duplicate &&
     columns.length > 0;
-  const label = entity === "index" ? "index" : "unique constraint";
+  const label = entity === "index" ? t("dialogs.namedColumns.entityIndex") : t("dialogs.namedColumns.entityUniqueConstraint");
 
   return (
     <CanvasModal
-      title={current ? `Edit ${label} · ${current.name}` : `Add ${label}`}
+      title={current ? t("dialogs.namedColumns.editTitle", { label, name: current.name }) : t("dialogs.namedColumns.addTitle", { label })}
       onClose={onClose}
     >
       <div className="canvas-modal-form">
         <label>
-          <span>Name</span>
+          <span>{t("dialogs.namedColumns.name")}</span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -75,7 +77,7 @@ export function NamedColumnsDialog({
           />
         </label>
         <label>
-          <span>Columns</span>
+          <span>{t("dialogs.namedColumns.columns")}</span>
           <MultiColumnSelect
             availableColumns={table.columns.map((column) => column.name)}
             selectedColumns={columns}
@@ -84,53 +86,53 @@ export function NamedColumnsDialog({
         </label>
         {entity === "index" && (
           <label>
-            <span>Access Method (USING)</span>
+            <span>{t("dialogs.namedColumns.accessMethod")}</span>
             <select
               value={method}
               onChange={(event) => setMethod(event.target.value as IndexMethod)}
             >
-              <option value="btree">btree (default - scalar data & sorting)</option>
-              <option value="gin">gin (arrays, jsonb, full-text search)</option>
-              <option value="gist">gist (geometric, range types, full-text)</option>
-              <option value="brin">brin (large sequential datasets)</option>
-              <option value="spgist">spgist (space-partitioned data)</option>
-              <option value="hash">hash (equality only)</option>
+              <option value="btree">{t("dialogs.namedColumns.methods.btree")}</option>
+              <option value="gin">{t("dialogs.namedColumns.methods.gin")}</option>
+              <option value="gist">{t("dialogs.namedColumns.methods.gist")}</option>
+              <option value="brin">{t("dialogs.namedColumns.methods.brin")}</option>
+              <option value="spgist">{t("dialogs.namedColumns.methods.spgist")}</option>
+              <option value="hash">{t("dialogs.namedColumns.methods.hash")}</option>
             </select>
           </label>
         )}
         {entity === "unique constraint" && (
           <label>
-            <span>Condition (WHERE)</span>
+            <span>{t("dialogs.namedColumns.condition")}</span>
             <input
               value={condition}
               onChange={(event) => setCondition(event.target.value)}
-              placeholder="deleted_at IS NULL"
+              placeholder={t("dialogs.namedColumns.conditionPlaceholder")}
             />
           </label>
         )}
         <label>
-          <span>Comment / Documentation</span>
+          <span>{t("dialogs.namedColumns.comment")}</span>
           <textarea
             value={comment}
             onChange={(event) => setComment(event.target.value)}
-            placeholder={`Describe the ${label}'s purpose...`}
+            placeholder={t("dialogs.namedColumns.commentPlaceholder", { label })}
             rows={2}
             style={{ width: "100%", resize: "vertical" }}
           />
         </label>
         {duplicate && (
           <p className="canvas-modal-error">
-            A {label} with this name already exists.
+            {t("dialogs.namedColumns.errors.duplicate", { label })}
           </p>
         )}
         {!valid && (
           <p className="canvas-modal-error">
-            Name must be a valid SQL identifier.
+            {t("dialogs.namedColumns.errors.valid")}
           </p>
         )}
         {reserved && (
           <p className="canvas-modal-error">
-            Name cannot be a PostgreSQL reserved word.
+            {t("dialogs.namedColumns.errors.reserved")}
           </p>
         )}
         <div className="canvas-modal-actions">
@@ -140,7 +142,7 @@ export function NamedColumnsDialog({
               className="canvas-modal-actions__danger"
               onClick={onDelete}
             >
-              Delete {label}
+              {t("dialogs.namedColumns.delete", { label })}
             </button>
           )}
           <button type="button" onClick={onClose}>
@@ -157,7 +159,7 @@ export function NamedColumnsDialog({
               comment: comment.trim() === "" ? undefined : comment.trim(),
             })}
           >
-            {current ? "Save" : "Create"} {label}
+            {current ? t("dialogs.namedColumns.save", { label }) : t("dialogs.namedColumns.create", { label })}
           </button>
         </div>
       </div>

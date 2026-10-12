@@ -6,6 +6,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useProjectHistory } from "@/app/canvas/hooks/useProjectHistory";
 
 import { Canvas } from "@/app/canvas/Canvas";
@@ -20,6 +21,9 @@ import { AppTitleBar } from "./app/canvas/components/AppTitleBar";
 import { FlywayMigrationsScreen } from "@/app/canvas/components/FlywayMigrationsScreen";
 import { WelcomeScreen } from "@/app/canvas/components/WelcomeScreen";
 import { CanvasModal } from "@/app/canvas/components/CanvasModal";
+import { FirstRunModal } from "@/app/canvas/components/FirstRunModal";
+import { SettingsModal } from "@/app/canvas/components/SettingsModal";
+import { loadAppSettings, setLanguage, type SupportedLanguage } from "@/locales/i18n";
 import qubeIcon from "@/assets/qube-modeler-icon.png";
 import type { RecentProject } from "@/core/qbm/ipc-types";
 
@@ -31,6 +35,7 @@ type OpenedProjectState = {
 };
 
 export default function App() {
+  const { t } = useTranslation(["common", "welcome"]);
   const [view, setView] = useState<"canvas" | "flyway" | "welcome">("welcome");
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [openedProject, setOpenedProject] = useState<OpenedProjectState>(() => ({
@@ -50,6 +55,39 @@ export default function App() {
   const [isCloseRequested, setIsCloseRequested] = useState(false);
   const [appVersion, setAppVersion] = useState("0.0.0");
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isFirstRunOpen, setIsFirstRunOpen] = useState(false);
+
+  useEffect(() => {
+    void loadAppSettings().then((settings) => {
+      if (!settings.hasCompletedFirstRun) {
+        setIsFirstRunOpen(true);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+        e.preventDefault();
+        setIsSettingsOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleFirstRunComplete = useCallback(async (lang: SupportedLanguage) => {
+    await setLanguage(lang);
+    if (window.qubeModeler?.saveAppSettings) {
+      await window.qubeModeler.saveAppSettings({
+        language: lang,
+        hasCompletedFirstRun: true,
+      });
+    }
+    setIsFirstRunOpen(false);
+  }, []);
+
   const fileOperationInProgressRef = useRef(false);
   const { confirm, requestConfirm, dismissConfirm, acceptConfirm } =
     useConfirm();
@@ -113,21 +151,21 @@ export default function App() {
       return;
     }
     requestConfirm(
-      "Discard the unsaved changes to the current project?",
+      t("common:operations.discardPrompt"),
       createNewProject,
-      "Discard",
+      t("common:actions.discard"),
     );
-  }, [createNewProject, openedProject.isDirty, requestConfirm]);
+  }, [createNewProject, openedProject.isDirty, requestConfirm, t]);
 
   const openProject = useCallback(async () => {
     const api = getQubeModelerApi();
     if (!api) {
       setErrorMessage(
-        "The Electron preload is unavailable. Fully restart Qube Modeler and try again.",
+        t("common:operations.electronUnavailable"),
       );
       return;
     }
-    if (!beginFileOperation("Opening project...")) return;
+    if (!beginFileOperation(t("common:operations.openingProject"))) return;
 
     try {
       const result = await api.openProject();
@@ -152,12 +190,12 @@ export default function App() {
       setView("canvas");
     } catch (error) {
       setErrorMessage(
-        `Could not open the project: ${getErrorMessage(error)}`,
+        t("common:operations.openProjectError", { error: getErrorMessage(error) }),
       );
     } finally {
       finishFileOperation();
     }
-  }, [beginFileOperation, finishFileOperation, clearHistory]);
+  }, [beginFileOperation, finishFileOperation, clearHistory, t]);
 
   const handleOpenProject = useCallback(() => {
     if (!openedProject.isDirty) {
@@ -165,11 +203,11 @@ export default function App() {
       return;
     }
     requestConfirm(
-      "Discard the unsaved changes to the current project?",
+      t("common:operations.discardPrompt"),
       () => void openProject(),
-      "Discard",
+      t("common:actions.discard"),
     );
-  }, [openProject, openedProject.isDirty, requestConfirm]);
+  }, [openProject, openedProject.isDirty, requestConfirm, t]);
 
   const persistProject = useCallback(
     async (overrides?: {
@@ -186,13 +224,13 @@ export default function App() {
       const api = getQubeModelerApi();
       if (!api) {
         setErrorMessage(
-          "The Electron preload is unavailable. Fully restart Qube Modeler and try again.",
+          t("common:operations.electronUnavailable"),
         );
         return false;
       }
 
       if (!targetFilePath) {
-        if (!beginFileOperation("Saving project as...")) return false;
+        if (!beginFileOperation(t("common:operations.savingProjectAs"))) return false;
         try {
           const result = await api.saveProjectAs({
             project: projectBeingSaved,
@@ -223,7 +261,7 @@ export default function App() {
           return true;
         } catch (error) {
           setErrorMessage(
-            `Could not save the project: ${getErrorMessage(error)}`,
+            t("common:operations.saveProjectError", { error: getErrorMessage(error) }),
           );
           return false;
         } finally {
@@ -231,7 +269,7 @@ export default function App() {
         }
       }
 
-      if (!beginFileOperation("Saving project...")) return false;
+      if (!beginFileOperation(t("common:operations.savingProject"))) return false;
       try {
         const result = await api.saveProject({
           filePath: targetFilePath,
@@ -259,14 +297,14 @@ export default function App() {
         return true;
       } catch (error) {
         setErrorMessage(
-          `Could not save the project: ${getErrorMessage(error)}`,
+          t("common:operations.saveProjectError", { error: getErrorMessage(error) }),
         );
         return false;
       } finally {
         finishFileOperation();
       }
     },
-    [beginFileOperation, finishFileOperation],
+    [beginFileOperation, finishFileOperation, t],
   );
 
   const handleSaveProjectAs = useCallback(async (): Promise<boolean> => {
@@ -575,6 +613,7 @@ export default function App() {
             onRemoveRecentProject={handleRemoveRecentProject}
             appVersion={appVersion}
             onOpenAbout={() => setIsAboutOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
         ) : view === "canvas" ? (
           <Canvas
@@ -591,6 +630,7 @@ export default function App() {
             finishFileOperation={finishFileOperation}
             onFileOperationError={setErrorMessage}
             onViewFlyway={() => setView("flyway")}
+            onOpenSettings={() => setIsSettingsOpen(true)}
             onCommitHistory={commitHistory}
             canUndo={canUndo}
             canRedo={canRedo}
@@ -636,13 +676,13 @@ export default function App() {
       )}
       {errorMessage && (
         <MessageDialog
-          title="Error"
+          title={t("common:dialogs.errorTitle")}
           message={errorMessage}
           onClose={() => setErrorMessage(null)}
         />
       )}
       {isAboutOpen && (
-        <CanvasModal title="About" onClose={() => setIsAboutOpen(false)} elevated className="canvas-modal--about">
+        <CanvasModal title={t("common:about.title")} onClose={() => setIsAboutOpen(false)} elevated className="canvas-modal--about">
           <div className="about-modal">
             <div className="about-modal__header">
               <img
@@ -652,37 +692,37 @@ export default function App() {
               />
               <div className="about-modal__title-wrapper">
                 <h3 className="about-modal__title">Qube Modeler</h3>
-                <span className="about-modal__version">Version {appVersion}</span>
+                <span className="about-modal__version">{t("common:about.version", { version: appVersion })}</span>
               </div>
             </div>
 
             <div className="about-modal__body">
               <p className="about-modal__description">
-                A modern, local-first visual database modeler tailored for PostgreSQL. Qube Modeler seamlessly bridges the gap between entity-relationship design and state-based Flyway migrations, keeping your entire database history in a single, Git-friendly project file.
+                {t("common:about.description")}
               </p>
               
               <div className="about-modal__section">
-                <div className="about-modal__label">Project format</div>
+                <div className="about-modal__label">{t("common:about.projectFormat")}</div>
                 <div className="about-modal__badge">.qbm</div>
                 <p className="about-modal__text">
-                  Local-first project files designed to be versioned with Git.
+                  {t("common:about.projectFormatDescription")}
                 </p>
               </div>
 
               <div className="about-modal__section">
-                <div className="about-modal__label">Credits</div>
+                <div className="about-modal__label">{t("common:about.credits")}</div>
                 <p className="about-modal__text" style={{ lineHeight: "1.6" }}>
-                  Interactive canvas and diagramming powered by{" "}
+                  {t("common:about.creditsCanvas")}{" "}
                   <a href="https://reactflow.dev" target="_blank" rel="noopener noreferrer" style={{ color: "#38bdf8", textDecoration: "none" }}>
                     React Flow
                   </a>.
                   <br />
-                  SQL syntax highlighting by{" "}
+                  {t("common:about.creditsSql")}{" "}
                   <a href="https://codemirror.net" target="_blank" rel="noopener noreferrer" style={{ color: "#38bdf8", textDecoration: "none" }}>
                     CodeMirror
                   </a>.
                   <br />
-                  Developed by{" "}
+                  {t("common:about.creditsDevelopedBy")}{" "}
                   <a href="https://betaqube.dev" target="_blank" rel="noopener noreferrer" style={{ color: "#38bdf8", textDecoration: "none" }}>
                     BetaQube.dev
                   </a>.
@@ -696,11 +736,18 @@ export default function App() {
                 onClick={() => setIsAboutOpen(false)}
                 type="button"
               >
-                Close
+                {t("common:actions.close")}
               </button>
             </div>
           </div>
         </CanvasModal>
+      )}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
+      {isFirstRunOpen && (
+        <FirstRunModal onComplete={(lang) => void handleFirstRunComplete(lang)} />
       )}
     </div>
   );

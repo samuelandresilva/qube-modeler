@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -23,6 +24,8 @@ export function InspectorSection({
   onMoveUp,
   onMoveDown,
 }: Props) {
+  const { t } = useTranslation("canvas");
+
   return (
     <section className="canvas-inspector__section">
       <div className="canvas-inspector__section-header">
@@ -79,7 +82,8 @@ export function InspectorSection({
                         placeItems: "center",
                         fontSize: "9px"
                       }}
-                      title="Move Up"
+                      title={t("inspector.moveUp")}
+                      aria-label={t("inspector.moveUp")}
                     >
                       ▲
                     </button>
@@ -100,7 +104,8 @@ export function InspectorSection({
                         placeItems: "center",
                         fontSize: "9px"
                       }}
-                      title="Move Down"
+                      title={t("inspector.moveDown")}
+                      aria-label={t("inspector.moveDown")}
                     >
                       ▼
                     </button>

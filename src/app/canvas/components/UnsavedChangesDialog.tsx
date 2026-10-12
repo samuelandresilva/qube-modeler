@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { CanvasModal } from "./CanvasModal";
 
 type UnsavedChangesDialogProps = {
@@ -11,26 +12,27 @@ export function UnsavedChangesDialog({
   onDiscard,
   onCancel,
 }: UnsavedChangesDialogProps) {
+  const { t } = useTranslation("common");
+
   return (
-    <CanvasModal title="Unsaved changes" onClose={onCancel} elevated>
+    <CanvasModal title={t("dialogs.unsavedChangesTitle")} onClose={onCancel} elevated>
       <div className="canvas-confirm">
         <p className="canvas-confirm__message">
-          Do you want to save the changes to the current project before
-          closing?
+          {t("dialogs.unsavedChangesMessage")}
         </p>
         <div className="canvas-modal-actions canvas-modal-actions--unsaved">
           <button type="button" onClick={onCancel}>
-            Cancel
+            {t("actions.cancel")}
           </button>
           <button
             className="canvas-modal-actions__discard"
             type="button"
             onClick={onDiscard}
           >
-            Don't save
+            {t("dialogs.discardChanges")}
           </button>
           <button type="button" onClick={onSave}>
-            Save
+            {t("actions.save")}
           </button>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { DatabaseProject, DatabaseFunction, DatabaseFunctionArgument } from "@/core/model";
@@ -115,6 +116,7 @@ export function FunctionDialog({
   onSubmit,
   onDelete,
 }: Props) {
+  const { t } = useTranslation("canvas");
   const [schemaId, setSchemaId] = useState(
     editingFunction?.schemaId ?? initialSchemaId ?? (project.schemas[0]?.id || "")
   );
@@ -234,16 +236,12 @@ export function FunctionDialog({
 
   return (
     <CanvasModal
-      title={
-        editingFunction
-          ? `Edit function · ${editingFunction.name}`
-          : `Add function · ${selectedSchema?.name || ""}`
-      }
+      title={editingFunction ? t("dialogs.function.editTitle", { name: editingFunction.name }) : t("dialogs.function.addTitle", { schema: selectedSchema?.name || "" })}
       onClose={onClose}
     >
       <div className="canvas-modal-form" style={{ maxHeight: "80vh", overflowY: "auto" }}>
         <label>
-          <span>Schema</span>
+          <span>{t("dialogs.function.schema")}</span>
           <select value={schemaId} onChange={(e) => setSchemaId(e.target.value)}>
             {project.schemas.map((s) => (
               <option key={s.id} value={s.id}>
@@ -254,16 +252,16 @@ export function FunctionDialog({
         </label>
 
         <label>
-          <span>Function name</span>
+          <span>{t("dialogs.function.name")}</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="fn_my_function"
+            placeholder={t("dialogs.function.namePlaceholder")}
           />
         </label>
 
         <label>
-          <span>Language</span>
+          <span>{t("dialogs.function.language")}</span>
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value as "plpgsql" | "sql")}
@@ -274,21 +272,21 @@ export function FunctionDialog({
         </label>
 
         <label>
-          <span>Return type</span>
+          <span>{t("dialogs.function.returnType")}</span>
           <Combobox
             value={returnType}
             onChange={handleReturnTypeChange}
             options={returnTypeOptions}
-            placeholder="trigger, integer, numeric, void..."
+            placeholder={t("dialogs.function.returnTypePlaceholder")}
           />
         </label>
 
         <label style={{ width: "100%" }}>
-          <span>Comment / Documentation</span>
+          <span>{t("dialogs.function.comment")}</span>
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Describe the function's purpose..."
+            placeholder={t("dialogs.function.commentPlaceholder")}
             rows={2}
             style={{ width: "100%", resize: "vertical" }}
           />
@@ -296,7 +294,7 @@ export function FunctionDialog({
 
         <div style={{ margin: "16px 0 8px 0", borderBottom: "1px solid #334155", paddingBottom: "4px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontWeight: 600, fontSize: "14px", color: "#94a3b8" }}>Arguments</span>
+            <span style={{ fontWeight: 600, fontSize: "14px", color: "#94a3b8" }}>{t("dialogs.function.arguments")}</span>
             {!isTriggerReturn && (
               <button
                 type="button"
@@ -314,7 +312,7 @@ export function FunctionDialog({
                   cursor: "pointer",
                 }}
               >
-                <Plus size={12} /> Add argument
+                <Plus size={12} /> {t("dialogs.function.addArgument")}
               </button>
             )}
           </div>
@@ -322,11 +320,11 @@ export function FunctionDialog({
 
         {isTriggerReturn ? (
           <div style={{ fontSize: "12px", color: "#38bdf8", fontStyle: "italic", marginBottom: "12px" }}>
-            Trigger functions do not accept formal arguments in PostgreSQL.
+            {t("dialogs.function.triggerNoArgs")}
           </div>
         ) : args.length === 0 ? (
           <div style={{ fontSize: "12px", color: "#64748b", fontStyle: "italic", marginBottom: "12px" }}>
-            No arguments defined
+            {t("dialogs.function.noArgsDefined")}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
@@ -337,7 +335,7 @@ export function FunctionDialog({
                   onChange={(e) => handleUpdateArg(arg.id, "mode", e.target.value)}
                   style={{ width: "80px", flexShrink: 0 }}
                 >
-                  <option value="">mode</option>
+                  <option value="">{t("dialogs.function.modePlaceholder")}</option>
                   <option value="IN">IN</option>
                   <option value="OUT">OUT</option>
                   <option value="INOUT">INOUT</option>
@@ -346,7 +344,7 @@ export function FunctionDialog({
                 <input
                   value={arg.name}
                   onChange={(e) => handleUpdateArg(arg.id, "name", e.target.value)}
-                  placeholder={`name (arg ${index + 1})`}
+                  placeholder={t("dialogs.function.nameArgPlaceholder", { index: index + 1 })}
                   style={{ flex: 1 }}
                 />
 
@@ -355,15 +353,15 @@ export function FunctionDialog({
                   onChange={(e) => handleUpdateArg(arg.id, "dataType", e.target.value)}
                   style={{ flex: 1 }}
                 >
-                  <option value="">Select data type</option>
-                  <optgroup label="Scalar Types">
+                  <option value="">{t("dialogs.function.selectDataType")}</option>
+                  <optgroup label={t("dialogs.function.scalarTypes")}>
                     {POSTGRES_COLUMN_TYPES.map((type) => (
                       <option key={type} value={type}>
                         {type}
                       </option>
                     ))}
                   </optgroup>
-                  <optgroup label="Array Types">
+                  <optgroup label={t("dialogs.function.arrayTypes")}>
                     {POSTGRES_COLUMN_TYPES.map((type) => (
                       <option key={`${type}[]`} value={`${type}[]`}>
                         {type}[]
@@ -400,7 +398,7 @@ export function FunctionDialog({
             maxWidth: "100%",
           }}
         >
-          <span style={{ fontWeight: "bold", fontSize: "14px", color: "#cbd5e1" }}>Body</span>
+          <span style={{ fontWeight: "bold", fontSize: "14px", color: "#cbd5e1" }}>{t("dialogs.function.body")}</span>
           <SqlEditor
             value={body}
             onChange={(val) => setBody(val)}
@@ -411,13 +409,13 @@ export function FunctionDialog({
 
         {duplicateSignature && (
           <p className="canvas-modal-error">
-            A function with this signature already exists in the selected schema.
+            {t("dialogs.function.errors.duplicateSignature")}
           </p>
         )}
 
         {hasInvalidArgs && (
           <p className="canvas-modal-error">
-            All arguments must have a defined data type.
+            {t("dialogs.function.errors.invalidArgs")}
           </p>
         )}
 
@@ -450,7 +448,7 @@ export function FunctionDialog({
               })
             }
           >
-            Save function
+            {t("dialogs.function.save")}
           </button>
         </div>
       </div>

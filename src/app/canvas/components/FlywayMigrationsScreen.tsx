@@ -11,6 +11,7 @@ import {
 import { generatePostgresSql } from "@/core/sql/postgres-generator";
 import { ArrowLeft, Folder, FolderOpen, RefreshCw, Database, Wrench } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import "../styles/FlywayMigrationsScreen.css";
 import { CanvasModal } from "./CanvasModal";
 import { FlywayMigrationsDetails } from "./FlywayMigrationsDetails";
@@ -75,6 +76,7 @@ export function FlywayMigrationsScreen({
   onDeleteLastMigration,
   onSaveProject,
 }: FlywayMigrationsScreenProps) {
+  const { t } = useTranslation(["flyway", "common"]);
   const [selectedVersion, setSelectedVersion] = useState<QbmFlywayVersion | null>(null);
   const [previewData, setPreviewData] = useState<PreviewState | null>(null);
   const [destructiveChangesAccepted, setDestructiveChangesAccepted] = useState(false);
@@ -614,16 +616,16 @@ export function FlywayMigrationsScreen({
           <button
             className="flyway-back-button"
             onClick={onBack}
-            title="Back to canvas"
+            title={t("flyway:header.backToModel")}
             type="button"
           >
             <ArrowLeft size={18} strokeWidth={2.4} />
-            <span>Back to model</span>
+            <span>{t("flyway:header.backToModel")}</span>
           </button>
           <div className="flyway-header__title-container">
-            <h1 className="flyway-header__title">Flyway Migrations</h1>
+            <h1 className="flyway-header__title">{t("flyway:header.title")}</h1>
             <p className="flyway-header__subtitle">
-              Manage database schema migrations and history snapshots.
+              {t("flyway:header.subtitle")}
             </p>
           </div>
         </div>
@@ -634,14 +636,14 @@ export function FlywayMigrationsScreen({
           <div className="flyway-directory-bar__info">
             <Folder className="flyway-directory-bar__icon" size={20} />
             <div className="flyway-directory-bar__text">
-              <span className="flyway-directory-bar__label">Target Migrations Directory</span>
+              <span className="flyway-directory-bar__label">{t("flyway:directory.targetLabel")}</span>
               {migrationsDirectory ? (
                 <span className="flyway-directory-bar__path" title={migrationsDirectory}>
                   {migrationsDirectory}
                 </span>
               ) : (
                 <span className="flyway-directory-bar__path flyway-directory-bar__path--empty">
-                  No directory configured. Select a folder to track and sync migrations directly.
+                  {t("flyway:directory.noDirectoryDescription")}
                 </span>
               )}
             </div>
@@ -654,29 +656,29 @@ export function FlywayMigrationsScreen({
                   className="flyway-button flyway-button--secondary"
                   onClick={() => void refreshDiskFiles()}
                   disabled={isLoadingDiskFiles}
-                  title="Check files in directory"
+                  title={t("flyway:directory.refresh")}
                 >
                   <RefreshCw size={14} className={isLoadingDiskFiles ? "animate-spin" : ""} style={{ marginRight: 6 }} />
-                  Refresh
+                  {t("flyway:directory.refresh")}
                 </button>
                 {pendingVersions.length > 0 && (
                   <button
                     type="button"
                     className="flyway-button flyway-button--primary"
                     onClick={() => void handleExportPendingToDirectory()}
-                    title="Export pending migrations to directory"
+                    title={t("flyway:directory.savePending", { count: pendingVersions.length })}
                   >
-                    Save Pending ({pendingVersions.length})
+                    {t("flyway:directory.savePending", { count: pendingVersions.length })}
                   </button>
                 )}
                 <button
                   type="button"
                   className="flyway-button flyway-button--secondary"
                   onClick={() => void handleExportAllToDirectory()}
-                  title="Export all migrations to directory"
+                  title={t("flyway:directory.saveAll")}
                   disabled={versions.length === 0}
                 >
-                  Save All
+                  {t("flyway:directory.saveAll")}
                 </button>
               </>
             )}
@@ -686,7 +688,7 @@ export function FlywayMigrationsScreen({
               onClick={() => void handleSelectDirectory()}
             >
               <FolderOpen size={14} style={{ marginRight: 6 }} />
-              {migrationsDirectory ? "Change Folder" : "Select Folder"}
+              {migrationsDirectory ? t("flyway:directory.change") : t("flyway:directory.select")}
             </button>
           </div>
         </div>
@@ -696,7 +698,7 @@ export function FlywayMigrationsScreen({
           <div className="flyway-directory-bar__info">
             <Database className="flyway-directory-bar__icon" size={20} style={{ color: dbConfig ? "#10b981" : "var(--color-text-muted)" }} />
             <div className="flyway-directory-bar__text">
-              <span className="flyway-directory-bar__label">Live Database (Flyway History)</span>
+              <span className="flyway-directory-bar__label">{t("flyway:database.liveTitle")}</span>
               {dbConfig ? (
                 <span className="flyway-directory-bar__path" title={`${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`}>
                   {dbConfig.user}@{dbConfig.host}:{dbConfig.port}/{dbConfig.database} (schema: {dbConfig.schema || "public"})
@@ -704,7 +706,7 @@ export function FlywayMigrationsScreen({
                 </span>
               ) : (
                 <span className="flyway-directory-bar__path flyway-directory-bar__path--empty">
-                  Optional: Connect to PostgreSQL to inspect applied migrations in flyway_schema_history and repair issues.
+                  {t("flyway:database.optionalNotice")}
                 </span>
               )}
             </div>
@@ -717,20 +719,20 @@ export function FlywayMigrationsScreen({
                   className="flyway-button flyway-button--secondary"
                   onClick={() => void refreshDbHistory()}
                   disabled={isLoadingDbHistory}
-                  title="Check migrations in database"
+                  title={t("flyway:database.refreshDb")}
                 >
                   <RefreshCw size={14} className={isLoadingDbHistory ? "animate-spin" : ""} style={{ marginRight: 6 }} />
-                  Refresh DB
+                  {t("flyway:database.refreshDb")}
                 </button>
                 <button
                   type="button"
                   className="flyway-button flyway-button--secondary"
                   onClick={() => void handleRepairDb()}
                   disabled={isRepairingDb}
-                  title="Remove failed migration records from flyway_schema_history"
+                  title={t("flyway:database.repairFailed")}
                 >
                   <Wrench size={14} style={{ marginRight: 6 }} />
-                  Repair Failed
+                  {t("flyway:database.repairFailed")}
                 </button>
               </>
             )}
@@ -740,14 +742,14 @@ export function FlywayMigrationsScreen({
               onClick={() => setIsDbModalOpen(true)}
             >
               <Database size={14} style={{ marginRight: 6 }} />
-              {dbConfig ? "Connection Settings" : "Connect to DB"}
+              {dbConfig ? t("flyway:database.settings") : t("flyway:database.connect")}
             </button>
           </div>
         </div>
 
         {dbErrorMessage && (
           <div style={{ margin: "-8px 0 16px 0", padding: "8px 14px", backgroundColor: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "var(--radius-sm)", color: "#ef4444", fontSize: 12 }}>
-            <strong>Database Error:</strong> {dbErrorMessage}
+            <strong>{t("flyway:database.errorTitle")}</strong> {dbErrorMessage}
           </div>
         )}
 
@@ -781,8 +783,8 @@ export function FlywayMigrationsScreen({
                   />
                 ) : (
                   <div className="flyway-selected-details-panel flyway-selected-details-panel--empty">
-                    <h3 className="flyway-details-title" style={{ color: "var(--color-text-muted)", marginTop: 0 }}>No migration selected</h3>
-                    <p className="flyway-details-text">Select a migration from the list to view its details, generated SQL, and manual scripts.</p>
+                    <h3 className="flyway-details-title" style={{ color: "var(--color-text-muted)", marginTop: 0 }}>{t("flyway:details.noSelectionTitle")}</h3>
+                    <p className="flyway-details-text">{t("flyway:details.noSelectionMessage")}</p>
                   </div>
                 )}
               </div>
@@ -791,13 +793,13 @@ export function FlywayMigrationsScreen({
               {isFormOpen ? (
                 <form onSubmit={handleConfirmSubmit} className="flyway-details-panel">
                   <div className="flyway-details-header">
-                    <span className="flyway-details-badge">Confirm Migration</span>
-                    <h3 className="flyway-details-title">Define Migration Metadata</h3>
+                    <span className="flyway-details-badge">{t("flyway:confirm.badge")}</span>
+                    <h3 className="flyway-details-title">{t("flyway:confirm.title")}</h3>
                   </div>
 
                   <div className="flyway-form-body">
                     <div className="flyway-form-field">
-                      <label className="flyway-details-label" htmlFor="migration-version">Version</label>
+                      <label className="flyway-details-label" htmlFor="migration-version">{t("flyway:confirm.version")}</label>
                       <input
                         id="migration-version"
                         type="text"
@@ -812,7 +814,7 @@ export function FlywayMigrationsScreen({
                     </div>
 
                     <div className="flyway-form-field">
-                      <label className="flyway-details-label" htmlFor="migration-desc">Description</label>
+                      <label className="flyway-details-label" htmlFor="migration-desc">{t("flyway:confirm.description")}</label>
                       <input
                         id="migration-desc"
                         type="text"
@@ -827,7 +829,7 @@ export function FlywayMigrationsScreen({
                     </div>
 
                     <div className="flyway-preview-filename-box">
-                      <span className="flyway-details-label">Target File Name</span>
+                      <span className="flyway-details-label">{t("flyway:confirm.targetFileName")}</span>
                       <span className="flyway-preview-filename-value">
                         {buildFlywayFileName(versionInput, descriptionInput)}
                       </span>
@@ -836,19 +838,19 @@ export function FlywayMigrationsScreen({
                     {/* Manual Scripts Editable Section inside Form */}
                     <div className="flyway-manual-scripts-section" style={{ borderTop: "1px solid var(--color-border)", paddingTop: "16px", marginTop: "8px" }}>
                       <div className="flyway-manual-scripts-header">
-                        <span className="flyway-details-label">Manual scripts</span>
+                        <span className="flyway-details-label">{t("flyway:details.manualScripts")}</span>
                         <button
                           className="flyway-button flyway-button--primary flyway-button--small"
                           type="button"
                           onClick={handleOpenAddScriptForm}
                         >
-                          Add manual script
+                          {t("flyway:details.addManualScript")}
                         </button>
                       </div>
 
                       {tempManualScripts.length === 0 ? (
                         <p className="flyway-manual-scripts-empty">
-                          No manual scripts configured for this migration.
+                          {t("flyway:details.noManualScripts")}
                         </p>
                       ) : (
                         <div className="flyway-manual-scripts-list">
@@ -866,7 +868,7 @@ export function FlywayMigrationsScreen({
                                   <span className={`flyway-manual-script-item__badge flyway-manual-script-item__badge--${script.execution}`}>
                                     {script.execution}
                                   </span>
-                                  <span className="flyway-manual-script-item__order">Order: {script.order}</span>
+                                  <span className="flyway-manual-script-item__order">{t("flyway:details.order", { order: script.order })}</span>
                                 </div>
                                 <div className="flyway-manual-script-item__actions">
                                   <button
@@ -874,14 +876,14 @@ export function FlywayMigrationsScreen({
                                     type="button"
                                     onClick={() => handleOpenEditScriptForm(script)}
                                   >
-                                    Edit
+                                    {t("common:actions.edit")}
                                   </button>
                                   <button
                                     className="flyway-button flyway-button--secondary flyway-button--small flyway-button--danger"
                                     type="button"
                                     onClick={() => handleDeleteTempManualScript(script.id)}
                                   >
-                                    Delete
+                                    {t("common:actions.delete")}
                                   </button>
                                 </div>
                               </div>
@@ -904,21 +906,21 @@ export function FlywayMigrationsScreen({
                       type="button"
                       onClick={handleCloseForm}
                     >
-                      Cancel
+                      {t("common:actions.cancel")}
                     </button>
                     <button
                       className="flyway-button flyway-button--primary"
                       type="submit"
                     >
-                      Confirm migration
+                      {t("flyway:confirm.button")}
                     </button>
                   </div>
                 </form>
               ) : previewData ? (
                 <div className="flyway-details-panel">
                   <div className="flyway-details-header">
-                    <span className="flyway-details-badge">Migration Preview</span>
-                    <h3 className="flyway-details-title">SQL Migration Details</h3>
+                    <span className="flyway-details-badge">{t("flyway:preview.badge")}</span>
+                    <h3 className="flyway-details-title">{t("flyway:preview.title")}</h3>
                   </div>
 
                   {(() => {
@@ -931,23 +933,23 @@ export function FlywayMigrationsScreen({
                       <>
                         <div className="flyway-preview-meta-info">
                           <div className="flyway-preview-meta-row">
-                            <span className="flyway-preview-meta-label">Base Migration:</span>
+                            <span className="flyway-preview-meta-label">{t("flyway:preview.baseMigration")}</span>
                             <span className="flyway-preview-meta-value">{lastVersion?.fileName || "None"}</span>
                           </div>
                           <div className="flyway-preview-meta-row">
-                            <span className="flyway-preview-meta-label">Safe Ops:</span>
+                            <span className="flyway-preview-meta-label">{t("flyway:preview.safeOps")}</span>
                             <span className="flyway-preview-meta-value" style={{ color: "var(--color-accent)", fontWeight: "bold" }}>{safeOpsCount}</span>
                           </div>
                           <div className="flyway-preview-meta-row">
-                            <span className="flyway-preview-meta-label">Warning Ops:</span>
+                            <span className="flyway-preview-meta-label">{t("flyway:preview.warningOps")}</span>
                             <span className="flyway-preview-meta-value" style={{ color: "#eab308", fontWeight: "bold" }}>{warningOps.length}</span>
                           </div>
                           <div className="flyway-preview-meta-row">
-                            <span className="flyway-preview-meta-label">Destructive Ops:</span>
+                            <span className="flyway-preview-meta-label">{t("flyway:preview.destructiveOps")}</span>
                             <span className="flyway-preview-meta-value" style={{ color: "#ef4444", fontWeight: "bold" }}>{destructiveOps.length}</span>
                           </div>
                           <div className="flyway-preview-meta-row">
-                            <span className="flyway-preview-meta-label">Unsupported Ops:</span>
+                            <span className="flyway-preview-meta-label">{t("flyway:preview.unsupportedOps")}</span>
                             <span className={`flyway-preview-meta-value ${unsupportedOpsCount > 0 ? "flyway-preview-meta-value--warning" : ""}`}>
                               {unsupportedOpsCount}
                             </span>
@@ -956,8 +958,8 @@ export function FlywayMigrationsScreen({
 
                         {previewData.noChanges && (
                           <div className="flyway-preview-message flyway-preview-message--info">
-                            <strong>No pending changes</strong>
-                            <p>No changes detected between the last migration snapshot and the current model.</p>
+                            <strong>{t("flyway:preview.noPendingChanges")}</strong>
+                            <p>{t("flyway:preview.noChangesDetected")}</p>
                           </div>
                         )}
 
@@ -970,8 +972,8 @@ export function FlywayMigrationsScreen({
 
                         {warningOps.length > 0 && (
                           <div className="flyway-preview-message" style={{ borderLeft: "4px solid #eab308", background: "rgba(234, 179, 8, 0.05)", padding: "12px", borderRadius: "8px", margin: "16px 0" }}>
-                            <strong style={{ color: "#eab308", fontSize: "14px" }}>Warning Changes Detected</strong>
-                            <p style={{ margin: "4px 0 8px 0", fontSize: "13px", color: "var(--color-text-muted)" }}>These operations rename or alter schema elements:</p>
+                            <strong style={{ color: "#eab308", fontSize: "14px" }}>{t("flyway:preview.warningChangesDetected")}</strong>
+                            <p style={{ margin: "4px 0 8px 0", fontSize: "13px", color: "var(--color-text-muted)" }}>{t("flyway:preview.warningDescription")}</p>
                             <ul className="flyway-warning-list">
                               {warningOps.map((op, idx) => {
                                 const opCast = op as {
@@ -1024,8 +1026,8 @@ export function FlywayMigrationsScreen({
 
                         {destructiveOps.length > 0 && (
                           <div className="flyway-preview-message" style={{ borderLeft: "4px solid #ef4444", background: "rgba(239, 68, 68, 0.05)", padding: "12px", borderRadius: "8px", margin: "16px 0" }}>
-                            <strong style={{ color: "#ef4444", fontSize: "14px" }}>CRITICAL: Destructive Changes Detected</strong>
-                            <p style={{ margin: "4px 0 8px 0", fontSize: "13px", color: "var(--color-text-muted)" }}>The following operations will drop objects and may result in permanent data loss:</p>
+                            <strong style={{ color: "#ef4444", fontSize: "14px" }}>{t("flyway:preview.criticalDestructiveDetected")}</strong>
+                            <p style={{ margin: "4px 0 8px 0", fontSize: "13px", color: "var(--color-text-muted)" }}>{t("flyway:preview.destructiveDescription")}</p>
                             <ul className="flyway-unsupported-list" style={{ paddingLeft: "20px", marginBottom: "12px" }}>
                               {destructiveOps.map((op, idx) => {
                                 const opCast = op as {
@@ -1052,15 +1054,15 @@ export function FlywayMigrationsScreen({
                                 onChange={(e) => setDestructiveChangesAccepted(e.target.checked)}
                                 style={{ width: "16px", height: "16px", cursor: "pointer" }}
                               />
-                              I understand this migration may cause data loss.
+                              {t("flyway:preview.dataLossConfirmation")}
                             </label>
                           </div>
                         )}
 
                         {unsupportedOpsCount > 0 && (
                           <div className="flyway-preview-message flyway-preview-message--warning">
-                            <strong>Unsupported Changes Detected</strong>
-                            <p>The following changes are unsupported in migrations. Please use manual scripts or adjust the model:</p>
+                            <strong>{t("flyway:preview.unsupportedChangesDetected")}</strong>
+                            <p>{t("flyway:preview.unsupportedDescription")}</p>
                             <ul className="flyway-unsupported-list">
                               {previewData.diff.unsupportedOperations.map((op, idx) => (
                                 <li key={idx}>
@@ -1076,7 +1078,7 @@ export function FlywayMigrationsScreen({
 
                   {previewData.sql && (
                     <div className="flyway-sql-preview-container">
-                      <span className="flyway-details-label">Generated SQL Preview</span>
+                      <span className="flyway-details-label">{t("flyway:preview.generatedSqlPreview")}</span>
                       <pre className="flyway-sql-preview">
                         <code>{previewData.sql}</code>
                       </pre>
@@ -1089,7 +1091,7 @@ export function FlywayMigrationsScreen({
                       type="button"
                       onClick={() => setPreviewData(null)}
                     >
-                      Close preview
+                      {t("flyway:preview.closePreview")}
                     </button>
                     <button
                       className="flyway-button flyway-button--primary"
@@ -1097,7 +1099,7 @@ export function FlywayMigrationsScreen({
                       onClick={handleOpenConfirmForm}
                       disabled={!isConfirmEnabled}
                     >
-                      Confirm migration
+                      {t("flyway:confirm.button")}
                     </button>
                   </div>
                 </div>
@@ -1129,7 +1131,7 @@ export function FlywayMigrationsScreen({
 
       {exportErrorMessage && (
         <MessageDialog
-          title="Export error"
+          title={t("common:dialogs.errorTitle")}
           message={exportErrorMessage}
           onClose={() => setExportErrorMessage(null)}
         />
@@ -1137,13 +1139,13 @@ export function FlywayMigrationsScreen({
 
       {isScriptModalOpen && (
         <CanvasModal
-          title={editingScript ? "Edit manual script" : "Add manual script"}
+          title={editingScript ? t("flyway:scripts.editTitle") : t("flyway:scripts.addTitle")}
           onClose={() => setIsScriptModalOpen(false)}
           elevated
         >
           <form onSubmit={handleSubmitScriptForm} className="canvas-modal-form">
             <label>
-              <span>Name</span>
+              <span>{t("flyway:scripts.name")}</span>
               <input
                 type="text"
                 placeholder="e.g. create extra index"
@@ -1154,18 +1156,18 @@ export function FlywayMigrationsScreen({
 
             <div className="canvas-modal-form__row">
               <label>
-                <span>Execution</span>
+                <span>{t("flyway:scripts.execution")}</span>
                 <select
                   value={formScriptExecution}
                   onChange={(e) => handleScriptExecutionChange(e.target.value as "before" | "after")}
                 >
-                  <option value="before">Before generated SQL</option>
-                  <option value="after">After generated SQL</option>
+                  <option value="before">{t("flyway:scripts.executionBefore")}</option>
+                  <option value="after">{t("flyway:scripts.executionAfter")}</option>
                 </select>
               </label>
 
               <label>
-                <span>Order</span>
+                <span>{t("flyway:scripts.order")}</span>
                 <input
                   type="number"
                   min="0"
@@ -1196,7 +1198,7 @@ export function FlywayMigrationsScreen({
                   textTransform: "uppercase",
                 }}
               >
-                SQL script
+                {t("flyway:scripts.sqlScript")}
               </span>
               <SqlEditor
                 value={formScriptSql}
@@ -1210,10 +1212,10 @@ export function FlywayMigrationsScreen({
 
             <div className="canvas-modal-actions">
               <button type="button" onClick={() => setIsScriptModalOpen(false)}>
-                Cancel
+                {t("common:actions.cancel")}
               </button>
               <button type="submit">
-                {editingScript ? "Save changes" : "Add script"}
+                {editingScript ? t("common:actions.save") : t("flyway:details.addManualScript")}
               </button>
             </div>
           </form>
@@ -1222,7 +1224,7 @@ export function FlywayMigrationsScreen({
 
       {exportErrorMessage && (
         <MessageDialog
-          title="Export error"
+          title={t("common:dialogs.errorTitle")}
           message={exportErrorMessage}
           onClose={() => setExportErrorMessage(null)}
         />
@@ -1230,7 +1232,7 @@ export function FlywayMigrationsScreen({
 
       {exportSuccessMessage && (
         <MessageDialog
-          title="Export completed"
+          title={t("common:status.success")}
           message={exportSuccessMessage}
           onClose={() => setExportSuccessMessage(null)}
         />
@@ -1238,8 +1240,8 @@ export function FlywayMigrationsScreen({
 
       {isConfirmDeleteOpen && lastVersion && (
         <ConfirmDialog
-          message={`Are you sure you want to delete the last migration "${lastVersion.fileName}"? This will revert the snapshot to the previous version and allow generating changes again.`}
-          confirmLabel="Delete migration"
+          message={t("flyway:details.deleteConfirmMessage", { fileName: lastVersion.fileName })}
+          confirmLabel={t("flyway:details.deleteConfirmTitle")}
           onConfirm={handleConfirmDeleteLastMigration}
           onCancel={() => setIsConfirmDeleteOpen(false)}
         />

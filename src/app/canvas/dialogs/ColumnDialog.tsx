@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { DatabaseColumn, DatabaseColumnInput } from "@/core/model";
 import {
   getBaseType,
@@ -32,6 +33,7 @@ export function ColumnDialog({
   onSubmit,
   onDelete,
 }: ColumnDialogProps) {
+  const { t } = useTranslation("canvas");
   const [name, setName] = useState(column?.name ?? "");
   const [type, setType] = useState(column ? getBaseType(column.type) : "bigint");
   const [isArray, setIsArray] = useState(
@@ -89,16 +91,16 @@ export function ColumnDialog({
 
   return (
     <CanvasModal
-      title={column ? `Edit column · ${column.name}` : "Add column"}
+      title={column ? t("dialogs.column.editTitle", { name: column.name }) : t("dialogs.column.addTitle")}
       onClose={onClose}
     >
       <div className="canvas-modal-form">
         <label>
-          <span>Name</span>
+          <span>{t("dialogs.column.name")}</span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="column_name"
+            placeholder={t("dialogs.column.namePlaceholder")}
           />
         </label>
         <div
@@ -106,7 +108,7 @@ export function ColumnDialog({
           style={{ gridTemplateColumns: "1fr auto", alignItems: "flex-end" }}
         >
           <label>
-            <span>Type</span>
+            <span>{t("dialogs.column.type")}</span>
             <select
               value={type}
               onChange={(event) => {
@@ -124,7 +126,7 @@ export function ColumnDialog({
             </select>
           </label>
           <label className="canvas-modal-checkbox" style={{ minWidth: "90px" }}>
-            <span>Array</span>
+            <span>{t("dialogs.column.array")}</span>
             <input
               type="checkbox"
               checked={isArray}
@@ -134,7 +136,7 @@ export function ColumnDialog({
         </div>
         <div className="canvas-modal-form__row">
           <label>
-            <span>Size</span>
+            <span>{t("dialogs.column.size")}</span>
             <input
               type="number"
               min="1"
@@ -150,7 +152,7 @@ export function ColumnDialog({
             />
           </label>
           <label>
-            <span>Scale</span>
+            <span>{t("dialogs.column.scale")}</span>
             <input
               type="number"
               min="0"
@@ -168,7 +170,7 @@ export function ColumnDialog({
         </div>
         <div className="canvas-modal-form__row">
           <label className="canvas-modal-checkbox">
-            <span>Nullable</span>
+            <span>{t("dialogs.column.nullable")}</span>
             <input
               type="checkbox"
               checked={nullable}
@@ -176,7 +178,7 @@ export function ColumnDialog({
             />
           </label>
           <label className="canvas-modal-checkbox">
-            <span>Primary key</span>
+            <span>{t("dialogs.column.primaryKey")}</span>
             <input
               type="checkbox"
               checked={primaryKey}
@@ -185,7 +187,7 @@ export function ColumnDialog({
           </label>
         </div>
         <label>
-          <span>Sequence</span>
+          <span>{t("dialogs.column.sequence")}</span>
           <select
             value={sequenceName}
             onChange={(event) => {
@@ -193,7 +195,7 @@ export function ColumnDialog({
               if (event.target.value) setDefaultValue("");
             }}
           >
-            <option value="">No sequence</option>
+            <option value="">{t("dialogs.column.noSequence")}</option>
             {availableSequenceNames.map((item) => (
               <option value={item} key={item}>
                 {item}
@@ -202,52 +204,52 @@ export function ColumnDialog({
           </select>
         </label>
         <label>
-          <span>Default value</span>
+          <span>{t("dialogs.column.defaultValue")}</span>
           <input
             value={defaultValue}
             disabled={sequenceName !== ""}
             onChange={(event) => setDefaultValue(event.target.value)}
-            placeholder="CURRENT_TIMESTAMP, true, 0..."
+            placeholder={t("dialogs.column.defaultValuePlaceholder")}
           />
         </label>
         <label>
-          <span>Comment / Documentation</span>
+          <span>{t("dialogs.column.comment")}</span>
           <textarea
             value={comment}
             onChange={(event) => setComment(event.target.value)}
-            placeholder="Describe the column's purpose..."
+            placeholder={t("dialogs.column.commentPlaceholder")}
             rows={2}
             style={{ width: "100%", resize: "vertical" }}
           />
         </label>
         {duplicate && (
           <p className="canvas-modal-error">
-            A column with this name already exists.
+            {t("dialogs.column.errors.duplicate")}
           </p>
         )}
         {!valid && (
           <p className="canvas-modal-error">
-            Column name must be a valid SQL identifier.
+            {t("dialogs.column.errors.valid")}
           </p>
         )}
         {reserved && (
           <p className="canvas-modal-error">
-            Column name cannot be a PostgreSQL reserved word.
+            {t("dialogs.column.errors.reserved")}
           </p>
         )}
         {!sizeValid && (
           <p className="canvas-modal-error">
-            Size must be a positive integer for this type.
+            {t("dialogs.column.errors.size")}
           </p>
         )}
         {!scaleValid && (
           <p className="canvas-modal-error">
-            Scale must be zero or a positive integer and cannot be greater than size.
+            {t("dialogs.column.errors.scale")}
           </p>
         )}
         {!defaultValid && (
           <p className="canvas-modal-error">
-            Default value cannot contain semicolon or line breaks.
+            {t("dialogs.column.errors.default")}
           </p>
         )}
         <div className="canvas-modal-actions">
@@ -257,14 +259,14 @@ export function ColumnDialog({
               className="canvas-modal-actions__danger"
               onClick={onDelete}
             >
-              Delete column
+              {t("dialogs.column.delete")}
             </button>
           )}
           <button type="button" onClick={onClose}>
-            Cancel
+            {t("dialogs.column.cancel")}
           </button>
           <button type="button" disabled={!canSubmit} onClick={submit}>
-            {column ? "Save column" : "Create column"}
+            {column ? t("dialogs.column.save") : t("dialogs.column.create")}
           </button>
         </div>
       </div>

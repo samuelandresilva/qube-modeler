@@ -2,6 +2,7 @@ import qubeIcon from "@/assets/qube-modeler-icon.png";
 import type { RecentProject } from "@/core/qbm/ipc-types";
 import { FolderOpen, Plus } from "lucide-react";
 import type { KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 import "../styles/WelcomeScreen.css";
 
 type WelcomeScreenProps = {
@@ -12,6 +13,7 @@ type WelcomeScreenProps = {
   onRemoveRecentProject: (filePath: string) => void;
   appVersion: string;
   onOpenAbout: () => void;
+  onOpenSettings: () => void;
 };
 
 export function WelcomeScreen({
@@ -22,7 +24,10 @@ export function WelcomeScreen({
   onRemoveRecentProject,
   appVersion,
   onOpenAbout,
+  onOpenSettings,
 }: WelcomeScreenProps) {
+  const { t, i18n } = useTranslation(["welcome", "common"]);
+
   const handleRecentProjectKeyDown = (
     event: KeyboardEvent<HTMLDivElement>,
     filePath: string,
@@ -35,7 +40,7 @@ export function WelcomeScreen({
   const formatLastOpened = (dateStr: string): string => {
     try {
       const date = new Date(dateStr);
-      return date.toLocaleDateString(undefined, {
+      return date.toLocaleDateString(i18n.language, {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
@@ -56,7 +61,7 @@ export function WelcomeScreen({
             <h1 className="canvas-welcome__title">Qube Modeler</h1>
           </div>
           <p className="canvas-welcome__subtitle">
-            Design PostgreSQL models visually, manage migrations, and keep your database history in one project file.
+            {t("welcome:hero.subtitle")}
           </p>
 
           <div className="canvas-welcome__actions">
@@ -65,14 +70,14 @@ export function WelcomeScreen({
               onClick={onNewProject}
               id="welcome-new-project-btn"
             >
-              <span><Plus /></span> New Project
+              <span><Plus /></span> {t("welcome:actions.newProject")}
             </button>
             <button
               className="canvas-welcome__btn canvas-welcome__btn--secondary"
               onClick={onOpenProject}
               id="welcome-open-project-btn"
             >
-              <span><FolderOpen color="#FFBF00" /></span> Open Project
+              <span><FolderOpen color="#FFBF00" /></span> {t("welcome:actions.openProject")}
             </button>
           </div>
 
@@ -81,19 +86,27 @@ export function WelcomeScreen({
             <span className="welcome-screen__meta-separator">·</span>
             <button
               className="welcome-screen__about-button"
+              onClick={onOpenSettings}
+              type="button"
+            >
+              {t("common:settings.title")}
+            </button>
+            <span className="welcome-screen__meta-separator">·</span>
+            <button
+              className="welcome-screen__about-button"
               onClick={onOpenAbout}
               type="button"
             >
-              About
+              {t("welcome:actions.about")}
             </button>
           </div>
         </div>
 
         <div className="canvas-welcome__recent">
-          <h2 className="canvas-welcome__recent-title">Recent Projects</h2>
+          <h2 className="canvas-welcome__recent-title">{t("welcome:recent.title")}</h2>
           {recentProjects.length === 0 ? (
             <div className="canvas-welcome__empty-state">
-              <p>No recent projects found</p>
+              <p>{t("welcome:recent.empty")}</p>
               <span style={{ fontSize: "24px", marginTop: "8px" }}><FolderOpen color="#FFBF00" /></span>
             </div>
           ) : (
@@ -117,18 +130,18 @@ export function WelcomeScreen({
                       {project.filePath}
                     </span>
                     <span className="canvas-welcome__recent-meta">
-                      Opened: {formatLastOpened(project.lastOpenedAt)}
+                      {t("welcome:recent.openedPrefix")} {formatLastOpened(project.lastOpenedAt)}
                     </span>
                   </div>
                   <button
                     className="canvas-welcome__recent-remove"
                     type="button"
-                    aria-label={`Remove ${project.name} from recent projects`}
+                    aria-label={t("welcome:recent.removeAriaLabel", { name: project.name })}
                     onClick={(e) => {
                       e.stopPropagation();
                       onRemoveRecentProject(project.filePath);
                     }}
-                    title="Remove from recent list"
+                    title={t("welcome:recent.removeTooltip")}
                   >
                     ✕
                   </button>

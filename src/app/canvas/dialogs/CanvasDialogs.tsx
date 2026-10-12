@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 import {
   createColumn,
   createForeignKey,
@@ -66,11 +67,19 @@ export function CanvasDialogs({
   requestConfirm,
   onCommitHistory,
 }: Props) {
+  const { t } = useTranslation("canvas");
   if (!dialog) return null;
   const close = () => setDialog(null);
   const context = selectedTableId
     ? findTableContext(project, selectedTableId)
     : undefined;
+
+  const confirmDelete = (label: string, remove: () => void) => {
+    requestConfirm(t("dialogs.confirmDelete", { label }), () => {
+      remove();
+      close();
+    });
+  };
 
   if (dialog.kind === "table-sql") {
     const tableCtx = findTableContext(project, dialog.tableId);
@@ -161,14 +170,12 @@ export function CanvasDialogs({
         onDelete={
           databaseFunction
             ? () =>
-                requestConfirmDelete(
-                  requestConfirm,
-                  `function "${databaseFunction.name}"`,
+                confirmDelete(
+                  t("dialogs.labels.function", { name: databaseFunction.name }),
                   () =>
                     setProject((current) =>
                       removeDatabaseFunction(current, databaseFunction.id)
                     ),
-                  close,
                 )
             : undefined
         }
@@ -225,8 +232,9 @@ export function CanvasDialogs({
         }}
         onDelete={
           trigger
-            ? () => requestConfirmDelete(requestConfirm, `trigger "${trigger.name}"`, () =>
-                setProject((current) => removeViewTrigger(current, viewCtx.view.id, trigger.id)), close
+            ? () => confirmDelete(
+                t("dialogs.labels.trigger", { name: trigger.name }),
+                () => setProject((current) => removeViewTrigger(current, viewCtx.view.id, trigger.id)),
               )
             : undefined
         }
@@ -270,9 +278,8 @@ export function CanvasDialogs({
         onDelete={
           column
             ? () =>
-                requestConfirmDelete(
-                  requestConfirm,
-                  `column "${column.name}"`,
+                confirmDelete(
+                  t("dialogs.labels.column", { name: column.name }),
                   () =>
                     setProject((current) =>
                       removeColumn(
@@ -282,7 +289,6 @@ export function CanvasDialogs({
                         column.id,
                       ),
                     ),
-                  close,
                 )
             : undefined
         }
@@ -323,9 +329,8 @@ export function CanvasDialogs({
         onDelete={
           foreignKey
             ? () =>
-                requestConfirmDelete(
-                  requestConfirm,
-                  `foreign key "${foreignKey.name}"`,
+                confirmDelete(
+                  t("dialogs.labels.foreignKey", { name: foreignKey.name }),
                   () =>
                     setProject((current) =>
                       removeForeignKey(
@@ -335,7 +340,6 @@ export function CanvasDialogs({
                         foreignKey.id,
                       ),
                     ),
-                  close,
                 )
             : undefined
         }
@@ -376,9 +380,8 @@ export function CanvasDialogs({
         onDelete={
           constraint
             ? () =>
-                requestConfirmDelete(
-                  requestConfirm,
-                  `unique constraint "${constraint.name}"`,
+                confirmDelete(
+                  t("dialogs.labels.uniqueConstraint", { name: constraint.name }),
                   () =>
                     setProject((current) =>
                       removeUniqueConstraint(
@@ -388,7 +391,6 @@ export function CanvasDialogs({
                         constraint.id,
                       ),
                     ),
-                  close,
                 )
             : undefined
         }
@@ -428,9 +430,8 @@ export function CanvasDialogs({
         onDelete={
           constraint
             ? () =>
-                requestConfirmDelete(
-                  requestConfirm,
-                  `CHECK constraint "${constraint.name}"`,
+                confirmDelete(
+                  t("dialogs.labels.checkConstraint", { name: constraint.name }),
                   () =>
                     setProject((current) =>
                       removeCheckConstraint(
@@ -440,7 +441,6 @@ export function CanvasDialogs({
                         constraint.id,
                       ),
                     ),
-                  close,
                 )
             : undefined
         }
@@ -485,9 +485,8 @@ export function CanvasDialogs({
         onDelete={
           trigger
             ? () =>
-                requestConfirmDelete(
-                  requestConfirm,
-                  `trigger "${trigger.name}"`,
+                confirmDelete(
+                  t("dialogs.labels.trigger", { name: trigger.name }),
                   () =>
                     setProject((current) =>
                       removeTrigger(
@@ -497,7 +496,6 @@ export function CanvasDialogs({
                         trigger.id,
                       ),
                     ),
-                  close,
                 )
             : undefined
         }
@@ -534,9 +532,8 @@ export function CanvasDialogs({
       onDelete={
         index
           ? () =>
-              requestConfirmDelete(
-                requestConfirm,
-                `index "${index.name}"`,
+              confirmDelete(
+                t("dialogs.labels.index", { name: index.name }),
                 () =>
                   setProject((current) =>
                     removeIndex(
@@ -546,7 +543,6 @@ export function CanvasDialogs({
                       index.id,
                     ),
                   ),
-                close,
               )
           : undefined
       }
@@ -554,14 +550,3 @@ export function CanvasDialogs({
   );
 }
 
-function requestConfirmDelete(
-  requestConfirm: (message: string, onConfirm: () => void) => void,
-  label: string,
-  remove: () => void,
-  close: () => void,
-) {
-  requestConfirm(`Remove ${label}?`, () => {
-    remove();
-    close();
-  });
-}

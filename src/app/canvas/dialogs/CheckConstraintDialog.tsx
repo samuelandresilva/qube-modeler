@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { MultiColumnSelect } from "@/app/shared/components/MultiColumnSelect";
 import type { DatabaseTable, CheckConstraint } from "@/core/model";
@@ -38,6 +39,7 @@ export function CheckConstraintDialog({
   onSubmit,
   onDelete,
 }: Props) {
+  const { t } = useTranslation("canvas");
   const [name, setName] = useState(current?.name ?? getSuggestedName(table));
   const [expression, setExpression] = useState(current?.expression ?? "");
   const [columnIds, setColumnIds] = useState<string[]>(current?.columnIds ?? []);
@@ -67,16 +69,16 @@ export function CheckConstraintDialog({
 
   return (
     <CanvasModal
-      title={current ? `Edit CHECK constraint · ${current.name}` : "Add CHECK constraint"}
+      title={current ? t("dialogs.checkConstraint.editTitle", { name: current.name }) : t("dialogs.checkConstraint.addTitle")}
       onClose={onClose}
     >
       <div className="canvas-modal-form">
         <label>
-          <span>Name</span>
+          <span>{t("dialogs.checkConstraint.name")}</span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="chk_table_column"
+            placeholder={t("dialogs.checkConstraint.namePlaceholder")}
           />
         </label>
         <div
@@ -89,18 +91,16 @@ export function CheckConstraintDialog({
             maxWidth: "100%",
           }}
         >
-          <span style={{ color: "var(--color-text-muted)", fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>
-            Expression
-          </span>
+          <span style={{ color: "var(--color-text-muted)", fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>{t("dialogs.checkConstraint.expression")}</span>
           <SqlEditor
             value={expression}
             onChange={(val) => setExpression(val)}
-            placeholder="age BETWEEN 0 AND 120"
+            placeholder={t("dialogs.checkConstraint.expressionPlaceholder")}
             height="120px"
           />
         </div>
         <label>
-          <span>Involved columns</span>
+          <span>{t("dialogs.checkConstraint.involvedColumns")}</span>
           <MultiColumnSelect
             availableColumns={table.columns.map((column) => column.name)}
             selectedColumns={columnIds.map((id) => columnIdToName.get(id) ?? "")}
@@ -111,17 +111,17 @@ export function CheckConstraintDialog({
         </label>
         {duplicate && (
           <p className="canvas-modal-error">
-            A CHECK constraint with this name already exists on this table.
+            {t("dialogs.checkConstraint.errors.duplicate")}
           </p>
         )}
         {!valid && (
           <p className="canvas-modal-error">
-            Name must be a valid SQL identifier.
+            {t("dialogs.checkConstraint.errors.valid")}
           </p>
         )}
         {reserved && (
           <p className="canvas-modal-error">
-            Name cannot be a PostgreSQL reserved word.
+            {t("dialogs.checkConstraint.errors.reserved")}
           </p>
         )}
         <div className="canvas-modal-actions">
@@ -131,7 +131,7 @@ export function CheckConstraintDialog({
               className="canvas-modal-actions__danger"
               onClick={onDelete}
             >
-              Delete CHECK constraint
+              {t("dialogs.checkConstraint.delete")}
             </button>
           )}
           <button type="button" onClick={onClose}>
@@ -148,7 +148,7 @@ export function CheckConstraintDialog({
               })
             }
           >
-            {current ? "Save" : "Create"} CHECK constraint
+            {current ? t("dialogs.checkConstraint.save") : t("dialogs.checkConstraint.create")}
           </button>
         </div>
       </div>

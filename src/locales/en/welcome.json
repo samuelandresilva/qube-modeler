@@ -1,0 +1,24 @@
+{
+  "hero": {
+    "subtitle": "Design PostgreSQL models visually, manage migrations, and keep your database history in one project file."
+  },
+  "actions": {
+    "newProject": "New Project",
+    "openProject": "Open Project",
+    "about": "About"
+  },
+  "recent": {
+    "title": "Recent Projects",
+    "empty": "No recent projects found. Create a new one or open an existing .qbm file to get started.",
+    "openedPrefix": "Opened:",
+    "removeAriaLabel": "Remove {{name}} from recent projects",
+    "removeTooltip": "Remove from recent list"
+  },
+  "aboutModal": {
+    "title": "About Qube Modeler",
+    "version": "Version {{version}}",
+    "description": "Visual PostgreSQL database modeler and Flyway migration manager built with React, Vite, and Electron.",
+    "author": "Developed by Samuel André Silva",
+    "license": "MIT License"
+  }
+}

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import type { DatabaseSequence, DatabaseSequenceInput } from "@/core/model";
 import {
@@ -21,6 +22,7 @@ export function SequenceDialog({
   onClose,
   onSubmit,
 }: Props) {
+  const { t } = useTranslation("canvas");
   const [name, setName] = useState(sequence?.name ?? "");
   const [startWith, setStartWith] = useState(sequence?.startWith ?? 1);
   const [incrementBy, setIncrementBy] = useState(sequence?.incrementBy ?? 1);
@@ -41,24 +43,20 @@ export function SequenceDialog({
     incrementBy !== 0;
   return (
     <CanvasModal
-      title={
-        sequence
-          ? `Edit sequence · ${sequence.name}`
-          : `Add sequence · ${schemaName}`
-      }
+      title={sequence ? t("dialogs.sequence.editTitle", { name: sequence.name }) : t("dialogs.sequence.addTitle", { schema: schemaName })}
       onClose={onClose}
     >
       <div className="canvas-modal-form">
         <label>
-          <span>Sequence name</span>
+          <span>{t("dialogs.sequence.name")}</span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="sequence_name"
+            placeholder={t("dialogs.sequence.namePlaceholder")}
           />
         </label>
         <label>
-          <span>Start with</span>
+          <span>{t("dialogs.sequence.startWith")}</span>
           <input
             type="number"
             value={startWith}
@@ -66,7 +64,7 @@ export function SequenceDialog({
           />
         </label>
         <label>
-          <span>Increment by</span>
+          <span>{t("dialogs.sequence.incrementBy")}</span>
           <input
             type="number"
             value={incrementBy}
@@ -74,32 +72,32 @@ export function SequenceDialog({
           />
         </label>
         <label>
-          <span>Comment / Documentation</span>
+          <span>{t("dialogs.sequence.comment")}</span>
           <textarea
             value={comment}
             onChange={(event) => setComment(event.target.value)}
-            placeholder="Describe the sequence's purpose..."
+            placeholder={t("dialogs.sequence.commentPlaceholder")}
             rows={3}
             style={{ width: "100%", resize: "vertical" }}
           />
         </label>
         {duplicate && (
           <p className="canvas-modal-error">
-            A sequence with this name already exists.
+            {t("dialogs.sequence.errors.duplicate")}
           </p>
         )}
         {!valid && (
           <p className="canvas-modal-error">
-            Sequence name must be a valid SQL identifier.
+            {t("dialogs.sequence.errors.valid")}
           </p>
         )}
         {reserved && (
           <p className="canvas-modal-error">
-            Sequence name cannot be a PostgreSQL reserved word.
+            {t("dialogs.sequence.errors.reserved")}
           </p>
         )}
         {incrementBy === 0 && (
-          <p className="canvas-modal-error">Increment cannot be zero.</p>
+          <p className="canvas-modal-error">{t("dialogs.sequence.errors.incrementZero")}</p>
         )}
         <div className="canvas-modal-actions">
           <button type="button" onClick={onClose}>
@@ -112,7 +110,7 @@ export function SequenceDialog({
               onSubmit({ name: normalized, startWith, incrementBy, comment: comment.trim() })
             }
           >
-            Save sequence
+            {t("dialogs.sequence.save")}
           </button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { CanvasModal } from "./CanvasModal";
 import type { QbmDatabaseConnectionConfig } from "@/core/qbm/qbm-file";
 import { Database, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
@@ -17,6 +18,7 @@ export function DatabaseConnectionModal({
   onClose,
   onSave,
 }: DatabaseConnectionModalProps) {
+  const { t } = useTranslation(["flyway", "common"]);
   const [host, setHost] = useState(currentConfig?.host ?? "localhost");
   const [port, setPort] = useState(currentConfig?.port ?? 5432);
   const [database, setDatabase] = useState(currentConfig?.database ?? "");
@@ -95,17 +97,15 @@ export function DatabaseConnectionModal({
   };
 
   return (
-    <CanvasModal title="Database Connection (Flyway Inspector)" onClose={onClose} elevated>
+    <CanvasModal title={t("flyway:database.modalTitle")} onClose={onClose} elevated>
       <form onSubmit={handleSubmit} className="canvas-modal-form">
         <p style={{ margin: "0 0 16px 0", fontSize: 13, color: "var(--color-text-muted)" }}>
-          Connect to your PostgreSQL database to inspect applied migrations in{" "}
-          <code>flyway_schema_history</code>, check live status, and perform repairs.
-          Connection data is stored strictly on this device and never saved into the <code>.qbm</code> file.
+          {t("flyway:database.modalDescription")}
         </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 100px", gap: "12px" }}>
           <label>
-            <span>Host</span>
+            <span>{t("flyway:database.host")}</span>
             <input
               type="text"
               required
@@ -115,7 +115,7 @@ export function DatabaseConnectionModal({
             />
           </label>
           <label>
-            <span>Port</span>
+            <span>{t("flyway:database.port")}</span>
             <input
               type="number"
               required
@@ -128,7 +128,7 @@ export function DatabaseConnectionModal({
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
           <label>
-            <span>Database</span>
+            <span>{t("flyway:database.databaseName")}</span>
             <input
               type="text"
               required
@@ -138,7 +138,7 @@ export function DatabaseConnectionModal({
             />
           </label>
           <label>
-            <span>Flyway Schema</span>
+            <span>{t("flyway:database.schema")}</span>
             <input
               type="text"
               placeholder="public"
@@ -150,7 +150,7 @@ export function DatabaseConnectionModal({
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
           <label>
-            <span>User</span>
+            <span>{t("flyway:database.user")}</span>
             <input
               type="text"
               required
@@ -160,7 +160,7 @@ export function DatabaseConnectionModal({
             />
           </label>
           <label>
-            <span>Password</span>
+            <span>{t("flyway:database.password")}</span>
             <input
               type="password"
               placeholder="••••••••"
@@ -168,7 +168,7 @@ export function DatabaseConnectionModal({
               onChange={(e) => setPassword(e.target.value)}
             />
             <span style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 400, textTransform: "none", marginTop: 2 }}>
-              🔒 Saved securely on this device only (Windows DPAPI). Never shared in the .qbm file.
+              🔒 {t("flyway:database.passwordNotice")}
             </span>
           </label>
         </div>
@@ -180,7 +180,7 @@ export function DatabaseConnectionModal({
             onChange={(e) => setSsl(e.target.checked)}
             style={{ width: "auto" }}
           />
-          <span style={{ fontSize: 13 }}>Enable SSL</span>
+          <span style={{ fontSize: 13 }}>{t("flyway:database.ssl")}</span>
         </label>
 
         {testResult && (
@@ -215,7 +215,7 @@ export function DatabaseConnectionModal({
                   border: "1px solid rgba(239, 68, 68, 0.3)",
                 }}
               >
-                Disconnect
+                {t("flyway:database.disconnect")}
               </button>
             )}
           </div>
@@ -226,13 +226,13 @@ export function DatabaseConnectionModal({
               disabled={isTesting || !host || !database || !user}
             >
               {isTesting ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}
-              <span style={{ marginLeft: 6 }}>Test Connection</span>
+              <span style={{ marginLeft: 6 }}>{t("flyway:database.testConnection")}</span>
             </button>
             <button type="button" onClick={onClose}>
-              Cancel
+              {t("common:actions.cancel")}
             </button>
             <button type="submit" className="primary" disabled={!host || !database || !user}>
-              Save Connection
+              {t("flyway:database.saveConnection")}
             </button>
           </div>
         </div>

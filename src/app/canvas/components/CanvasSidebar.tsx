@@ -1,5 +1,6 @@
-import { ChevronDown, Database, FolderTree, Plus } from "lucide-react";
+import { ChevronDown, Database, FolderTree, Plus, Settings } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { DatabaseProject } from "@/core/model";
 import { getProjectDisplayName } from "@/core/qbm/qbm-file";
 import { SchemaTreeItem } from "./SchemaTreeItem";
@@ -22,6 +23,7 @@ type Props = {
   onDeleteFunction: (schemaId: string, functionId: string) => void;
   onDeleteView?: (schemaId: string, viewId: string) => void;
   onViewFlyway?: () => void;
+  onOpenSettings?: () => void;
 };
 
 export function CanvasSidebar({
@@ -29,21 +31,36 @@ export function CanvasSidebar({
   filePath,
   onAddSchema,
   onViewFlyway,
+  onOpenSettings,
   ...actions
 }: Props) {
+  const { t } = useTranslation(["canvas", "common"]);
   const [projectExpanded, setProjectExpanded] = useState(true);
   const [schemasExpanded, setSchemasExpanded] = useState(true);
   return (
     <aside className="canvas-sidebar">
-      <div className="canvas-sidebar__header">
+      <div className="canvas-sidebar__header" style={{ display: "flex", gap: "6px" }}>
         <button
           className="canvas-sidebar__flyway-button"
           type="button"
           onClick={onViewFlyway}
+          style={{ flex: 1 }}
         >
           <Database size={14} />
-          <span>Migrations</span>
+          <span>{t("sidebar.migrations")}</span>
         </button>
+        {onOpenSettings && (
+          <button
+            className="canvas-sidebar__flyway-button"
+            type="button"
+            onClick={onOpenSettings}
+            title={t("common:settings.title")}
+            aria-label={t("common:settings.title")}
+            style={{ width: "32px", padding: 0, justifyContent: "center" }}
+          >
+            <Settings size={14} />
+          </button>
+        )}
       </div>
       <div className="canvas-sidebar__tree">
         <div
@@ -66,7 +83,7 @@ export function CanvasSidebar({
             <SidebarContextMenu
               actions={[
                 {
-                  label: "Add schema",
+                  label: t("sidebar.addSchema"),
                   icon: <Plus size={14} />,
                   onSelect: onAddSchema,
                 },
@@ -82,7 +99,7 @@ export function CanvasSidebar({
                   data-expanded={schemasExpanded}
                 />
                 <FolderTree size={15} className="canvas-sidebar__item-icon" />
-                <span>schemas</span>
+                <span>{t("sidebar.schemas")}</span>
               </div>
             </SidebarContextMenu>
             {schemasExpanded && (

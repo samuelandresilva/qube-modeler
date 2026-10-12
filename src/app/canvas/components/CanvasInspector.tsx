@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { FileCode2, Trash2, X } from "lucide-react";
 import type {
   DatabaseSchema,
@@ -90,6 +91,8 @@ export function CanvasInspector({
   onChangeTextNoteColor,
   onDeleteTextNote,
 }: Props) {
+  const { t } = useTranslation("canvas");
+
   const COLOR_PRESETS = [
     { name: "Blue", value: "#3b82f6" },
     { name: "Green", value: "#10b981" },
@@ -105,14 +108,14 @@ export function CanvasInspector({
     return (
       <aside className="canvas-inspector">
         <div className="canvas-inspector__header">
-          <span>Subject Area</span>
-          <button type="button" onClick={onClose}>
+          <span>{t("inspector.subjectArea")}</span>
+          <button type="button" onClick={onClose} title={t("inspector.close")} aria-label={t("inspector.close")}>
             <X size={16} />
           </button>
         </div>
 
         <div className="canvas-inspector__field-group">
-          <label className="canvas-inspector__field-label">Name</label>
+          <label className="canvas-inspector__field-label">{t("inspector.name")}</label>
           <input
             className="canvas-inspector__title-input"
             value={subjectArea.name}
@@ -121,7 +124,7 @@ export function CanvasInspector({
         </div>
 
         <div className="canvas-inspector__field-group" style={{ marginTop: "16px" }}>
-          <label className="canvas-inspector__field-label">Color</label>
+          <label className="canvas-inspector__field-label">{t("inspector.color")}</label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", marginTop: "8px" }}>
             {COLOR_PRESETS.map((preset) => {
               const isActive = subjectArea.color.toLowerCase() === preset.value.toLowerCase();
@@ -154,7 +157,7 @@ export function CanvasInspector({
           style={{ marginTop: "24px" }}
         >
           <Trash2 size={15} />
-          <span>Delete Subject Area</span>
+          <span>{t("inspector.deleteSubjectArea")}</span>
         </button>
       </aside>
     );
@@ -164,25 +167,25 @@ export function CanvasInspector({
     return (
       <aside className="canvas-inspector">
         <div className="canvas-inspector__header">
-          <span>Text Note</span>
-          <button type="button" onClick={onClose}>
+          <span>{t("inspector.textNote")}</span>
+          <button type="button" onClick={onClose} title={t("inspector.close")} aria-label={t("inspector.close")}>
             <X size={16} />
           </button>
         </div>
 
         <div className="canvas-inspector__field-group">
-          <label className="canvas-inspector__field-label">Content</label>
+          <label className="canvas-inspector__field-label">{t("inspector.content")}</label>
           <textarea
             className="canvas-inspector__textarea"
             value={textNote.content}
             onChange={(event) => onChangeTextNoteContent?.(event.target.value)}
-            placeholder="Type your note content here..."
+            placeholder={t("inspector.contentPlaceholder")}
             rows={5}
           />
         </div>
 
         <div className="canvas-inspector__field-group" style={{ marginTop: "16px" }}>
-          <label className="canvas-inspector__field-label">Color</label>
+          <label className="canvas-inspector__field-label">{t("inspector.color")}</label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", marginTop: "8px" }}>
             {COLOR_PRESETS.map((preset) => {
               const isActive = textNote.color.toLowerCase() === preset.value.toLowerCase();
@@ -215,7 +218,7 @@ export function CanvasInspector({
           style={{ marginTop: "24px" }}
         >
           <Trash2 size={15} />
-          <span>Delete Text Note</span>
+          <span>{t("inspector.deleteTextNote")}</span>
         </button>
       </aside>
     );
@@ -225,14 +228,14 @@ export function CanvasInspector({
     return (
       <aside className="canvas-inspector">
         <div className="canvas-inspector__header">
-          <span>View</span>
-          <button type="button" onClick={onClose}>
+          <span>{t("inspector.view")}</span>
+          <button type="button" onClick={onClose} title={t("inspector.close")} aria-label={t("inspector.close")}>
             <X size={16} />
           </button>
         </div>
 
         <div className="canvas-inspector__field-group">
-          <label className="canvas-inspector__field-label">Name</label>
+          <label className="canvas-inspector__field-label">{t("inspector.name")}</label>
           <input
             className="canvas-inspector__title-input"
             value={view.name}
@@ -241,18 +244,18 @@ export function CanvasInspector({
         </div>
 
         <div className="canvas-inspector__field-group" style={{ marginTop: "12px" }}>
-          <label className="canvas-inspector__field-label">Comment / Documentation</label>
+          <label className="canvas-inspector__field-label">{t("inspector.comment")}</label>
           <textarea
             className="canvas-inspector__textarea"
             value={view.comment ?? ""}
             onChange={(event) => onChangeViewComment?.(event.target.value)}
-            placeholder="Describe the view's purpose..."
+            placeholder={t("inspector.viewCommentPlaceholder")}
             rows={3}
           />
         </div>
 
         <div className="canvas-inspector__field-group" style={{ marginTop: "12px" }}>
-          <label className="canvas-inspector__field-label">Schema</label>
+          <label className="canvas-inspector__field-label">{t("inspector.schema")}</label>
           <select
             className="canvas-inspector__select"
             value={currentSchemaId}
@@ -260,7 +263,7 @@ export function CanvasInspector({
             disabled={!schemas || schemas.length === 0}
           >
             {!schemas || schemas.length === 0 ? (
-              <option value="">No schemas</option>
+              <option value="">{t("inspector.noSchemas")}</option>
             ) : (
               schemas.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -279,7 +282,7 @@ export function CanvasInspector({
               onChange={(event) => onToggleMaterialized?.(event.target.checked)}
               style={{ margin: 0 }}
             />
-            <span>Materialized View</span>
+            <span>{t("inspector.materializedView")}</span>
           </label>
         </div>
 
@@ -292,7 +295,7 @@ export function CanvasInspector({
                 onChange={(event) => onToggleWithNoData?.(event.target.checked)}
                 style={{ margin: 0 }}
               />
-              <span>WITH NO DATA</span>
+              <span>{t("inspector.withNoData")}</span>
             </label>
           </div>
         )}
@@ -303,7 +306,7 @@ export function CanvasInspector({
           onClick={onEditViewDefinition}
           style={{ marginTop: "12px", background: "rgba(168, 85, 247, 0.15)", color: "#c084fc", border: "1px solid rgba(168, 85, 247, 0.2)" }}
         >
-          <span>Edit SQL Definition</span>
+          <span>{t("inspector.editViewDefinition")}</span>
         </button>
 
         <button
@@ -313,13 +316,13 @@ export function CanvasInspector({
           style={{ marginTop: "16px" }}
         >
           <Trash2 size={15} strokeWidth={2.4} />
-          <span>Delete view</span>
+          <span>{t("inspector.deleteView")}</span>
         </button>
 
         <InspectorSection
-          title="Triggers"
-          addLabel="Add trigger"
-          emptyLabel="No triggers."
+          title={t("inspector.triggers")}
+          addLabel={t("inspector.addTrigger")}
+          emptyLabel={t("inspector.noTriggers")}
           items={(view.triggers ?? []).map((item) => ({
             id: item.id,
             label: item.name,
@@ -336,14 +339,14 @@ export function CanvasInspector({
   return (
     <aside className="canvas-inspector">
       <div className="canvas-inspector__header">
-        <span>Table</span>
+        <span>{t("inspector.table")}</span>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           {onViewTableSql && (
             <button
               type="button"
               onClick={onViewTableSql}
-              title="View Table SQL"
-              aria-label="View Table SQL"
+              title={t("inspector.viewTableSql")}
+              aria-label={t("inspector.viewTableSql")}
             >
               <FileCode2 size={16} />
             </button>
@@ -352,19 +355,19 @@ export function CanvasInspector({
             type="button"
             className="canvas-inspector__header-delete-btn"
             onClick={onDeleteTable}
-            title="Delete table"
-            aria-label="Delete table"
+            title={t("inspector.deleteTable")}
+            aria-label={t("inspector.deleteTable")}
           >
             <Trash2 size={16} />
           </button>
-          <button type="button" onClick={onClose} title="Close" aria-label="Close">
+          <button type="button" onClick={onClose} title={t("inspector.close")} aria-label={t("inspector.close")}>
             <X size={16} />
           </button>
         </div>
       </div>
 
       <div className="canvas-inspector__field-group">
-        <label className="canvas-inspector__field-label">Name</label>
+        <label className="canvas-inspector__field-label">{t("inspector.name")}</label>
         <input
           className="canvas-inspector__title-input"
           value={table.name}
@@ -373,7 +376,7 @@ export function CanvasInspector({
       </div>
 
       <div className="canvas-inspector__field-group" style={{ marginTop: "12px" }}>
-        <label className="canvas-inspector__field-label">Schema</label>
+        <label className="canvas-inspector__field-label">{t("inspector.schema")}</label>
         <select
           className="canvas-inspector__select"
           value={currentSchemaId}
@@ -381,7 +384,7 @@ export function CanvasInspector({
           disabled={!schemas || schemas.length === 0}
         >
           {!schemas || schemas.length === 0 ? (
-             <option value="">No schemas</option>
+             <option value="">{t("inspector.noSchemas")}</option>
           ) : (
             schemas.map((s) => (
               <option key={s.id} value={s.id}>
@@ -393,12 +396,12 @@ export function CanvasInspector({
       </div>
 
       <div className="canvas-inspector__field-group" style={{ marginTop: "12px" }}>
-        <label className="canvas-inspector__field-label">Comment / Documentation</label>
+        <label className="canvas-inspector__field-label">{t("inspector.comment")}</label>
         <textarea
           className="canvas-inspector__textarea"
           value={table.comment ?? ""}
           onChange={(event) => onChangeTableComment?.(event.target.value)}
-          placeholder="Describe the table's purpose..."
+          placeholder={t("inspector.tableCommentPlaceholder")}
           rows={3}
         />
       </div>
@@ -406,14 +409,14 @@ export function CanvasInspector({
       {table.columns.some((c) => c.primaryKey) && (
         <details style={{ marginTop: "12px" }}>
           <summary style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", cursor: "pointer", color: "var(--color-text-muted)", outline: "none", userSelect: "none" }}>
-            PrimaryKey Comment
+            {t("inspector.primaryKeyComment")}
           </summary>
           <div style={{ marginTop: "8px" }}>
             <textarea
               className="canvas-inspector__textarea"
               value={table.primaryKeyComment ?? ""}
               onChange={(event) => onChangePrimaryKeyComment?.(event.target.value)}
-              placeholder="Describe the primary key..."
+              placeholder={t("inspector.primaryKeyCommentPlaceholder")}
               rows={2}
               style={{ fontSize: "12px" }}
             />
@@ -423,8 +426,8 @@ export function CanvasInspector({
 
 
       <InspectorSection
-        title="Columns"
-        addLabel="Add column"
+        title={t("inspector.columns")}
+        addLabel={t("inspector.addColumn")}
         items={table.columns.map((column) => ({
           id: column.id,
           label: `${column.primaryKey ? "🔑 " : "🔹 "}${column.name}`,
@@ -436,9 +439,9 @@ export function CanvasInspector({
         onMoveDown={(id) => onMoveColumn?.(id, "down")}
       />
       <InspectorSection
-        title="Foreign keys"
-        addLabel="Add foreign key"
-        emptyLabel="No foreign keys."
+        title={t("inspector.foreignKeys")}
+        addLabel={t("inspector.addForeignKey")}
+        emptyLabel={t("inspector.noForeignKeys")}
         items={table.foreignKeys.map((item) => ({
           id: item.id,
           label: item.name,
@@ -448,9 +451,9 @@ export function CanvasInspector({
         onEdit={onEditForeignKey}
       />
       <InspectorSection
-        title="Unique constraints"
-        addLabel="Add unique constraint"
-        emptyLabel="No unique constraints."
+        title={t("inspector.uniqueConstraints")}
+        addLabel={t("inspector.addUniqueConstraint")}
+        emptyLabel={t("inspector.noUniqueConstraints")}
         items={table.uniqueConstraints.map((item) => ({
           id: item.id,
           label: item.name,
@@ -460,9 +463,9 @@ export function CanvasInspector({
         onEdit={onEditUniqueConstraint}
       />
       <InspectorSection
-        title="CHECK constraints"
-        addLabel="Add check constraint"
-        emptyLabel="No CHECK constraints."
+        title={t("inspector.checkConstraints")}
+        addLabel={t("inspector.addCheckConstraint")}
+        emptyLabel={t("inspector.noCheckConstraints")}
         items={(table.checkConstraints ?? []).map((item) => ({
           id: item.id,
           label: item.name,
@@ -472,9 +475,9 @@ export function CanvasInspector({
         onEdit={onEditCheckConstraint}
       />
       <InspectorSection
-        title="Triggers"
-        addLabel="Add trigger"
-        emptyLabel="No triggers."
+        title={t("inspector.triggers")}
+        addLabel={t("inspector.addTrigger")}
+        emptyLabel={t("inspector.noTriggers")}
         items={(table.triggers ?? []).map((item) => ({
           id: item.id,
           label: item.name,
@@ -484,9 +487,9 @@ export function CanvasInspector({
         onEdit={onEditTrigger ?? (() => {})}
       />
       <InspectorSection
-        title="Indexes"
-        addLabel="Add index"
-        emptyLabel="No indexes."
+        title={t("inspector.indexes")}
+        addLabel={t("inspector.addIndex")}
+        emptyLabel={t("inspector.noIndexes")}
         items={table.indexes.map((item) => ({
           id: item.id,
           label: item.name,

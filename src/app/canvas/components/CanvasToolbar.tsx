@@ -1,4 +1,5 @@
 import type { DatabaseSchema } from "@/core/model";
+import { useTranslation } from "react-i18next";
 import {
   FileCode2,
   FilePlus2,
@@ -72,14 +73,16 @@ export function CanvasToolbar({
   canUndo,
   canRedo,
 }: CanvasToolbarProps) {
+  const { t } = useTranslation(["canvas", "common"]);
+
   return (
     <div className="canvas-toolbar">
       <div className="canvas-toolbar__actions">
         <button
           className="canvas-toolbar__icon-button"
           type="button"
-          title="New project"
-          aria-label="New project"
+          title={t("canvas:toolbar.newProject")}
+          aria-label={t("canvas:toolbar.newProject")}
           onClick={onNewProject}
           disabled={isFileOperationLoading}
         >
@@ -89,8 +92,8 @@ export function CanvasToolbar({
         <button
           className="canvas-toolbar__icon-button"
           type="button"
-          title="Open project (Ctrl+O)"
-          aria-label="Open project"
+          title={t("canvas:toolbar.openProject")}
+          aria-label={t("canvas:toolbar.openProject")}
           onClick={onOpenProject}
           disabled={isFileOperationLoading}
         >
@@ -100,8 +103,8 @@ export function CanvasToolbar({
         <button
           className="canvas-toolbar__icon-button"
           type="button"
-          title="Close project"
-          aria-label="Close project"
+          title={t("canvas:toolbar.closeProject")}
+          aria-label={t("canvas:toolbar.closeProject")}
           onClick={onCloseProject}
           disabled={isFileOperationLoading}
         >
@@ -113,8 +116,8 @@ export function CanvasToolbar({
         <button
           className="canvas-toolbar__icon-button"
           type="button"
-          title="Save project (Ctrl+S)"
-          aria-label="Save project"
+          title={t("canvas:toolbar.saveProject")}
+          aria-label={t("canvas:toolbar.saveProject")}
           onClick={onSaveProject}
           disabled={isFileOperationLoading}
         >
@@ -124,8 +127,8 @@ export function CanvasToolbar({
         <button
           className="canvas-toolbar__icon-button"
           type="button"
-          title="Save as (Ctrl+Shift+S)"
-          aria-label="Save as"
+          title={t("canvas:toolbar.saveProjectAs")}
+          aria-label={t("canvas:toolbar.saveProjectAs")}
           onClick={onSaveProjectAs}
           disabled={isFileOperationLoading}
         >
@@ -137,8 +140,8 @@ export function CanvasToolbar({
         <button
           className="canvas-toolbar__icon-button"
           type="button"
-          title="Undo (Ctrl+Z)"
-          aria-label="Undo"
+          title={t("canvas:toolbar.undo")}
+          aria-label={t("canvas:toolbar.undo")}
           onClick={onUndo}
           disabled={!canUndo}
         >
@@ -148,8 +151,8 @@ export function CanvasToolbar({
         <button
           className="canvas-toolbar__icon-button"
           type="button"
-          title="Redo (Ctrl+Y)"
-          aria-label="Redo"
+          title={t("canvas:toolbar.redo")}
+          aria-label={t("canvas:toolbar.redo")}
           onClick={onRedo}
           disabled={!canRedo}
         >
@@ -159,7 +162,7 @@ export function CanvasToolbar({
         <div className="canvas-toolbar__separator" aria-hidden="true" />
 
         <div className="canvas-toolbar__schema-select-container">
-          <span className="canvas-toolbar__schema-select-label">Schema:</span>
+          <span className="canvas-toolbar__schema-select-label">{t("canvas:toolbar.schema")}</span>
           <select
             className="canvas-toolbar__schema-select"
             value={activeSchemaId || ""}
@@ -167,7 +170,7 @@ export function CanvasToolbar({
             disabled={schemas.length === 0}
           >
             {schemas.length === 0 ? (
-              <option value="">No schemas</option>
+              <option value="">{t("canvas:toolbar.noSchemas")}</option>
             ) : (
               schemas.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -183,8 +186,8 @@ export function CanvasToolbar({
         <button
           className="canvas-toolbar__icon-button"
           type="button"
-          title="Fit view"
-          aria-label="Fit view"
+          title={t("canvas:toolbar.fitView")}
+          aria-label={t("canvas:toolbar.fitView")}
           onClick={onFitView}
         >
           <Scan size={17} strokeWidth={2.4} />
@@ -194,7 +197,7 @@ export function CanvasToolbar({
           <button
             className={`canvas-toolbar__icon-button ${snapToGrid ? "canvas-toolbar__button--active" : ""}`}
             type="button"
-            title={snapToGrid ? "Disable grid alignment (snap to grid)" : "Enable grid alignment (snap to grid)"}
+            title={snapToGrid ? t("canvas:toolbar.snapToGridDisable") : t("canvas:toolbar.snapToGridEnable")}
             aria-label="Toggle snap to grid"
             onClick={onToggleSnapToGrid}
           >
@@ -205,8 +208,8 @@ export function CanvasToolbar({
         <button
           className={`canvas-toolbar__icon-button ${isAddingTable ? "canvas-toolbar__button--active" : ""}`}
           type="button"
-          title="Add table"
-          aria-label="Add table"
+          title={t("canvas:toolbar.addTable")}
+          aria-label={t("canvas:toolbar.addTable")}
           onClick={onAddTable}
           disabled={!activeSchemaId}
         >
@@ -216,8 +219,8 @@ export function CanvasToolbar({
         <button
           className={`canvas-toolbar__icon-button ${isAddingView ? "canvas-toolbar__button--active" : ""}`}
           type="button"
-          title="Add view"
-          aria-label="Add view"
+          title={t("canvas:toolbar.addView")}
+          aria-label={t("canvas:toolbar.addView")}
           onClick={onAddView}
           disabled={!activeSchemaId}
         >
@@ -227,8 +230,8 @@ export function CanvasToolbar({
         <button
           className={`canvas-toolbar__icon-button ${isAddingSubjectArea ? "canvas-toolbar__button--active" : ""}`}
           type="button"
-          title="Add subject area"
-          aria-label="Add subject area"
+          title={t("canvas:toolbar.addSubjectArea")}
+          aria-label={t("canvas:toolbar.addSubjectArea")}
           onClick={onAddSubjectArea}
         >
           <Layers size={18} strokeWidth={2.4} color="oklch(65% 0.203 205.504)" />
@@ -237,8 +240,8 @@ export function CanvasToolbar({
         <button
           className={`canvas-toolbar__icon-button ${isAddingTextNote ? "canvas-toolbar__button--active" : ""}`}
           type="button"
-          title="Add text note"
-          aria-label="Add text note"
+          title={t("canvas:toolbar.addTextNote")}
+          aria-label={t("canvas:toolbar.addTextNote")}
           onClick={onAddTextNote}
         >
           <StickyNote size={18} strokeWidth={2.4} color="oklch(80% 0.16 85)" />
@@ -249,8 +252,8 @@ export function CanvasToolbar({
         <button
           className="canvas-toolbar__icon-button"
           type="button"
-          title="Generate SQL"
-          aria-label="Generate SQL"
+          title={t("canvas:toolbar.generateSql")}
+          aria-label={t("canvas:toolbar.generateSql")}
           onClick={onGenerateSql}
           disabled={isFileOperationLoading}
         >

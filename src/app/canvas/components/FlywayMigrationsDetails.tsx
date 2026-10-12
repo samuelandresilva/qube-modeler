@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { QbmFlywayVersion } from "@/core/qbm/qbm-file";
 import type { FlywayHistoryRecord } from "@/core/qbm/ipc-types";
 
@@ -34,12 +35,14 @@ export function FlywayMigrationsDetails({
   isSavedInDirectory = false,
   dbRecord,
 }: FlywayMigrationsDetailsProps) {
+  const { t, i18n } = useTranslation(["flyway", "common"]);
+
   if (totalCount === 0) {
     return (
       <div className="flyway-details-panel">
-        <h3 className="flyway-details-title">No migrations yet</h3>
+        <h3 className="flyway-details-title">{t("flyway:details.noMigrationsYet")}</h3>
         <p className="flyway-details-text">
-          Create the first Flyway migration from the current model.
+          {t("flyway:details.noMigrationsYetText")}
         </p>
         <div className="flyway-details-actions">
           <button
@@ -48,7 +51,7 @@ export function FlywayMigrationsDetails({
             onClick={onGenerateInitialMigration}
             disabled={!hasContent}
           >
-            Create initial migration
+            {t("flyway:generator.generateInitial")}
           </button>
         </div>
       </div>
@@ -56,7 +59,7 @@ export function FlywayMigrationsDetails({
   }
 
   if (selectedVersion) {
-    const formattedDate = new Date(selectedVersion.createdAt).toLocaleString();
+    const formattedDate = new Date(selectedVersion.createdAt).toLocaleString(i18n.language);
     
     // Sort manual scripts for rendering:
     // 1. execution = before, order ascending
@@ -71,33 +74,33 @@ export function FlywayMigrationsDetails({
     return (
       <div className="flyway-selected-details-panel">
         <div className="flyway-selected-details-header">
-          <span className="flyway-details-badge">Migration Selected</span>
+          <span className="flyway-details-badge">{t("flyway:details.migrationSelected")}</span>
           <h3 className="flyway-details-title">{selectedVersion.fileName}</h3>
         </div>
 
         <div className="flyway-selected-details-grid">
           <div className="flyway-details-field">
-            <span className="flyway-details-label">Version</span>
+            <span className="flyway-details-label">{t("flyway:table.columns.version")}</span>
             <span className="flyway-details-value">{selectedVersion.version}</span>
           </div>
           <div className="flyway-details-field">
-            <span className="flyway-details-label">Description</span>
+            <span className="flyway-details-label">{t("flyway:table.columns.description")}</span>
             <span className="flyway-details-value">{selectedVersion.description}</span>
           </div>
           <div className="flyway-details-field">
-            <span className="flyway-details-label">Created At</span>
+            <span className="flyway-details-label">{t("flyway:table.columns.createdAt")}</span>
             <span className="flyway-details-value">{formattedDate}</span>
           </div>
           {dbRecord && (
             <div className="flyway-details-field">
-              <span className="flyway-details-label">Database Status</span>
+              <span className="flyway-details-label">{t("flyway:table.columns.dbStatus")}</span>
               <span className="flyway-details-value">
                 {dbRecord.success ? (
                   <span style={{ color: "#10b981", fontWeight: 600 }}>
-                    Applied ({new Date(dbRecord.installedOn).toLocaleString()})
+                    {t("flyway:table.status.applied")} ({new Date(dbRecord.installedOn).toLocaleString(i18n.language)})
                   </span>
                 ) : (
-                  <span style={{ color: "#ef4444", fontWeight: 600 }}>Execution Failed</span>
+                  <span style={{ color: "#ef4444", fontWeight: 600 }}>{t("flyway:details.executionFailed")}</span>
                 )}
               </span>
             </div>
@@ -111,7 +114,7 @@ export function FlywayMigrationsDetails({
             onClick={onViewSql}
             disabled={!selectedVersion.generatedSql}
           >
-            View SQL
+            {t("flyway:details.viewSql")}
           </button>
           <button
             className="flyway-button flyway-button--secondary"
@@ -119,7 +122,7 @@ export function FlywayMigrationsDetails({
             onClick={onExportSql}
             disabled={!selectedVersion.generatedSql}
           >
-            Export As...
+            {t("flyway:details.exportAs")}
           </button>
           {hasMigrationsDirectory && onSaveToDirectory && (
             <button
@@ -127,9 +130,9 @@ export function FlywayMigrationsDetails({
               type="button"
               onClick={onSaveToDirectory}
               disabled={!selectedVersion.generatedSql}
-              title="Save this migration into the configured directory"
+              title={t("flyway:details.saveToFolderTooltip")}
             >
-              {isSavedInDirectory ? "Overwrite in folder" : "Save to folder"}
+              {isSavedInDirectory ? t("flyway:details.overwriteInFolder") : t("flyway:details.saveToFolder")}
             </button>
           )}
           {isLastVersion && onDeleteLastVersion && (
@@ -140,11 +143,11 @@ export function FlywayMigrationsDetails({
               disabled={dbRecord?.success}
               title={
                 dbRecord?.success
-                  ? "Cannot delete a migration that has already been applied to the database"
-                  : "Delete the last migration and restore the previous snapshot"
+                  ? t("flyway:details.cannotDeleteApplied")
+                  : t("flyway:details.deleteTooltip")
               }
             >
-              Delete migration
+              {t("flyway:details.deleteMigration")}
             </button>
           )}
         </div>
@@ -152,12 +155,12 @@ export function FlywayMigrationsDetails({
         {/* Seção Manual Scripts (Apenas Leitura) */}
         <div className="flyway-manual-scripts-section">
           <div className="flyway-manual-scripts-header">
-            <h4 className="flyway-manual-scripts-title">Manual scripts</h4>
+            <h4 className="flyway-manual-scripts-title">{t("flyway:details.manualScripts")}</h4>
           </div>
 
           {sortedScripts.length === 0 ? (
             <p className="flyway-manual-scripts-empty">
-              No manual scripts configured for this migration.
+              {t("flyway:details.noManualScripts")}
             </p>
           ) : (
             <div className="flyway-manual-scripts-list">
@@ -168,7 +171,7 @@ export function FlywayMigrationsDetails({
                     <span className={`flyway-manual-script-item__badge flyway-manual-script-item__badge--${script.execution}`}>
                       {script.execution}
                     </span>
-                    <span className="flyway-manual-script-item__order">Order: {script.order}</span>
+                    <span className="flyway-manual-script-item__order">{t("flyway:details.order", { order: script.order })}</span>
                   </div>
                 </div>
               ))}
@@ -181,16 +184,16 @@ export function FlywayMigrationsDetails({
 
   return (
     <div className="flyway-details-panel">
-      <h3 className="flyway-details-title">Overview</h3>
+      <h3 className="flyway-details-title">{t("flyway:details.overview")}</h3>
       
       <div className="flyway-details-grid">
         <div className="flyway-details-field">
-          <span className="flyway-details-label">Total Migrations</span>
+          <span className="flyway-details-label">{t("flyway:details.totalMigrations")}</span>
           <span className="flyway-details-value">{totalCount}</span>
         </div>
         {lastVersion && (
           <div className="flyway-details-field">
-            <span className="flyway-details-label">Last Migration</span>
+            <span className="flyway-details-label">{t("flyway:details.lastMigration")}</span>
             <span className="flyway-details-value">
               {lastVersion.version} ({lastVersion.description})
             </span>
@@ -204,7 +207,7 @@ export function FlywayMigrationsDetails({
           type="button"
           onClick={onGenerateMigration}
         >
-          Generate next migration
+          {t("flyway:generator.generateNext")}
         </button>
       </div>
     </div>

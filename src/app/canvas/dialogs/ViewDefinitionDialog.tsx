@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { CanvasModal } from "@/app/canvas/components/CanvasModal";
 import { SqlEditor } from "@/app/shared/components/SqlEditor";
@@ -10,10 +11,11 @@ type Props = {
 };
 
 export function ViewDefinitionDialog({ initialValue, viewName, onClose, onSubmit }: Props) {
+  const { t } = useTranslation("canvas");
   const [value, setValue] = useState(initialValue);
 
   return (
-    <CanvasModal title={`Edit View SQL · ${viewName}`} onClose={onClose} className="canvas-modal--large">
+    <CanvasModal title={t("dialogs.viewDefinition.title", { name: viewName })} onClose={onClose} className="canvas-modal--large">
       <div className="canvas-modal-form">
         <div
           style={{
@@ -25,7 +27,7 @@ export function ViewDefinitionDialog({ initialValue, viewName, onClose, onSubmit
             maxWidth: "100%",
           }}
         >
-          <span style={{ fontWeight: "bold", fontSize: "14px", color: "#cbd5e1" }}>Definition (SQL SELECT)</span>
+          <span style={{ fontWeight: "bold", fontSize: "14px", color: "#cbd5e1" }}>{t("dialogs.viewDefinition.definition")}</span>
           <SqlEditor
             value={value}
             onChange={(val) => setValue(val)}
@@ -38,7 +40,7 @@ export function ViewDefinitionDialog({ initialValue, viewName, onClose, onSubmit
             Cancel
           </button>
           <button type="button" onClick={() => onSubmit(value)}>
-            Save SQL
+            {t("dialogs.viewDefinition.save")}
           </button>
         </div>
       </div>

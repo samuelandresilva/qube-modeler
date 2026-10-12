@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import {
   isPostgresReservedWord,
@@ -20,6 +21,7 @@ export function SchemaDialog({
   onClose,
   onSubmit,
 }: Props) {
+  const { t } = useTranslation("canvas");
   const [name, setName] = useState(initialName ?? "");
   const [comment, setComment] = useState(initialComment ?? "");
   const normalized = name.trim();
@@ -31,41 +33,41 @@ export function SchemaDialog({
   const canSubmit = normalized !== "" && valid && !reserved && !duplicate;
   return (
     <CanvasModal
-      title={initialName ? `Edit schema · ${initialName}` : "Add schema"}
+      title={initialName ? t("dialogs.schema.editTitle", { name: initialName }) : t("dialogs.schema.addTitle")}
       onClose={onClose}
     >
       <div className="canvas-modal-form">
         <label>
-          <span>Schema name</span>
+          <span>{t("dialogs.schema.name")}</span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="schema_name"
+            placeholder={t("dialogs.schema.namePlaceholder")}
           />
         </label>
         <label>
-          <span>Comment / Documentation</span>
+          <span>{t("dialogs.schema.comment")}</span>
           <textarea
             value={comment}
             onChange={(event) => setComment(event.target.value)}
-            placeholder="Describe the schema's purpose..."
+            placeholder={t("dialogs.schema.commentPlaceholder")}
             rows={3}
             style={{ width: "100%", resize: "vertical" }}
           />
         </label>
         {duplicate && (
           <p className="canvas-modal-error">
-            A schema with this name already exists.
+            {t("dialogs.schema.errors.duplicate")}
           </p>
         )}
         {!valid && (
           <p className="canvas-modal-error">
-            Schema name must be a valid SQL identifier.
+            {t("dialogs.schema.errors.valid")}
           </p>
         )}
         {reserved && (
           <p className="canvas-modal-error">
-            Schema name cannot be a PostgreSQL reserved word.
+            {t("dialogs.schema.errors.reserved")}
           </p>
         )}
         <div className="canvas-modal-actions">
@@ -77,7 +79,7 @@ export function SchemaDialog({
             disabled={!canSubmit}
             onClick={() => onSubmit(normalized, comment.trim())}
           >
-            Save schema
+            {t("dialogs.schema.save")}
           </button>
         </div>
       </div>

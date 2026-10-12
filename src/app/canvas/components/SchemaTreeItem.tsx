@@ -13,6 +13,7 @@ import {
   FileCode2,
 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { DatabaseSchema, DatabaseFunction, DatabaseView } from "@/core/model";
 import { SidebarContextMenu } from "./SidebarContextMenu";
 
@@ -51,6 +52,7 @@ export function SchemaTreeItem({
   onDeleteFunction,
   onDeleteView,
 }: Props) {
+  const { t } = useTranslation("canvas");
   const [expanded, setExpanded] = useState(false);
   const [sequencesExpanded, setSequencesExpanded] = useState(false);
   const [functionsExpanded, setFunctionsExpanded] = useState(false);
@@ -67,12 +69,12 @@ export function SchemaTreeItem({
       <SidebarContextMenu
         actions={[
           {
-            label: "Edit schema",
+            label: t("sidebar.editSchema"),
             icon: <Pen size={14} />,
             onSelect: () => onEditSchema(schema.id),
           },
           {
-            label: "Delete schema",
+            label: t("sidebar.deleteSchema"),
             icon: <Trash2 size={14} />,
             danger: true,
             onSelect: () => onDeleteSchema(schema.id),
@@ -97,7 +99,7 @@ export function SchemaTreeItem({
           <SidebarContextMenu
             actions={[
               {
-                label: "Add sequence",
+                label: t("sidebar.addSequence"),
                 icon: <Plus size={14} />,
                 onSelect: () => onAddSequence(schema.id),
               },
@@ -113,25 +115,25 @@ export function SchemaTreeItem({
                 data-expanded={sequencesExpanded}
               />
               <Rows3 size={15} className="canvas-sidebar__item-icon" />
-              <span>sequences</span>
+              <span>{t("sidebar.sequences")}</span>
             </div>
           </SidebarContextMenu>
           {sequencesExpanded && (
             <div className="canvas-sidebar__tree-group">
               {schema.sequences.length === 0 ? (
-                <div className="canvas-sidebar__empty">No sequences</div>
+                <div className="canvas-sidebar__empty">{t("sidebar.noSequences")}</div>
               ) : (
                 schema.sequences.map((sequence) => (
                   <SidebarContextMenu
                     key={sequence.id}
                     actions={[
                       {
-                        label: "Edit sequence",
+                        label: t("sidebar.editSequence"),
                         icon: <Pen size={14} />,
                         onSelect: () => onEditSequence(schema.id, sequence.id),
                       },
                       {
-                        label: "Delete sequence",
+                        label: t("sidebar.deleteSequence"),
                         icon: <Trash2 size={14} />,
                         danger: true,
                         onSelect: () =>
@@ -154,7 +156,7 @@ export function SchemaTreeItem({
           <SidebarContextMenu
             actions={[
               {
-                label: "Add function",
+                label: t("sidebar.addFunction"),
                 icon: <Plus size={14} />,
                 onSelect: () => onAddFunction(schema.id),
               },
@@ -170,25 +172,25 @@ export function SchemaTreeItem({
                 data-expanded={functionsExpanded}
               />
               <Cpu size={15} className="canvas-sidebar__item-icon" />
-              <span>functions</span>
+              <span>{t("sidebar.functions")}</span>
             </div>
           </SidebarContextMenu>
           {functionsExpanded && (
             <div className="canvas-sidebar__tree-group">
               {schemaFunctions.length === 0 ? (
-                <div className="canvas-sidebar__empty">No functions</div>
+                <div className="canvas-sidebar__empty">{t("sidebar.noFunctions")}</div>
               ) : (
                 schemaFunctions.map((fn) => (
                   <SidebarContextMenu
                     key={fn.id}
                     actions={[
                       {
-                        label: "Edit function",
+                        label: t("sidebar.editFunction"),
                         icon: <Pen size={14} />,
                         onSelect: () => onEditFunction(schema.id, fn.id),
                       },
                       {
-                        label: "Delete function",
+                        label: t("sidebar.deleteFunction"),
                         icon: <Trash2 size={14} />,
                         danger: true,
                         onSelect: () => onDeleteFunction(schema.id, fn.id),
@@ -222,19 +224,19 @@ export function SchemaTreeItem({
               data-expanded={viewsExpanded}
             />
             <ScanEye size={15} className="canvas-sidebar__item-icon" />
-            <span>views</span>
+            <span>{t("sidebar.views")}</span>
           </div>
           {viewsExpanded && (
             <div className="canvas-sidebar__tree-group">
               {schemaViews.length === 0 ? (
-                <div className="canvas-sidebar__empty">No views</div>
+                <div className="canvas-sidebar__empty">{t("sidebar.noViews")}</div>
               ) : (
                 schemaViews.map((view) => (
                   <SidebarContextMenu
                     key={view.id}
                     actions={[
                       {
-                        label: "Find in diagram",
+                        label: t("sidebar.findInDiagram"),
                         icon: <Search size={14} />,
                         onSelect: () =>
                           onSeeTableOnDiagram(schema.id, view.id),
@@ -242,7 +244,7 @@ export function SchemaTreeItem({
                       ...(onDeleteView
                         ? [
                             {
-                              label: "Delete view",
+                              label: t("sidebar.deleteView"),
                               icon: <Trash2 size={14} />,
                               danger: true,
                               onSelect: () => onDeleteView(schema.id, view.id),
@@ -278,19 +280,19 @@ export function SchemaTreeItem({
               data-expanded={tablesExpanded}
             />
             <Table2 size={15} className="canvas-sidebar__item-icon" />
-            <span>tables</span>
+            <span>{t("sidebar.tables")}</span>
           </div>
           {tablesExpanded && (
             <div className="canvas-sidebar__tree-group">
               {schema.tables.length === 0 ? (
-                <div className="canvas-sidebar__empty">No tables</div>
+                <div className="canvas-sidebar__empty">{t("sidebar.noTables")}</div>
               ) : (
                 schema.tables.map((table) => (
                   <SidebarContextMenu
                     key={table.id}
                     actions={[
                       {
-                        label: "Find in diagram",
+                        label: t("sidebar.findInDiagram"),
                         icon: <Search size={14} />,
                         onSelect: () =>
                           onSeeTableOnDiagram(schema.id, table.id),
@@ -298,14 +300,14 @@ export function SchemaTreeItem({
                       ...(onViewTableSql
                         ? [
                             {
-                              label: "View SQL",
+                              label: t("sidebar.viewSql"),
                               icon: <FileCode2 size={14} />,
                               onSelect: () => onViewTableSql(schema.id, table.id),
                             },
                           ]
                         : []),
                       {
-                        label: "Delete table",
+                        label: t("sidebar.deleteTable"),
                         icon: <Trash2 size={14} />,
                         danger: true,
                         onSelect: () => onDeleteTable(schema.id, table.id),

@@ -49,6 +49,9 @@ const api: QubeModelerApi = {
     ipcRenderer.on("qbm:open-file-requested", listener);
     return () => ipcRenderer.removeListener("qbm:open-file-requested", listener);
   },
+  getAppSettings: () => ipcRenderer.invoke("qbm:get-app-settings"),
+  saveAppSettings: (settings: Partial<import("../src/core/qbm/ipc-types").AppSettings>) =>
+    ipcRenderer.invoke("qbm:save-app-settings", settings),
 };
 
 contextBridge.exposeInMainWorld("qubeModeler", api);

@@ -59,10 +59,12 @@
     "@radix-ui/react-context-menu": "^2.3.1",
     "@uiw/react-codemirror": "^4.25.11",
     "@xyflow/react": "^12.11.0",
+    "i18next": "^26.4.2",
     "lucide-react": "^1.21.0",
     "pg": "^8.23.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-i18next": "^17.0.16",
     "react-select": "^5.10.2"
   },
   "devDependencies": {

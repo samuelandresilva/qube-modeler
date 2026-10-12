@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import type {
   DatabaseForeignKey,
@@ -35,6 +36,7 @@ export function ForeignKeyDialog({
   onSubmit,
   onDelete,
 }: Props) {
+  const { t } = useTranslation("canvas");
   const firstSchema = project.schemas[0];
   const firstTable = firstSchema?.tables[0];
 
@@ -148,24 +150,22 @@ export function ForeignKeyDialog({
 
   return (
     <CanvasModal
-      title={
-        foreignKey ? `Edit foreign key · ${foreignKey.name}` : "Add foreign key"
-      }
+      title={foreignKey ? t("dialogs.foreignKey.editTitle", { name: foreignKey.name }) : t("dialogs.foreignKey.addTitle")}
       onClose={onClose}
     >
       <div className="canvas-modal-form">
         <label>
-          <span>Name</span>
+          <span>{t("dialogs.foreignKey.name")}</span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="fk_table_column"
+            placeholder={t("dialogs.foreignKey.namePlaceholder")}
           />
         </label>
 
         <div className="canvas-modal-form__row">
           <label>
-            <span>Target schema</span>
+            <span>{t("dialogs.foreignKey.targetSchema")}</span>
             <select
               value={targetSchema}
               onChange={(event) => {
@@ -184,7 +184,7 @@ export function ForeignKeyDialog({
                 );
               }}
             >
-              <option value="">Select target schema</option>
+              <option value="">{t("dialogs.foreignKey.selectTargetSchema")}</option>
               {project.schemas.map((schema) => (
                 <option value={schema.name} key={schema.id}>
                   {schema.name}
@@ -193,7 +193,7 @@ export function ForeignKeyDialog({
             </select>
           </label>
           <label>
-            <span>Target table</span>
+            <span>{t("dialogs.foreignKey.targetTable")}</span>
             <select
               value={targetTable}
               onChange={(event) => {
@@ -210,7 +210,7 @@ export function ForeignKeyDialog({
                 );
               }}
             >
-              <option value="">Select target table</option>
+              <option value="">{t("dialogs.foreignKey.selectTargetTable")}</option>
               {selectedSchema?.tables.map((table) => (
                 <option value={table.name} key={table.id}>
                   {table.name}
@@ -247,7 +247,7 @@ export function ForeignKeyDialog({
                 textTransform: "uppercase",
               }}
             >
-              Mapped Columns ({pairs.length})
+              {t("dialogs.foreignKey.mappedColumns", { count: pairs.length })}
             </span>
             <button
               type="button"
@@ -263,7 +263,7 @@ export function ForeignKeyDialog({
                 cursor: "pointer",
               }}
             >
-              + Add Column
+              {t("dialogs.foreignKey.addColumn")}
             </button>
           </div>
 
@@ -283,7 +283,7 @@ export function ForeignKeyDialog({
                   handleUpdatePair(index, "sourceColumn", e.target.value)
                 }
               >
-                <option value="">Source column</option>
+                <option value="">{t("dialogs.foreignKey.sourceColumn")}</option>
                 {sourceTable.columns.map((column) => (
                   <option value={column.name} key={column.id}>
                     {column.name}
@@ -307,7 +307,7 @@ export function ForeignKeyDialog({
                   handleUpdatePair(index, "targetColumn", e.target.value)
                 }
               >
-                <option value="">Target column</option>
+                <option value="">{t("dialogs.foreignKey.targetColumn")}</option>
                 {selectedTable?.columns.map((column) => (
                   <option value={column.name} key={column.id}>
                     {column.name}
@@ -328,8 +328,8 @@ export function ForeignKeyDialog({
                     padding: "4px 6px",
                     borderRadius: "4px",
                   }}
-                  title="Remove column pair"
-                  aria-label="Remove column pair"
+                  title={t("dialogs.foreignKey.removePair")}
+                  aria-label={t("dialogs.foreignKey.removePair")}
                 >
                   ✕
                 </button>
@@ -340,23 +340,23 @@ export function ForeignKeyDialog({
 
         <div className="canvas-modal-form__row">
           <ActionSelect
-            label="On update"
+            label={t("dialogs.foreignKey.onUpdate")}
             value={onUpdate}
             onChange={setOnUpdate}
           />
           <ActionSelect
-            label="On delete"
+            label={t("dialogs.foreignKey.onDelete")}
             value={onDeleteAction}
             onChange={setOnDeleteAction}
           />
         </div>
 
         <label>
-          <span>Comment / Documentation</span>
+          <span>{t("dialogs.foreignKey.comment")}</span>
           <textarea
             value={comment}
             onChange={(event) => setComment(event.target.value)}
-            placeholder="Describe the foreign key's purpose..."
+            placeholder={t("dialogs.foreignKey.commentPlaceholder")}
             rows={2}
             style={{ width: "100%", resize: "vertical" }}
           />
@@ -364,32 +364,32 @@ export function ForeignKeyDialog({
 
         {duplicate && (
           <p className="canvas-modal-error">
-            A foreign key with this name already exists.
+            {t("dialogs.foreignKey.errors.duplicate")}
           </p>
         )}
         {!valid && (
           <p className="canvas-modal-error">
-            Foreign key name must be a valid SQL identifier.
+            {t("dialogs.foreignKey.errors.valid")}
           </p>
         )}
         {reserved && (
           <p className="canvas-modal-error">
-            Foreign key name cannot be a PostgreSQL reserved word.
+            {t("dialogs.foreignKey.errors.reserved")}
           </p>
         )}
         {hasEmptyColumns && (
           <p className="canvas-modal-error">
-            All mapped column pairs must have both source and target columns selected.
+            {t("dialogs.foreignKey.errors.emptyColumns")}
           </p>
         )}
         {hasDuplicateSourceCols && (
           <p className="canvas-modal-error">
-            Cannot map the same source column multiple times in the same foreign key.
+            {t("dialogs.foreignKey.errors.duplicateSource")}
           </p>
         )}
         {hasDuplicateTargetCols && (
           <p className="canvas-modal-error">
-            Cannot map the same target column multiple times in the same foreign key.
+            {t("dialogs.foreignKey.errors.duplicateTarget")}
           </p>
         )}
 
@@ -400,7 +400,7 @@ export function ForeignKeyDialog({
               className="canvas-modal-actions__danger"
               onClick={onDelete}
             >
-              Delete FK
+              {t("dialogs.foreignKey.delete")}
             </button>
           )}
           <button type="button" onClick={onClose}>
@@ -422,7 +422,7 @@ export function ForeignKeyDialog({
               })
             }
           >
-            {foreignKey ? "Save FK" : "Create foreign key"}
+            {foreignKey ? t("dialogs.foreignKey.save") : t("dialogs.foreignKey.create")}
           </button>
         </div>
       </div>

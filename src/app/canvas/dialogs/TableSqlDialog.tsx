@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { CanvasModal } from "@/app/canvas/components/CanvasModal";
@@ -16,6 +17,7 @@ export function TableSqlDialog({
   sql,
   onClose,
 }: Props) {
+  const { t } = useTranslation("canvas");
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -30,7 +32,7 @@ export function TableSqlDialog({
 
   return (
     <CanvasModal
-      title={`SQL · ${schemaName}.${tableName}`}
+      title={t("dialogs.tableSql.title", { schema: schemaName, table: tableName })}
       onClose={onClose}
       className="canvas-modal--large"
     >
@@ -62,7 +64,7 @@ export function TableSqlDialog({
                 color: "var(--color-text-muted)",
               }}
             >
-              Generated Table DDL & Constraints
+              {t("dialogs.tableSql.header")}
             </span>
             <button
               type="button"
@@ -85,7 +87,7 @@ export function TableSqlDialog({
               }}
             >
               {copied ? <Check size={14} /> : <Copy size={14} />}
-              <span>{copied ? "Copied!" : "Copy SQL"}</span>
+              <span>{copied ? t("dialogs.tableSql.copied") : t("dialogs.tableSql.copy")}</span>
             </button>
           </div>
 

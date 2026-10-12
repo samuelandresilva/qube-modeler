@@ -1,0 +1,87 @@
+{
+  "actions": {
+    "save": "Save",
+    "saveAs": "Save As...",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "edit": "Edit",
+    "discard": "Discard",
+    "remove": "Remove",
+    "open": "Open",
+    "new": "New",
+    "back": "Back",
+    "export": "Export",
+    "view": "View",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "test": "Test",
+    "repair": "Repair",
+    "refresh": "Refresh",
+    "copy": "Copy",
+    "undo": "Undo",
+    "redo": "Redo"
+  },
+  "dialogs": {
+    "errorTitle": "Error",
+    "confirmTitle": "Confirm Action",
+    "unsavedChangesTitle": "Unsaved Changes",
+    "unsavedChangesMessage": "You have unsaved changes. Do you want to save them before closing?",
+    "discardChanges": "Discard Changes",
+    "saveAndClose": "Save and Close",
+    "keepEditing": "Keep Editing"
+  },
+  "status": {
+    "loading": "Loading...",
+    "saved": "Saved",
+    "pending": "Pending",
+    "success": "Success",
+    "failed": "Failed",
+    "applied": "Applied",
+    "notApplied": "Not Applied"
+  },
+  "language": {
+    "selector": "Language",
+    "en": "English",
+    "ptBR": "Português (Brasil)"
+  },
+  "firstRun": {
+    "title": "Welcome to Qube Modeler",
+    "subtitle": "Choose your preferred interface language to get started:",
+    "languageLabel": "Interface language",
+    "englishOption": "English",
+    "portugueseOption": "Português (Brasil)",
+    "getStarted": "Get Started"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "language": "Interface Language",
+    "languageDescription": "Select the language used throughout the application.",
+    "storageLocation": "Preferences Storage",
+    "storageDescription": "Settings are saved in your user profile on this computer (APPDATA).",
+    "shortcut": "Press Ctrl+, anytime to open settings",
+    "close": "Close"
+  },
+  "operations": {
+    "openingProject": "Opening project...",
+    "savingProject": "Saving project...",
+    "savingProjectAs": "Saving project as...",
+    "electronUnavailable": "The Electron preload is unavailable. Fully restart Qube Modeler and try again.",
+    "openProjectError": "Could not open the project: {{error}}",
+    "saveProjectError": "Could not save the project: {{error}}",
+    "discardPrompt": "Discard the unsaved changes to the current project?"
+  },
+  "about": {
+    "title": "About",
+    "version": "Version {{version}}",
+    "description": "A modern, local-first visual database modeler tailored for PostgreSQL. Qube Modeler seamlessly bridges the gap between entity-relationship design and state-based Flyway migrations, keeping your entire database history in a single, Git-friendly project file.",
+    "projectFormat": "Project format",
+    "projectFormatDescription": "Local-first project files designed to be versioned with Git.",
+    "credits": "Credits",
+    "creditsCanvas": "Interactive canvas and diagramming powered by",
+    "creditsSql": "SQL syntax highlighting by",
+    "creditsDevelopedBy": "Developed by"
+  }
+}
